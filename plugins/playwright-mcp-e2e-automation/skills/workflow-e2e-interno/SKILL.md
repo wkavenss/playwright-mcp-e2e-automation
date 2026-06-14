@@ -15,26 +15,29 @@ Criar e alterar arquivos sempre no workspace ou repositorio ativo do usuario. Nu
 
 ## Entrada Esperada
 
-Aceitar os dados disponiveis do fluxo, sem exigir que todos estejam presentes:
+Considerar obrigatorias estas informacoes quando o usuario perguntar o que precisa informar para usar o plugin:
 
 - URL base;
+- usuario;
+- senha;
+- dados obrigatorios;
+- passo a passo.
+
+Aceitar tambem dados complementares do fluxo, quando estiverem disponiveis:
+
 - ambiente;
 - objetivo do teste;
 - caminho funcional conhecido;
 - acao final permitida;
 - massa externa obrigatoria;
 - variaveis de ambiente;
-- usuario;
-- senha;
-- passo a passo real das telas;
-- dados obrigatorios;
 - validacoes esperadas;
 - credenciais informadas pelo usuario para uso local;
 - observacoes ou restricoes do ambiente.
 
 Quando uma informacao nao for fornecida, usar Playwright MCP para explorar a interface e identificar o que for possivel. Quando uma regra funcional nao puder ser inferida pela tela, registrar como pendencia, sem inventar regra de negocio.
 
-Sempre que possivel, obter do usuario ambiente, URL base, usuario, senha, objetivo do teste, caminho funcional, acao final permitida, dados obrigatorios, massa externa e validacoes esperadas. Essas informacoes reduzem o risco de executar a acao errada, submeter dados indevidos ou validar resultado incompleto.
+Sempre que possivel, obter do usuario ambiente, objetivo do teste, caminho funcional, acao final permitida, massa externa, validacoes esperadas e observacoes. Essas informacoes complementares reduzem o risco de executar a acao errada, submeter dados indevidos ou validar resultado incompleto, mas nao devem substituir a lista obrigatoria.
 
 ## Modelo Para Chamadas Futuras
 
@@ -44,29 +47,24 @@ Usar este modelo apenas como referencia para o usuario informar um fluxo:
 Use o plugin Playwright MCP E2E.
 
 URL base:
-Ambiente:
 Usuario:
 Senha:
-Objetivo do teste:
-Caminho funcional conhecido:
-Acao final permitida:
-Massa externa obrigatoria:
-
-Variaveis de ambiente ou credenciais:
+Dados obrigatorios:
 -
 
-Passo a passo real das telas:
+Passo a passo:
 1.
 2.
 3.
 
-Dados obrigatorios:
--
-
-Validacoes esperadas:
--
-
-Observacoes:
+Informacoes opcionais:
+- Ambiente:
+- Objetivo do teste:
+- Caminho funcional conhecido:
+- Acao final permitida:
+- Massa externa obrigatoria:
+- Validacoes esperadas:
+- Observacoes:
 -
 ```
 
