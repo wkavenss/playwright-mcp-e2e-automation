@@ -6,7 +6,7 @@ Plugin publico para Codex com a skill `playwright-mcp-e2e-automation`.
 
 - Skill para criar ou atualizar automacoes E2E com Playwright, JavaScript e Playwright MCP.
 - Orientacoes para projetos novos e existentes.
-- Estrutura com Page Objects, dados, fixtures, variaveis de ambiente e documentacao.
+- Estrutura com Page Objects, dados de teste, fixtures, variaveis de ambiente e documentacao.
 - Marketplace local de repositorio em `.agents/plugins/marketplace.json`.
 
 ## Como Publicar
