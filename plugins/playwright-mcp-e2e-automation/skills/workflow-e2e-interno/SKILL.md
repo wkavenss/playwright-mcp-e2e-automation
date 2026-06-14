@@ -27,6 +27,7 @@ Aceitar os dados disponiveis do fluxo, sem exigir que todos estejam presentes:
 - passo a passo real das telas;
 - dados obrigatorios;
 - validacoes esperadas;
+- credenciais informadas pelo usuario para uso local;
 - observacoes ou restricoes do ambiente.
 
 Quando uma informacao nao for fornecida, usar Playwright MCP para explorar a interface e identificar o que for possivel. Quando uma regra funcional nao puder ser inferida pela tela, registrar como pendencia, sem inventar regra de negocio.
@@ -47,7 +48,7 @@ Caminho funcional conhecido:
 Acao final permitida:
 Massa externa obrigatoria:
 
-Variaveis de ambiente:
+Variaveis de ambiente ou credenciais:
 -
 
 Passo a passo real das telas:
@@ -71,7 +72,7 @@ Observacoes:
 2. Identificar o objetivo funcional do teste.
 3. Verificar se ja existe projeto Playwright no repositorio.
 4. Criar ou ajustar a estrutura do projeto.
-5. Configurar JavaScript, Playwright Test e variaveis de ambiente.
+5. Configurar JavaScript, Playwright Test, `.env`, `.env.example` e variaveis de ambiente.
 6. Usar Playwright MCP para explorar a aplicacao antes de implementar ou alterar testes.
 7. Confirmar telas, campos, botoes, links, mensagens e caminhos reais pela interface.
 8. Mapear as telas em Page Objects.
@@ -139,6 +140,11 @@ Antes de implementar ou alterar testes, registrar evidencias minimas da explorac
 ## Sessao E Autenticacao
 
 - Detectar redirecionamento inesperado para login e registrar como falha de ambiente, sincronizacao ou autenticacao, conforme o caso.
+- Quando o usuario informar usuario, senha, token, URL ou outro dado sensivel no pedido, criar ou atualizar um arquivo `.env` local no workspace ativo com essas variaveis.
+- Nunca copiar valores sensiveis reais para codigo, README, relatorio, screenshots, traces, logs, `.env.example` ou resposta final.
+- Criar ou atualizar `.env.example` apenas com os nomes das variaveis e valores vazios ou exemplos claramente ficticios.
+- Garantir que `.env` esteja protegido pelo `.gitignore` antes de finalizar.
+- Se o projeto ja usar outro arquivo ou mecanismo local de segredo, preservar o padrao existente e documentar como configurar.
 - Usar fixture de login reutilizavel quando houver login.
 - Validar usuario logado ou estado autenticado quando a tela exibir essa informacao.
 - Realizar logout ao final apenas se isso nao prejudicar a coleta de evidencias.
@@ -149,7 +155,7 @@ Antes de implementar ou alterar testes, registrar evidencias minimas da explorac
 - Usar Playwright MCP para explorar as telas antes de implementar ou alterar testes.
 - Nao assumir nomes de menus, botoes, campos, mensagens ou fluxos sem validar na interface.
 - Nao hardcodear usuario, senha, token, e-mail, documento, cookie ou qualquer dado sensivel.
-- Usar variaveis de ambiente para URL, credenciais e configuracoes sensiveis.
+- Usar variaveis de ambiente para URL, credenciais e configuracoes sensiveis; se o usuario informar credenciais no chat, gravar os valores no `.env` local e referenciar somente `process.env`.
 - Priorizar seletores estaveis e semanticos: `getByRole`, `getByLabel`, `getByText`, `getByPlaceholder`, `getByTestId` quando existir, ou seletores semanticos equivalentes.
 - Priorizar roles e nomes acessiveis reais.
 - Quando a interface nao expuser seletores estaveis, registrar a limitacao e sugerir melhoria como `data-testid` estavel.
