@@ -1,0 +1,20 @@
+{
+  "name": "playwright-mcp-e2e-automation",
+  "version": "0.1.0",
+  "description": "Reusable Codex workflow for Playwright MCP E2E automation in institutional web systems.",
+  "author": {
+    "name": "Sig Wellington"
+  },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Playwright MCP E2E",
+    "shortDescription": "Automacoes E2E web institucionais",
+    "longDescription": "Create or update Playwright, JavaScript, and Playwright MCP E2E automation projects with Page Objects, environment variables, test data, documentation, and functional validation for institutional web systems.",
+    "developerName": "Sig Wellington",
+    "category": "Developer tools",
+    "capabilities": [
+      "Write"
+    ],
+    "defaultPrompt": "Use $playwright-mcp-e2e-automation para criar ou atualizar uma automacao E2E com Playwright MCP."
+  }
+}
