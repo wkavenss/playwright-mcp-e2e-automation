@@ -1,6 +1,6 @@
 # Playwright MCP E2E Automation
 
-Plugin publico para Codex com a skill `playwright-mcp-e2e-automation`.
+Plugin publico para Codex com a skill interna `workflow-e2e-interno`.
 
 ## O Que Inclui
 
@@ -46,8 +46,8 @@ codex
 ```text
 .agents/plugins/marketplace.json
 plugins/playwright-mcp-e2e-automation/.codex-plugin/plugin.json
-plugins/playwright-mcp-e2e-automation/skills/playwright-mcp-e2e-automation/SKILL.md
-plugins/playwright-mcp-e2e-automation/skills/playwright-mcp-e2e-automation/agents/openai.yaml
+plugins/playwright-mcp-e2e-automation/skills/workflow-e2e-interno/SKILL.md
+plugins/playwright-mcp-e2e-automation/skills/workflow-e2e-interno/agents/openai.yaml
 ```
 
 ## Validacao
@@ -55,6 +55,6 @@ plugins/playwright-mcp-e2e-automation/skills/playwright-mcp-e2e-automation/agent
 Validado com:
 
 ```bash
-python3 /path/to/quick_validate.py plugins/playwright-mcp-e2e-automation/skills/playwright-mcp-e2e-automation
+python3 /path/to/quick_validate.py plugins/playwright-mcp-e2e-automation/skills/workflow-e2e-interno
 python3 /path/to/validate_plugin.py plugins/playwright-mcp-e2e-automation
 ```
