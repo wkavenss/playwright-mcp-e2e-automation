@@ -1,0 +1,7 @@
+interface:
+  display_name: "Playwright MCP E2E"
+  short_description: "Automacoes E2E web institucionais"
+  default_prompt: "Use $playwright-mcp-e2e-automation para criar ou atualizar uma automacao E2E em sistemas web institucionais com Playwright MCP."
+
+policy:
+  allow_implicit_invocation: true
