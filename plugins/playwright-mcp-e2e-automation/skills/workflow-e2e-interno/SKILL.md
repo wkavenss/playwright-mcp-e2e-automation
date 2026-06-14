@@ -24,6 +24,8 @@ Aceitar os dados disponiveis do fluxo, sem exigir que todos estejam presentes:
 - acao final permitida;
 - massa externa obrigatoria;
 - variaveis de ambiente;
+- usuario;
+- senha;
 - passo a passo real das telas;
 - dados obrigatorios;
 - validacoes esperadas;
@@ -32,7 +34,7 @@ Aceitar os dados disponiveis do fluxo, sem exigir que todos estejam presentes:
 
 Quando uma informacao nao for fornecida, usar Playwright MCP para explorar a interface e identificar o que for possivel. Quando uma regra funcional nao puder ser inferida pela tela, registrar como pendencia, sem inventar regra de negocio.
 
-Sempre que possivel, obter do usuario ambiente, URL base, objetivo do teste, caminho funcional, acao final permitida, dados obrigatorios, massa externa e validacoes esperadas. Essas informacoes reduzem o risco de executar a acao errada, submeter dados indevidos ou validar resultado incompleto.
+Sempre que possivel, obter do usuario ambiente, URL base, usuario, senha, objetivo do teste, caminho funcional, acao final permitida, dados obrigatorios, massa externa e validacoes esperadas. Essas informacoes reduzem o risco de executar a acao errada, submeter dados indevidos ou validar resultado incompleto.
 
 ## Modelo Para Chamadas Futuras
 
@@ -43,6 +45,8 @@ Use o plugin Playwright MCP E2E.
 
 URL base:
 Ambiente:
+Usuario:
+Senha:
 Objetivo do teste:
 Caminho funcional conhecido:
 Acao final permitida:
