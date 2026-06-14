@@ -1,0 +1,20 @@
+{
+  "name": "playwright-mcp-e2e-automation",
+  "interface": {
+    "displayName": "Playwright MCP E2E Automation"
+  },
+  "plugins": [
+    {
+      "name": "playwright-mcp-e2e-automation",
+      "source": {
+        "source": "local",
+        "path": "./plugins/playwright-mcp-e2e-automation"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
