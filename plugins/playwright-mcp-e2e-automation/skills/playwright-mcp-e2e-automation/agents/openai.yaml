@@ -1,7 +1,0 @@
-interface:
-  display_name: "Workflow E2E interno"
-  short_description: "Skill interna do plugin"
-  default_prompt: "Use $playwright-mcp-e2e-automation para criar ou atualizar uma automacao E2E com Playwright MCP."
-
-policy:
-  allow_implicit_invocation: true
