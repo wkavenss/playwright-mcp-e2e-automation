@@ -20,7 +20,7 @@ git init
 git add .
 git commit -m "Publica plugin Playwright MCP E2E"
 git branch -M main
-git remote add origin https://github.com/SEU_USUARIO/playwright-mcp-e2e-automation.git
+git remote add origin https://github.com/wkavenss/playwright-mcp-e2e-automation.git
 git push -u origin main
 ```
 
@@ -29,7 +29,7 @@ git push -u origin main
 Depois de publicar o repositorio, instale o marketplace:
 
 ```bash
-codex plugin marketplace add SEU_USUARIO/playwright-mcp-e2e-automation
+codex plugin marketplace add wkavenss/playwright-mcp-e2e-automation
 ```
 
 Em seguida, abra o Codex, acesse Plugins, selecione o marketplace `Playwright MCP E2E Automation` e instale o plugin `playwright-mcp-e2e-automation`.
