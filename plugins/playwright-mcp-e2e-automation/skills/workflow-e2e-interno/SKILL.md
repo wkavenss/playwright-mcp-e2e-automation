@@ -1,6 +1,6 @@
 ---
 name: workflow-e2e-interno
-description: Use esta skill para criar ou atualizar automacoes de testes E2E para aplicacoes web com Playwright, JavaScript e Playwright MCP. Use quando o usuario pedir para automatizar fluxo web, criar projeto Playwright do zero, validar fluxo funcional em navegador, transformar passo a passo manual em teste automatizado, estruturar testes com Page Objects, usar Playwright MCP, melhorar ou corrigir automacao Playwright existente, a partir de URL, objetivo do teste, dados obrigatorios e validacoes esperadas.
+description: Workflow interno do plugin para criar ou atualizar automacoes de testes E2E para aplicacoes web. Use quando este workflow interno for acionado pelo plugin para automatizar fluxo web, validar fluxo funcional em navegador, transformar passo a passo manual em teste automatizado, estruturar testes com Page Objects, melhorar ou corrigir automacao existente, a partir de URL, objetivo do teste, dados obrigatorios e validacoes esperadas.
 ---
 
 # Automacao E2E com Playwright MCP
