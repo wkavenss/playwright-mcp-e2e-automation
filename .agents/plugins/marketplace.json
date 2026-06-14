@@ -1,7 +1,7 @@
 {
   "name": "playwright-mcp-e2e-automation",
   "interface": {
-    "displayName": "Playwright MCP E2E Automation"
+    "displayName": "Playwright MCP E2E"
   },
   "plugins": [
     {
