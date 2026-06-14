@@ -1,6 +1,6 @@
 {
   "name": "playwright-mcp-e2e-automation",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Reusable Codex workflow for Playwright MCP E2E automation in web applications.",
   "author": {
     "name": "wkavenss"
@@ -15,6 +15,6 @@
     "capabilities": [
       "Write"
     ],
-    "defaultPrompt": "Use $playwright-mcp-e2e-automation para criar ou atualizar uma automacao E2E com Playwright MCP."
+    "defaultPrompt": "Crie ou atualize uma automacao E2E com Playwright MCP."
   }
 }
