@@ -1,6 +1,6 @@
 ---
 name: workflow-e2e-interno
-description: Workflow interno do plugin para criar ou atualizar automacoes de testes E2E para aplicacoes web. Use quando este workflow interno for acionado pelo plugin para automatizar fluxo web, validar fluxo funcional em navegador, transformar passo a passo manual em teste automatizado, estruturar testes com Page Objects, melhorar ou corrigir automacao existente, a partir de URL, objetivo do teste, dados obrigatorios e validacoes esperadas.
+description: Workflow interno do plugin para criar ou atualizar automacoes de testes E2E para aplicacoes web. Use quando este workflow interno for acionado pelo plugin para automatizar fluxo web, validar fluxo funcional em navegador, transformar passo a passo manual em teste automatizado, estruturar testes com Page Objects, melhorar ou corrigir automacao existente, a partir de URL, credenciais, passo a passo e validacoes esperadas.
 ---
 
 # Automacao E2E com Playwright MCP
@@ -20,10 +20,9 @@ Considerar obrigatorias estas informacoes quando o usuario perguntar o que preci
 - URL base;
 - usuario;
 - senha;
-- dados obrigatorios;
 - passo a passo.
 
-Antes de iniciar a automacao, verificar se URL base, usuario, senha, dados obrigatorios e passo a passo foram informados.
+Antes de iniciar a automacao, verificar se URL base, usuario, senha e passo a passo foram informados.
 
 Se algum desses dados minimos estiver ausente, interromper a execucao e pedir objetivamente apenas os dados faltantes.
 
@@ -37,6 +36,7 @@ Aceitar tambem dados complementares do fluxo, quando estiverem disponiveis:
 - acao final permitida;
 - massa externa obrigatoria;
 - variaveis de ambiente;
+- dados obrigatorios informados pelo usuario, quando houver;
 - resultado esperado;
 - validacoes esperadas;
 - credenciais informadas pelo usuario para uso local;
@@ -57,8 +57,6 @@ Use o plugin Playwright MCP E2E.
 URL base:
 Usuario:
 Senha:
-Dados obrigatorios:
--
 
 Passo a passo:
 1.
@@ -83,7 +81,6 @@ Antes de criar ou alterar codigo, consolidar o pedido em um resumo operacional:
 - fluxo a automatizar;
 - URL base;
 - dados de acesso recebidos e variaveis de ambiente correspondentes, sem repetir valores sensiveis;
-- dados obrigatorios para preencher;
 - passo a passo informado;
 - resultado esperado, quando informado;
 - acao final permitida, quando informada;
@@ -95,7 +92,7 @@ Se resultado esperado ou acao final permitida nao forem informados, inferir apen
 ## Fluxo De Trabalho
 
 1. Ler os dados informados pelo usuario.
-2. Validar se URL base, usuario, senha, dados obrigatorios e passo a passo foram informados.
+2. Validar se URL base, usuario, senha e passo a passo foram informados.
 3. Se faltar dado minimo, interromper e pedir somente os dados faltantes.
 4. Identificar o objetivo funcional do teste.
 5. Verificar se ja existe projeto Playwright no repositorio.
@@ -121,7 +118,7 @@ Antes de implementar ou alterar testes, sempre explorar a aplicacao com Playwrig
 - telas, rotas e caminhos visitados;
 - campos, botoes, links, mensagens e estados reais confirmados;
 - seletores semanticos candidatos e motivo da escolha;
-- obrigatoriedades descobertas por labels, mensagens, asteriscos, validacao nativa ou submissao controlada;
+- obrigatoriedades descobertas pela estrela azul, legenda da tela, labels, mensagens, asteriscos, validacao nativa ou submissao controlada;
 - login, captcha, MFA, modais, banners, sessao expirada ou redirecionamentos inesperados;
 - validacoes funcionais observaveis;
 - bloqueios, permissoes ausentes, captcha, MFA, instabilidade ou massa indisponivel.
@@ -141,6 +138,8 @@ Nao escrever o teste principal antes de entender a tela inicial, o caminho do us
 ## Formularios, Campos E Etapas
 
 - Mapear labels, inputs, textareas, selects, combos, radios, checkboxes, campos de data, campos de busca, uploads, editores ricos e mensagens de validacao.
+- Tratar como campos obrigatorios aqueles que possuem icone de estrela azul ao lado do campo. Em cada tela, procurar e confirmar a legenda que informa que a estrela azul indica obrigatoriedade.
+- Nao exigir que o usuario informe previamente os dados obrigatorios quando a tela usar estrela azul; descobrir esses campos durante a exploracao com Playwright MCP.
 - Campos obrigatorios podem ser indicados por atributo HTML, asterisco, legenda visual, mensagem de validacao ou regra da tela. Nao depender apenas do atributo `required`.
 - Quando apropriado, submeter formulario incompleto durante exploracao para observar mensagens de validacao e descobrir obrigatoriedades.
 - Nao preencher aleatoriamente campos funcionais sensiveis. Preferir dados informados pelo usuario ou dados de teste claramente artificiais.
