@@ -1,6 +1,6 @@
 ---
 name: workflow-e2e-interno
-description: Workflow interno do plugin para criar ou atualizar automacoes de testes E2E para aplicacoes web. Use quando este workflow interno for acionado pelo plugin para automatizar fluxo web, validar fluxo funcional em navegador, transformar passo a passo manual em teste automatizado, estruturar testes com Page Objects, melhorar ou corrigir automacao existente, a partir de URL, credenciais, decisao obrigatoria sobre implementar codigo Playwright, passo a passo e validacoes esperadas.
+description: Workflow interno do plugin para criar ou atualizar automacoes de testes E2E para aplicacoes web. Use quando este workflow interno for acionado pelo plugin para automatizar fluxo web, validar fluxo funcional em navegador, transformar passo a passo manual em teste automatizado, estruturar testes com Page Objects, melhorar ou corrigir automacao existente, a partir de URL, credenciais, passo a passo e validacoes esperadas.
 ---
 
 # Automacao E2E com Playwright MCP
@@ -9,7 +9,7 @@ Criar ou atualizar automacoes de testes E2E para aplicacoes web usando Playwrigh
 
 Usar esta skill quando o usuario pedir para criar automacao E2E com Playwright, criar projeto Playwright do zero, automatizar fluxo web, validar fluxo funcional em navegador, criar testes usando Playwright MCP, transformar passo a passo manual em teste automatizado, estruturar testes com Page Objects ou melhorar/corrigir automacao Playwright existente.
 
-A implementacao de codigo Playwright depende de uma resposta explicita do usuario para a pergunta obrigatoria "O codigo do Playwright devera ser implementado?". Se a resposta for Nao, o trabalho deve ficar limitado a execucao, validacao ou diagnostico interativo com Playwright MCP.
+Por padrao, implementar ou atualizar codigo Playwright e executar a validacao em Chromium headed quando o usuario nao pedir outro modo. Se o usuario disser explicitamente para nao implementar codigo, limitar o trabalho a execucao, validacao ou diagnostico interativo com Playwright MCP.
 
 ## Escopo De Escrita
 
@@ -22,18 +22,17 @@ Considerar obrigatorias estas informacoes quando o usuario perguntar o que preci
 - URL base;
 - usuario;
 - senha;
-- resposta obrigatoria para "O codigo do Playwright devera ser implementado?" com Sim ou Nao;
 - passo a passo.
 
-Antes de iniciar a automacao, verificar se URL base, usuario, senha, resposta obrigatoria sobre implementacao do codigo Playwright e passo a passo foram informados.
+Antes de iniciar a automacao, verificar se URL base, usuario, senha e passo a passo foram informados.
 
 Se algum desses dados minimos estiver ausente, interromper a execucao e pedir objetivamente apenas os dados faltantes.
 
 Nao criar projeto, nao instalar dependencias, nao explorar tela e nao executar teste ate receber todos os dados minimos.
 
-Se a resposta para "O codigo do Playwright devera ser implementado?" for ambigua, interromper e pedir que o usuario responda Sim ou Nao. Nao assumir uma resposta padrao.
+Quando o usuario nao informar se o codigo Playwright deve ser implementado, assumir Sim. Nao perguntar por essa decisao como dado minimo.
 
-Quando a resposta for Sim, criar ou atualizar o codigo Playwright no repositorio ativo, seguindo o fluxo completo desta skill.
+Quando a resposta for Sim ou quando a decisao nao for informada, criar ou atualizar o codigo Playwright no repositorio ativo, seguindo o fluxo completo desta skill.
 
 Quando a resposta for Nao, usar Playwright MCP apenas para executar, validar ou diagnosticar o fluxo de forma interativa. Nao criar nem alterar arquivos de teste, Page Objects, configuracoes, documentacao, `.env` ou dependencias por causa desse pedido, salvo se o usuario autorizar explicitamente depois. Na resposta final, informar claramente que nenhum codigo Playwright foi criado ou alterado.
 
@@ -67,7 +66,6 @@ Use o plugin Playwright MCP E2E.
 URL base:
 Usuario:
 Senha:
-O codigo do Playwright devera ser implementado? (Sim/Nao):
 
 Passo a passo:
 1.
@@ -78,6 +76,8 @@ Informacoes opcionais:
 - Ambiente:
 - Objetivo do teste:
 - Caminho funcional conhecido:
+- Implementar codigo Playwright: Sim
+- Modo de execucao: headed
 - Acao final permitida:
 - Massa externa obrigatoria:
 - Validacoes esperadas:
@@ -93,7 +93,7 @@ Antes de criar ou alterar codigo, consolidar o pedido em um resumo operacional:
 - fluxo a automatizar;
 - URL base;
 - dados de acesso recebidos e variaveis de ambiente correspondentes, sem repetir valores sensiveis;
-- decisao do usuario sobre implementar ou nao codigo Playwright;
+- decisao sobre implementar codigo Playwright; quando nao informada, assumir Sim;
 - passo a passo informado;
 - resultado esperado, quando informado;
 - acao final permitida, quando informada;
@@ -116,11 +116,11 @@ Nao explorar menus, telas ou campos fora do passo a passo, salvo quando necessar
 ## Fluxo De Trabalho
 
 1. Ler os dados informados pelo usuario.
-2. Validar se URL base, usuario, senha, decisao obrigatoria sobre implementacao do codigo Playwright e passo a passo foram informados.
+2. Validar se URL base, usuario, senha e passo a passo foram informados.
 3. Se faltar dado minimo, interromper e pedir somente os dados faltantes.
 4. Identificar o objetivo funcional do teste.
 5. Se a decisao for Nao, executar o fluxo com Playwright MCP de forma interativa, validar o resultado possivel e responder com o resumo da execucao sem alterar arquivos.
-6. Se a decisao for Sim, verificar se ja existe projeto Playwright no repositorio.
+6. Se a decisao for Sim ou nao informada, verificar se ja existe projeto Playwright no repositorio.
 7. Criar ou ajustar a estrutura do projeto.
 8. Configurar JavaScript, Playwright Test, `.env`, `.env.example` e variaveis de ambiente.
 9. Usar Playwright MCP para explorar a aplicacao dentro do escopo do modo de trabalho antes de implementar ou alterar testes.
@@ -129,7 +129,7 @@ Nao explorar menus, telas ou campos fora do passo a passo, salvo quando necessar
 12. Criar ou atualizar dados de teste separados do fluxo.
 13. Implementar o teste E2E principal.
 14. Adicionar validacoes funcionais.
-15. Executar o teste em modo headed quando o usuario nao especificar outro modo.
+15. Executar o teste em Chromium headed quando o usuario nao especificar outro modo.
 16. Corrigir falhas respeitando o limite de ciclos do modo de trabalho.
 17. Classificar falhas encontradas e registrar diagnostico.
 18. Atualizar a documentacao.
@@ -238,7 +238,7 @@ E2E_PASSWORD=
 
 Para projetos existentes, preservar nomes e mecanismo local ja adotados quando houver padrao claro.
 
-Quando a resposta obrigatoria for Sim e o usuario informar credenciais no chat:
+Quando houver implementacao de codigo e o usuario informar credenciais no chat:
 
 - criar ou atualizar `.env` com os valores reais;
 - criar ou atualizar `.env.example` com os mesmos nomes e valores vazios;
@@ -248,9 +248,9 @@ Quando a resposta obrigatoria for Sim e o usuario informar credenciais no chat:
 
 ## Regras Obrigatorias
 
-- Exigir resposta Sim ou Nao para "O codigo do Playwright devera ser implementado?" antes de explorar tela, executar fluxo ou alterar arquivos.
+- Assumir implementacao de codigo Playwright quando o usuario nao pedir explicitamente execucao sem codigo.
 - Quando a resposta for Nao, nao criar nem alterar codigo, configuracao, documentacao, dependencias, `.env` ou `.env.example`; executar apenas a parte interativa possivel com Playwright MCP e registrar isso no resumo final.
-- Quando a resposta for Sim, seguir o fluxo completo de implementacao, validacao e documentacao.
+- Quando a resposta for Sim ou nao informada, seguir o fluxo completo de implementacao, validacao e documentacao.
 - Usar Playwright MCP para explorar as telas antes de implementar ou alterar testes.
 - Nao assumir nomes de menus, botoes, campos, mensagens ou fluxos sem validar na interface.
 - Nao hardcodear usuario, senha, token, e-mail, documento, cookie ou qualquer dado sensivel.
@@ -278,7 +278,7 @@ Quando a resposta obrigatoria for Sim e o usuario informar credenciais no chat:
 - Para fluxos com login pesado, usar `storageState` somente quando permitido pelo ambiente e sem versionar estado autenticado, tokens, cookies ou credenciais reais.
 - Para fluxos destrutivos, como exclusao, cancelamento, envio definitivo ou alteracao irreversivel, preferir ambiente de teste, usar dados unicos e pedir confirmacao quando houver risco de impacto real.
 - Em producao, evitar criacao, alteracao, submissao, exclusao, aprovacao ou qualquer acao irreversivel em dados reais. Se o fluxo for destrutivo ou irreversivel, interromper antes da acao final e registrar orientacao, salvo autorizacao explicita do usuario.
-- Executar o teste final quando o ambiente permitir; se o usuario nao especificar modo de execucao, executar em headed por padrao.
+- Executar o teste final quando o ambiente permitir; se o usuario nao especificar modo de execucao, executar em Chromium headed por padrao.
 
 ## Projeto Novo Ou Existente
 
@@ -313,7 +313,7 @@ Configurar `package.json` com, no minimo:
 }
 ```
 
-Quando o usuario nao informar modo de execucao, tratar `test:headed` como comando padrao de validacao local. O script `test` pode permanecer headless para CI, mas a execucao feita pela skill deve ser headed por padrao.
+Quando o usuario nao informar modo de execucao, tratar `test:headed` como comando padrao de validacao local. O script `test` pode permanecer headless para CI, mas a execucao feita pela skill deve usar Chromium headed por padrao. Se o projeto ainda nao tiver navegador Playwright instalado, instalar o Chromium antes da execucao final quando houver autorizacao de rede/sandbox.
 
 Configurar `playwright.config.js` em JavaScript com evidencias uteis em falha:
 
@@ -439,9 +439,9 @@ No modo padrao, garantir no `README.md` apenas objetivo, URL/ambiente quando apl
 
 ## Criterios De Pronto
 
-Quando a resposta obrigatoria for Nao, considerar a execucao interativa concluida somente quando o fluxo solicitado tiver sido executado ou diagnosticado ate o ponto possivel com Playwright MCP, o resultado tiver sido validado por mensagem, tela, listagem ou bloqueio observado, e a resposta final informar que nenhum codigo Playwright foi criado ou alterado.
+Quando o usuario pedir explicitamente para nao implementar codigo, considerar a execucao interativa concluida somente quando o fluxo solicitado tiver sido executado ou diagnosticado ate o ponto possivel com Playwright MCP, o resultado tiver sido validado por mensagem, tela, listagem ou bloqueio observado, e a resposta final informar que nenhum codigo Playwright foi criado ou alterado.
 
-Quando a resposta obrigatoria for Sim, considerar a automacao pronta somente quando:
+Quando o usuario pedir implementacao ou nao informar essa decisao, considerar a automacao pronta somente quando:
 
 - o fluxo principal estiver implementado em teste E2E legivel;
 - os Page Objects representarem acoes funcionais;
@@ -451,7 +451,7 @@ Quando a resposta obrigatoria for Sim, considerar a automacao pronta somente qua
 - o `.gitignore` proteger `.env`, relatorios, traces, screenshots, videos e dependencias geradas;
 - o `README.md` explicar instalacao, configuracao, execucao, evidencias, limitacoes e pendencias;
 - as validacoes funcionais cobrirem o resultado esperado do fluxo;
-- a execucao do teste tiver sido realizada em modo headed por padrao, salvo pedido explicito por outro modo;
+- a execucao do teste tiver sido realizada em Chromium headed por padrao, salvo pedido explicito por outro modo;
 - falhas tiverem sido classificadas com diagnostico claro ou, se nao for possivel executar, o motivo estiver documentado como bloqueio.
 
 ## Resumo Final
