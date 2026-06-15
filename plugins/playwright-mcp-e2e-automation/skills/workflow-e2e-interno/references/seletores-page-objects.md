@@ -37,7 +37,6 @@ playwright.config.js
 package.json
 .env.example
 .gitignore
-README.md
 ```
 
 Preservar a estrutura existente quando houver Playwright no repositorio.

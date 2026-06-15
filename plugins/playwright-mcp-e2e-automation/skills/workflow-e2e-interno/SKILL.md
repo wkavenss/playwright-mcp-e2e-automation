@@ -18,7 +18,7 @@ Antes de agir, exigir apenas:
 
 Se faltar algo, interromper e responder em uma linha: `Faltam: ...`. Nao criar projeto, instalar dependencias, explorar tela nem executar teste ate receber esses dados.
 
-Dados opcionais: ambiente, objetivo, caminho conhecido, acao final permitida, massa externa, validacoes esperadas, modo de execucao (`headed`, `headless`, `ui`), modo de trabalho (`rapido`, `padrao`, `profundo`) e restricoes.
+Dados opcionais: ambiente, objetivo, caminho conhecido, acao final permitida, massa externa, validacoes esperadas, modo de execucao (`headed`, `headless`, `ui`), modo de trabalho (`rapido`, `padrao`, `profundo`), evidencias (`minimo`, `falha`, `completo`) e restricoes.
 
 Quando o usuario informar credenciais no chat, gravar em `.env` local, proteger `.env` no `.gitignore`, criar `.env.example` seguro e usar apenas `process.env` no codigo. Nunca repetir segredos no codigo, README, logs ou resposta final.
 
@@ -27,6 +27,7 @@ Quando o usuario informar credenciais no chat, gravar em `.env` local, proteger 
 - Implementar codigo Playwright: assumir `Sim` quando nao informado.
 - Modo de execucao: assumir Chromium `headed` quando nao informado.
 - Modo de trabalho: assumir `padrao` quando nao informado.
+- Evidencias: assumir `minimo` quando nao informado.
 - Campos obrigatorios: descobrir na tela; quando houver estrela azul e legenda, tratar esses campos como obrigatorios.
 - Projeto existente: preservar estrutura, scripts, fixtures, helpers e padroes locais.
 - Projeto novo: criar somente estrutura minima necessaria.
@@ -35,16 +36,24 @@ Quando o usuario informar credenciais no chat, gravar em `.env` local, proteger 
 ## Modos De Trabalho
 
 - `rapido`: seguir caminho principal, Page Objects minimos, 1 validacao funcional, 1 ciclo de correcao, resumo curto.
-- `padrao`: explorar apenas telas do passo a passo, reaproveitar mapa de telas, Page Objects suficientes, executar uma vez em headed, ate 2 ciclos de correcao, README minimo.
+- `padrao`: explorar apenas telas do passo a passo, reaproveitar mapa de telas, Page Objects suficientes, executar uma vez em headed e fazer ate 2 ciclos de correcao.
 - `profundo`: carregar referencias detalhadas, mapear formularios/modais/abas com mais rigor, ampliar evidencias, atualizar README completo e sugerir melhorias de acessibilidade quando util.
 
 Nao explorar menus, telas ou campos fora do passo a passo, salvo para desbloquear o fluxo.
+
+## Evidencias
+
+- `minimo` (padrao): nao criar/atualizar README, trace, screenshot, video ou diagnostico detalhado. Usar `trace: 'off'`, `screenshot: 'off'` e `video: 'off'` quando configurar Playwright.
+- `falha`: gerar artefatos somente em falha ou quando forem indispensaveis para explicar bloqueio.
+- `completo`: gerar README, traces, screenshots/videos quando util e diagnostico detalhado; usar com modo `profundo` ou quando o usuario pedir.
+
+Mesmo em `minimo`, a saida normal do terminal pode existir. Evitar copiar logs longos para a resposta; resumir apenas resultado, erro principal e proximo passo.
 
 ## Fluxo Principal
 
 1. Validar contrato minimo.
 2. Detectar se o usuario pediu explicitamente para nao implementar codigo.
-3. Identificar modo de trabalho e modo de execucao.
+3. Identificar modo de trabalho, modo de execucao e nivel de evidencias.
 4. Detectar se ja existe Playwright no repositorio antes de instalar ou criar arquivos.
 5. Explorar com Playwright MCP somente o caminho necessario.
 6. Mapear para cada tela: identificacao da tela, campos obrigatorios, acao principal, mensagem/estado esperado e proxima acao.
@@ -65,7 +74,7 @@ Se o usuario pedir explicitamente execucao sem codigo, usar Playwright MCP de fo
 - Validar resultado funcional: mensagem, registro, detalhe persistido, estado final, download, protocolo ou bloqueio esperado.
 - Evitar `waitForTimeout`; preferir waits automaticos e assertions do Playwright.
 - Pedir autorizacao quando houver rede, instalacao, navegador, credenciais, escrita sensivel, ambiente externo ou sandbox.
-- No modo `padrao`, gerar evidencia apenas de sucesso final ou falha; traces, videos e diagnostico detalhado ficam para falha ou modo `profundo`.
+- Nao gerar README, traces, screenshots, videos ou diagnostico detalhado por padrao; usar o nivel de evidencias solicitado.
 - Nao automatizar captcha, burlar MFA, commitar segredos, usar dados reais sensiveis ou executar acao destrutiva em ambiente real sem confirmacao explicita.
 - Em falha, classificar causa principal antes de responder: seletor, navegacao, autenticacao, massa, permissao, regra funcional, ambiente, captcha/MFA ou sincronizacao.
 
@@ -82,7 +91,7 @@ No modo `rapido` ou `padrao`, nao carregar referencias se o fluxo puder ser impl
 
 ## Saida E Documentacao
 
-No modo `rapido`, responder curto e documentar apenas pendencias importantes. No modo `padrao`, manter README minimo com objetivo, variaveis, comandos, validacoes e limitacoes. No modo `profundo`, usar `references/configuracao-playwright.md` e `references/diagnostico-e-evidencias.md` para README e evidencias completas.
+No modo `rapido` ou com `evidencias: minimo`, responder curto e nao criar/atualizar README. No modo `padrao` com `evidencias: falha`, documentar somente limitacoes necessarias. No modo `profundo` ou com `evidencias: completo`, usar `references/configuracao-playwright.md` e `references/diagnostico-e-evidencias.md` para README e evidencias completas.
 
 Resumo final padrao:
 
@@ -94,6 +103,7 @@ Validacoes:
 Como executar:
 Execucao realizada:
 Modo de execucao:
+Evidencias:
 Resultado:
 Pendencias/Bloqueios:
 ```

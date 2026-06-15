@@ -1,6 +1,6 @@
 # Configuracao Playwright
 
-Use este arquivo para projeto novo, instalacao/configuracao, scripts, `.env`, evidencias, README completo ou quando o projeto nao tiver padrao local claro.
+Use este arquivo para projeto novo, instalacao/configuracao, scripts, `.env`, evidencias completas, README completo ou quando o projeto nao tiver padrao local claro.
 
 ## Package Manager
 
@@ -45,14 +45,21 @@ Se o projeto ja usar outro mecanismo, preservar o padrao. Quando o usuario forne
 
 ## Evidencias
 
-Configurar Playwright com evidencias uteis em falha:
+Por padrao, configurar Playwright com evidencias minimas:
 
-- `trace: 'on-first-retry'`;
+- `trace: 'off'`;
+- `screenshot: 'off'`;
+- `video: 'off'`.
+
+Quando o usuario pedir `evidencias: falha`, usar artefatos somente em falha:
+
+- `trace: 'retain-on-failure'` ou `trace: 'on-first-retry'`;
 - `screenshot: 'only-on-failure'`;
-- `video: 'retain-on-failure'`;
-- reporter HTML.
+- `video: 'retain-on-failure'`.
 
-No modo `padrao`, relatar somente evidencias essenciais. No modo `profundo`, documentar relatorio HTML, traces, screenshots, videos, comandos e limitacoes no README.
+Quando o usuario pedir `evidencias: completo` ou modo `profundo`, habilitar evidencias suficientes para diagnostico e documentar onde ficam relatorio HTML, traces, screenshots e videos.
+
+No modo `minimo`, nao criar nem atualizar README por causa de evidencias. No modo `falha`, registrar apenas o necessario para entender o erro. No modo `completo`, documentar comandos, relatorios, traces, screenshots, videos e limitacoes no README.
 
 ## Dados De Teste
 

@@ -1,6 +1,6 @@
 # Diagnostico E Evidencias
 
-Use este arquivo em falhas, bloqueios, ambientes instaveis, modo `profundo` ou quando precisar explicar por que a automacao nao chegou ao fim.
+Use este arquivo em falhas, bloqueios, ambientes instaveis, `evidencias: falha`, `evidencias: completo`, modo `profundo` ou quando precisar explicar por que a automacao nao chegou ao fim.
 
 ## Classificacao De Falhas
 
@@ -21,7 +21,7 @@ Nao resumir como timeout quando houver mensagem funcional, regra de negocio ou b
 
 ## Registro Minimo
 
-Para cada falha relevante, registrar:
+Com `evidencias: minimo`, registrar somente erro principal e proximo passo. Com `evidencias: falha` ou `completo`, para cada falha relevante registrar:
 
 - tela e acao tentada;
 - mensagem exibida;
@@ -39,7 +39,7 @@ Em producao ou ambiente real, nao executar criacao, alteracao, submissao, aprova
 
 ## Resumo Profundo
 
-Quando o modo for `profundo`, incluir no resumo:
+Quando o modo for `profundo` ou `evidencias: completo`, incluir no resumo:
 
 - evidencias geradas: relatorio, trace, screenshot, video;
 - estado visivel da tela no bloqueio;
