@@ -31,8 +31,10 @@ Aceitar tambem dados complementares do fluxo, quando estiverem disponiveis:
 - acao final permitida;
 - massa externa obrigatoria;
 - variaveis de ambiente;
+- resultado esperado;
 - validacoes esperadas;
 - credenciais informadas pelo usuario para uso local;
+- modo de execucao desejado: headed, headless ou UI;
 - observacoes ou restricoes do ambiente.
 
 Quando uma informacao nao for fornecida, usar Playwright MCP para explorar a interface e identificar o que for possivel. Quando uma regra funcional nao puder ser inferida pela tela, registrar como pendencia, sem inventar regra de negocio.
@@ -68,6 +70,22 @@ Informacoes opcionais:
 -
 ```
 
+## Entendimento Inicial
+
+Antes de criar ou alterar codigo, consolidar o pedido em um resumo operacional:
+
+- fluxo a automatizar;
+- URL base;
+- dados de acesso recebidos e variaveis de ambiente correspondentes, sem repetir valores sensiveis;
+- dados obrigatorios para preencher;
+- passo a passo informado;
+- resultado esperado, quando informado;
+- acao final permitida, quando informada;
+- ambiente e restricoes conhecidas;
+- modo de execucao solicitado; quando nao informado, usar modo headed como padrao.
+
+Se resultado esperado ou acao final permitida nao forem informados, inferir apenas o que for observavel pela tela. Quando a inferencia nao for segura, registrar pendencia e evitar a acao final sensivel.
+
 ## Fluxo De Trabalho
 
 1. Ler os dados informados pelo usuario.
@@ -81,21 +99,26 @@ Informacoes opcionais:
 9. Criar ou atualizar dados de teste separados do fluxo.
 10. Implementar o teste E2E principal.
 11. Adicionar validacoes funcionais.
-12. Executar o teste quando o ambiente permitir.
+12. Executar o teste em modo headed quando o usuario nao especificar outro modo.
 13. Corrigir falhas possiveis de seletor, navegacao, sincronizacao ou validacao.
-14. Atualizar a documentacao.
-15. Responder ao final com o resumo padronizado.
+14. Classificar falhas encontradas e registrar diagnostico.
+15. Atualizar a documentacao.
+16. Responder ao final com o resumo padronizado.
 
 ## Exploracao Com Playwright MCP
 
-Antes de implementar ou alterar testes, registrar evidencias minimas da exploracao:
+Antes de implementar ou alterar testes, sempre explorar a aplicacao com Playwright MCP e registrar evidencias minimas:
 
 - URL acessada e ambiente usado;
 - telas, rotas e caminhos visitados;
 - campos, botoes, links, mensagens e estados reais confirmados;
 - seletores semanticos candidatos e motivo da escolha;
+- obrigatoriedades descobertas por labels, mensagens, asteriscos, validacao nativa ou submissao controlada;
+- login, captcha, MFA, modais, banners, sessao expirada ou redirecionamentos inesperados;
 - validacoes funcionais observaveis;
 - bloqueios, permissoes ausentes, captcha, MFA, instabilidade ou massa indisponivel.
+
+Nao escrever o teste principal antes de entender a tela inicial, o caminho do usuario, os dados exigidos, as acoes intermediarias, a acao final e ao menos uma validacao funcional observavel.
 
 ## Navegacao E Telas
 
@@ -115,6 +138,7 @@ Antes de implementar ou alterar testes, registrar evidencias minimas da explorac
 - Nao preencher aleatoriamente campos funcionais sensiveis. Preferir dados informados pelo usuario ou dados de teste claramente artificiais.
 - Diferenciar acoes intermediarias de acoes finais, como salvar rascunho, gravar parcialmente, enviar, confirmar definitivamente, cancelar ou excluir.
 - Nao clicar em acoes finais se isso nao estiver explicitamente no objetivo do teste ou na acao final permitida.
+- Antes de acao final, verificar: permissao explicita do usuario, ambiente seguro, dados de teste, reversibilidade da operacao e ausencia de impacto em dados reais.
 - Antes de confirmacao final, validar que a tela de revisao apresenta os principais dados preenchidos quando essa tela existir.
 - Apos cada etapa, validar que a aplicacao avancou para o estado correto.
 
@@ -152,6 +176,26 @@ Antes de implementar ou alterar testes, registrar evidencias minimas da explorac
 - Realizar logout ao final apenas se isso nao prejudicar a coleta de evidencias.
 - Se houver aviso de sessao, pop-up, banner ou modal, tratar de forma controlada e documentar.
 
+## Estrategia De Variaveis E Segredos
+
+Para projetos novos, padronizar variaveis como:
+
+```text
+BASE_URL=
+E2E_USER=
+E2E_PASSWORD=
+```
+
+Para projetos existentes, preservar nomes e mecanismo local ja adotados quando houver padrao claro.
+
+Quando o usuario informar credenciais no chat:
+
+- criar ou atualizar `.env` com os valores reais;
+- criar ou atualizar `.env.example` com os mesmos nomes e valores vazios;
+- adicionar `.env` ao `.gitignore`;
+- usar `process.env` no codigo;
+- nao repetir valores sensiveis no resumo final.
+
 ## Regras Obrigatorias
 
 - Usar Playwright MCP para explorar as telas antes de implementar ou alterar testes.
@@ -167,7 +211,7 @@ Antes de implementar ou alterar testes, registrar evidencias minimas da explorac
 - Separar testes, paginas, fixtures, dados e utilitarios.
 - Criar dados unicos quando houver cadastro, usando timestamp ou identificador dinamico.
 - Validar resultado funcional, nao apenas cliques ou navegacao.
-- Validar mensagens, registros em listagem, estados persistidos, redirecionamentos, dados salvos ou outro indicio confiavel.
+- Validar mensagens, registros em listagem, estados persistidos, redirecionamentos, dados salvos, erro funcional esperado ou outro indicio confiavel.
 - Evitar `waitForTimeout`, salvo em ultimo caso justificado.
 - Usar os waits automaticos do Playwright sempre que possivel.
 - Registrar bloqueios como captcha, MFA, ambiente indisponivel, permissao insuficiente, instabilidade, regra de negocio ambigua ou ausencia de massa de dados.
@@ -182,7 +226,7 @@ Antes de implementar ou alterar testes, registrar evidencias minimas da explorac
 - Para fluxos com login pesado, usar `storageState` somente quando permitido pelo ambiente e sem versionar estado autenticado, tokens, cookies ou credenciais reais.
 - Para fluxos destrutivos, como exclusao, cancelamento, envio definitivo ou alteracao irreversivel, preferir ambiente de teste, usar dados unicos e pedir confirmacao quando houver risco de impacto real.
 - Em producao, evitar criacao, alteracao, submissao, exclusao, aprovacao ou qualquer acao irreversivel em dados reais. Se o fluxo for destrutivo ou irreversivel, interromper antes da acao final e registrar orientacao, salvo autorizacao explicita do usuario.
-- Executar o teste ao final quando o ambiente permitir e corrigir falhas possiveis.
+- Executar o teste ao final quando o ambiente permitir; se o usuario nao especificar modo, executar em modo headed por padrao e corrigir falhas possiveis.
 
 ## Projeto Novo Ou Existente
 
@@ -251,6 +295,8 @@ Configurar `package.json` com, no minimo:
 }
 ```
 
+Quando o usuario nao informar modo de execucao, tratar `test:headed` como comando padrao de validacao local. O script `test` pode permanecer headless para CI, mas a execucao feita pela skill deve ser headed por padrao.
+
 Configurar `playwright.config.js` em JavaScript com evidencias uteis em falha:
 
 - `trace: 'on-first-retry'`;
@@ -269,6 +315,19 @@ E2E_PASSWORD=
 ```
 
 Se o usuario informar nomes especificos de variaveis de ambiente, usar os nomes informados.
+
+## Validacoes Funcionais
+
+Nao considerar a automacao pronta apenas por navegar e clicar ate o fim. Implementar pelo menos uma validacao funcional forte, priorizando:
+
+- mensagem de sucesso ou erro funcional esperado;
+- registro criado, editado ou encontrado em listagem;
+- dados persistidos em tela de detalhe, revisao ou consulta;
+- redirecionamento ou estado final esperado;
+- arquivo baixado, protocolo gerado ou identificador exibido;
+- bloqueio funcional correto quando a regra de negocio impedir o fluxo.
+
+Quando o resultado esperado nao for informado, usar a exploracao para descobrir uma validacao observavel. Se nenhuma validacao confiavel for possivel, registrar pendencia e nao marcar a automacao como pronta.
 
 ## Organizacao Do Codigo
 
@@ -317,6 +376,23 @@ Separar responsabilidades:
 
 Em manutencoes futuras, corrigir preferencialmente Page Objects, dados, fixtures ou utilitarios compartilhados antes de duplicar logica diretamente no spec. Criar novos helpers somente quando reduzirem duplicacao real ou deixarem o fluxo mais claro.
 
+## Diagnostico De Falhas
+
+Quando uma execucao falhar, classificar a causa principal antes de responder:
+
+- falha de seletor;
+- falha de navegacao;
+- falha de autenticacao;
+- falha de massa de dados;
+- falha de permissao;
+- falha funcional ou regra de negocio;
+- ambiente indisponivel ou instavel;
+- bloqueio por captcha, MFA ou seguranca;
+- timeout por sincronizacao inadequada;
+- validacao esperada diferente do comportamento real.
+
+Para cada falha, registrar tela, acao tentada, mensagem exibida, evidencia gerada, causa provavel e proximo passo recomendado. Nao resumir falhas como simples timeout quando houver mensagem funcional, regra de negocio ou bloqueio de ambiente.
+
 ## Bloqueios E Limites
 
 Se houver captcha, MFA, bloqueio de automacao, indisponibilidade do ambiente, permissao insuficiente ou regra de negocio ambigua, nao inventar alternativa insegura. Registrar o bloqueio e estruturar a automacao ate o ponto possivel.
@@ -341,9 +417,11 @@ Garantir que o `README.md` contenha:
 - aplicacao testada;
 - URL base;
 - ambiente;
+- modo de execucao padrao e comando headed;
 - caminho funcional;
 - fluxo coberto;
 - evidencias da exploracao com Playwright MCP;
+- validacoes funcionais implementadas;
 - massa externa necessaria;
 - dados dinamicos gerados;
 - pre-requisitos;
@@ -363,11 +441,13 @@ Considerar a automacao pronta somente quando:
 
 - o fluxo principal estiver implementado em teste E2E legivel;
 - os Page Objects representarem acoes funcionais;
+- a exploracao com Playwright MCP tiver confirmado telas, campos, acoes e validacoes reais;
 - os dados sensiveis estiverem fora do codigo e representados no `.env.example`;
 - o `.gitignore` proteger `.env`, relatorios, traces, screenshots, videos e dependencias geradas;
 - o `README.md` explicar instalacao, configuracao, execucao, evidencias, limitacoes e pendencias;
 - as validacoes funcionais cobrirem o resultado esperado do fluxo;
-- a execucao do teste tiver sido realizada ou, se nao for possivel, o motivo estiver documentado como bloqueio.
+- a execucao do teste tiver sido realizada em modo headed por padrao, salvo pedido explicito por outro modo;
+- falhas tiverem sido classificadas com diagnostico claro ou, se nao for possivel executar, o motivo estiver documentado como bloqueio.
 
 ## Resumo Final
 
@@ -380,7 +460,9 @@ Validacoes implementadas:
 Como executar:
 Evidencias geradas:
 Execucao realizada:
+Modo de execucao:
 Resultado dos testes:
+Diagnostico de falhas:
 Pendencias:
 Bloqueios encontrados:
 ```
