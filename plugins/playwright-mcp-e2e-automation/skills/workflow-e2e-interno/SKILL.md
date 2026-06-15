@@ -125,6 +125,17 @@ Antes de implementar ou alterar testes, sempre explorar a aplicacao com Playwrig
 
 Nao escrever o teste principal antes de entender a tela inicial, o caminho do usuario, os dados exigidos, as acoes intermediarias, a acao final e ao menos uma validacao funcional observavel.
 
+## Contrato De Exploracao MCP
+
+Para cada tela relevante do fluxo, produzir mentalmente e usar como base um mapa da tela antes de codar:
+
+- tela, URL/rota, titulo/cabecalho;
+- formulario principal, campos, campos obrigatorios e origem da obrigatoriedade;
+- botoes, acoes, tabelas/listagens, mensagens, modais e banners;
+- proxima acao segura e validacao funcional candidata.
+
+Nao automatizar uma tela enquanto esse mapa estiver incompleto para a acao que sera executada. Se houver abas, acordeons, etapas ou modais, mapear o estado visivel antes e depois da interacao.
+
 ## Navegacao E Telas
 
 - Confirmar no ambiente real a pagina inicial do fluxo, a navegacao necessaria, as telas intermediarias e o resultado esperado.
@@ -141,6 +152,7 @@ Nao escrever o teste principal antes de entender a tela inicial, o caminho do us
 - Tratar como campos obrigatorios aqueles que possuem icone de estrela azul ao lado do campo. Em cada tela, procurar e confirmar a legenda que informa que a estrela azul indica obrigatoriedade.
 - Nao exigir que o usuario informe previamente os dados obrigatorios quando a tela usar estrela azul; descobrir esses campos durante a exploracao com Playwright MCP.
 - Campos obrigatorios podem ser indicados por atributo HTML, asterisco, legenda visual, mensagem de validacao ou regra da tela. Nao depender apenas do atributo `required`.
+- Para cada formulario, mapear antes do preenchimento: campo visivel, label, tipo de controle, obrigatoriedade e origem, valor usado, seletor escolhido e validacao esperada.
 - Quando apropriado, submeter formulario incompleto durante exploracao para observar mensagens de validacao e descobrir obrigatoriedades.
 - Nao preencher aleatoriamente campos funcionais sensiveis. Preferir dados informados pelo usuario ou dados de teste claramente artificiais.
 - Diferenciar acoes intermediarias de acoes finais, como salvar rascunho, gravar parcialmente, enviar, confirmar definitivamente, cancelar ou excluir.
@@ -159,6 +171,12 @@ Nao escrever o teste principal antes de entender a tela inicial, o caminho do us
 - Se nao houver nome acessivel, usar seletor relativo ao container correto e justificar no codigo.
 - Quando houver paginacao, filtro ou busca, usar o mecanismo da tela para encontrar o registro criado.
 - Validar que o registro encontrado corresponde exatamente ao dado da execucao atual.
+
+## Seletores E Localizadores
+
+Escolher seletores nesta ordem, justificando quando precisar descer na hierarquia: `getByRole` com nome acessivel real, `getByLabel`, `getByPlaceholder`, `getByText` com texto estavel e escopo adequado, `getByTestId` quando existir no projeto, CSS semantico relativo ao formulario/tabela/linha/container correto e XPath somente em ultimo caso.
+
+Nunca usar "primeiro botao da pagina", indice global, seletor de layout ou classe gerada quando houver contexto funcional. Em tabelas, sempre localizar a linha pelo texto unico do registro e depois localizar a acao dentro da linha. Em formularios, preferir o label do campo; se nao houver label acessivel, registrar a limitacao e sugerir melhoria de acessibilidade ou `data-testid`.
 
 ## Dados E Massa De Teste
 
@@ -210,7 +228,6 @@ Quando o usuario informar credenciais no chat:
 - Nao hardcodear usuario, senha, token, e-mail, documento, cookie ou qualquer dado sensivel.
 - Usar variaveis de ambiente para URL, credenciais e configuracoes sensiveis; se o usuario informar credenciais no chat, gravar os valores no `.env` local e referenciar somente `process.env`.
 - Priorizar seletores estaveis e semanticos: `getByRole`, `getByLabel`, `getByText`, `getByPlaceholder`, `getByTestId` quando existir, ou seletores semanticos equivalentes.
-- Priorizar roles e nomes acessiveis reais.
 - Quando a interface nao expuser seletores estaveis, registrar a limitacao e sugerir melhoria como `data-testid` estavel.
 - Evitar XPath absoluto, CSS fragil, classes geradas automaticamente ou seletores dependentes de layout.
 - Usar XPath ou CSS fragil somente em ultimo caso e justificar no codigo.
@@ -336,6 +353,8 @@ Nao considerar a automacao pronta apenas por navegar e clicar ate o fim. Impleme
 
 Quando o resultado esperado nao for informado, usar a exploracao para descobrir uma validacao observavel. Se nenhuma validacao confiavel for possivel, registrar pendencia e nao marcar a automacao como pronta.
 
+As assertions devem validar comportamento de usuario e estado de negocio. Evitar assertions que apenas confirmem que um botao foi clicado, que uma URL mudou sem significado funcional, ou que um elemento generico existe sem provar o resultado do fluxo.
+
 ## Organizacao Do Codigo
 
 Fazer o teste principal contar a historia do fluxo de forma legivel:
@@ -351,6 +370,8 @@ test('deve concluir o fluxo principal com sucesso', async ({ page }) => {
 ```
 
 Fazer os metodos dos Page Objects representarem acoes de negocio ou passos funcionais, nao cliques genericos.
+
+Manter specs pequenos e legiveis. Evitar logica pesada, seletores complexos e dados inline no spec. Colocar interacoes em Page Objects, dados em `data/`, login e contexto em fixtures, e geradores/formatadores em `utils/`.
 
 Bons exemplos:
 
@@ -399,6 +420,8 @@ Quando uma execucao falhar, classificar a causa principal antes de responder:
 - validacao esperada diferente do comportamento real.
 
 Para cada falha, registrar tela, acao tentada, mensagem exibida, evidencia gerada, causa provavel e proximo passo recomendado. Nao resumir falhas como simples timeout quando houver mensagem funcional, regra de negocio ou bloqueio de ambiente.
+
+Sempre que houver evidencia disponivel, incluir no diagnostico seletor usado, screenshot, trace, video ou relatorio HTML, estado visivel da tela, correcao aplicada e resultado apos a correcao.
 
 ## Bloqueios E Limites
 
@@ -449,6 +472,7 @@ Considerar a automacao pronta somente quando:
 - o fluxo principal estiver implementado em teste E2E legivel;
 - os Page Objects representarem acoes funcionais;
 - a exploracao com Playwright MCP tiver confirmado telas, campos, acoes e validacoes reais;
+- cada tela automatizada tiver um mapa minimo de tela e formulario suficiente para justificar os seletores;
 - os dados sensiveis estiverem fora do codigo e representados no `.env.example`;
 - o `.gitignore` proteger `.env`, relatorios, traces, screenshots, videos e dependencias geradas;
 - o `README.md` explicar instalacao, configuracao, execucao, evidencias, limitacoes e pendencias;
