@@ -1,6 +1,6 @@
 {
   "name": "playwright-mcp-e2e-automation",
-  "version": "0.2.14",
+  "version": "0.2.15",
   "description": "Reusable Codex workflow for Playwright MCP E2E automation in web applications.",
   "author": {
     "name": "wkavenss"
@@ -9,12 +9,12 @@
   "interface": {
     "displayName": "Playwright MCP E2E",
     "shortDescription": "Automacoes E2E com Playwright MCP",
-    "longDescription": "Forneca a URL, credenciais de acesso e o passo a passo a ser automatizado. Por padrao, o plugin cria ou atualiza a automacao Playwright e executa em Chromium headed.",
+    "longDescription": "Forneca a URL, credenciais de acesso e o passo a passo a ser automatizado. Por padrao, o plugin cria ou atualiza a automacao Playwright e executa em Chromium headed. Para fluxos simples, informe modo rapido.",
     "developerName": "wkavenss",
     "category": "Developer tools",
     "capabilities": [
       "Write"
     ],
-    "defaultPrompt": "Crie ou atualize uma automacao E2E com Playwright MCP e execute em Chromium headed."
+    "defaultPrompt": "Crie ou atualize uma automacao E2E com Playwright MCP e execute em Chromium headed. Para fluxos simples, use modo rapido."
   }
 }
