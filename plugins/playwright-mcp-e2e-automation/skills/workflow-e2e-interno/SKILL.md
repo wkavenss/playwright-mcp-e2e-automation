@@ -50,6 +50,7 @@ Aceitar tambem dados complementares do fluxo, quando estiverem disponiveis:
 - validacoes esperadas;
 - credenciais informadas pelo usuario para uso local;
 - modo de execucao desejado: headed, headless ou UI;
+- modo de trabalho desejado: rapido, padrao ou profundo;
 - observacoes ou restricoes do ambiente.
 
 Quando uma informacao complementar nao for fornecida, usar Playwright MCP para explorar a interface e identificar o que for possivel somente depois que os dados minimos estiverem completos. Quando uma regra funcional nao puder ser inferida pela tela, registrar como pendencia, sem inventar regra de negocio.
@@ -80,6 +81,7 @@ Informacoes opcionais:
 - Acao final permitida:
 - Massa externa obrigatoria:
 - Validacoes esperadas:
+- Modo de trabalho: padrao
 - Observacoes:
 -
 ```
@@ -96,9 +98,20 @@ Antes de criar ou alterar codigo, consolidar o pedido em um resumo operacional:
 - resultado esperado, quando informado;
 - acao final permitida, quando informada;
 - ambiente e restricoes conhecidas;
+- modo de trabalho solicitado; quando nao informado, usar modo padrao;
 - modo de execucao solicitado; quando nao informado, usar modo headed como padrao.
 
 Se resultado esperado ou acao final permitida nao forem informados, inferir apenas o que for observavel pela tela. Quando a inferencia nao for segura, registrar pendencia e evitar a acao final sensivel.
+
+## Modos De Trabalho
+
+Usar `padrao` quando o usuario nao informar modo. Ajustar esforco assim:
+
+- `rapido`: explorar apenas o caminho principal informado, criar Page Objects minimos, usar uma validacao funcional forte, fazer ate 1 ciclo de correcao e documentar pendencias no resumo.
+- `padrao`: explorar somente telas tocadas pelo passo a passo, reaproveitar mapa de tela na mesma execucao, criar estrutura suficiente para manutencao, executar uma vez em headed e fazer ate 2 ciclos de correcao.
+- `profundo`: mapear telas/formularios com mais detalhe, investigar falhas com evidencias completas, atualizar README completo, sugerir melhorias de acessibilidade e ampliar validacoes quando fizer sentido.
+
+Nao explorar menus, telas ou campos fora do passo a passo, salvo quando necessario para desbloquear o fluxo. Headed continua sendo o padrao da execucao final quando o usuario nao informar outro modo.
 
 ## Fluxo De Trabalho
 
@@ -110,21 +123,21 @@ Se resultado esperado ou acao final permitida nao forem informados, inferir apen
 6. Se a decisao for Sim, verificar se ja existe projeto Playwright no repositorio.
 7. Criar ou ajustar a estrutura do projeto.
 8. Configurar JavaScript, Playwright Test, `.env`, `.env.example` e variaveis de ambiente.
-9. Usar Playwright MCP para explorar a aplicacao antes de implementar ou alterar testes.
+9. Usar Playwright MCP para explorar a aplicacao dentro do escopo do modo de trabalho antes de implementar ou alterar testes.
 10. Confirmar telas, campos, botoes, links, mensagens e caminhos reais pela interface.
-11. Mapear as telas em Page Objects.
+11. Mapear as telas em Page Objects minimos e evoluir somente quando houver necessidade real.
 12. Criar ou atualizar dados de teste separados do fluxo.
 13. Implementar o teste E2E principal.
 14. Adicionar validacoes funcionais.
 15. Executar o teste em modo headed quando o usuario nao especificar outro modo.
-16. Corrigir falhas possiveis de seletor, navegacao, sincronizacao ou validacao.
+16. Corrigir falhas respeitando o limite de ciclos do modo de trabalho.
 17. Classificar falhas encontradas e registrar diagnostico.
 18. Atualizar a documentacao.
 19. Responder ao final com o resumo padronizado.
 
 ## Exploracao Com Playwright MCP
 
-Antes de implementar ou alterar testes, sempre explorar a aplicacao com Playwright MCP e registrar evidencias minimas:
+Antes de implementar ou alterar testes, explorar com Playwright MCP apenas o caminho necessario ao modo de trabalho e registrar evidencias minimas:
 
 - URL acessada e ambiente usado;
 - telas, rotas e caminhos visitados;
@@ -132,10 +145,10 @@ Antes de implementar ou alterar testes, sempre explorar a aplicacao com Playwrig
 - seletores semanticos candidatos e motivo da escolha;
 - obrigatoriedades descobertas pela estrela azul, legenda da tela, labels, mensagens, asteriscos, validacao nativa ou submissao controlada;
 - login, captcha, MFA, modais, banners, sessao expirada ou redirecionamentos inesperados;
-- validacoes funcionais observaveis;
+- uma validacao funcional observavel no modo padrao; validacoes adicionais no modo profundo;
 - bloqueios, permissoes ausentes, captcha, MFA, instabilidade ou massa indisponivel.
 
-Nao escrever o teste principal antes de entender a tela inicial, o caminho do usuario, os dados exigidos, as acoes intermediarias, a acao final e ao menos uma validacao funcional observavel.
+Nao escrever o teste principal antes de entender a tela inicial, o caminho do usuario, os dados exigidos, as acoes intermediarias, a acao final e ao menos uma validacao funcional observavel. Reaproveitar o mapa da tela durante a mesma execucao em vez de remapear tudo ao retornar para uma tela ja lida.
 
 ## Contrato De Exploracao MCP
 
@@ -146,7 +159,7 @@ Para cada tela relevante do fluxo, produzir mentalmente e usar como base um mapa
 - botoes, acoes, tabelas/listagens, mensagens, modais e banners;
 - proxima acao segura e validacao funcional candidata.
 
-Nao automatizar uma tela enquanto esse mapa estiver incompleto para a acao que sera executada. Se houver abas, acordeons, etapas ou modais, mapear o estado visivel antes e depois da interacao.
+No modo padrao, manter esse mapa suficiente para justificar a proxima acao e os seletores usados. No modo profundo, detalhar abas, acordeons, etapas e modais antes e depois da interacao.
 
 ## Navegacao E Telas
 
@@ -243,7 +256,7 @@ Quando a resposta obrigatoria for Sim e o usuario informar credenciais no chat:
 - Nao hardcodear usuario, senha, token, e-mail, documento, cookie ou qualquer dado sensivel.
 - Usar variaveis de ambiente para URL, credenciais e configuracoes sensiveis; se o usuario informar credenciais no chat, gravar os valores no `.env` local e referenciar somente `process.env`.
 - Priorizar seletores estaveis e semanticos: `getByRole`, `getByLabel`, `getByText`, `getByPlaceholder`, `getByTestId` quando existir, ou seletores semanticos equivalentes.
-- Quando a interface nao expuser seletores estaveis, registrar a limitacao e sugerir melhoria como `data-testid` estavel.
+- Quando a interface nao expuser seletores estaveis, registrar a limitacao; sugerir `data-testid` estavel preferencialmente no modo profundo ou quando a fragilidade bloquear a automacao.
 - Evitar XPath absoluto, CSS fragil, classes geradas automaticamente ou seletores dependentes de layout.
 - Usar XPath ou CSS fragil somente em ultimo caso e justificar no codigo.
 - Usar Page Object Model ou estrutura equivalente bem organizada.
@@ -254,7 +267,7 @@ Quando a resposta obrigatoria for Sim e o usuario informar credenciais no chat:
 - Evitar `waitForTimeout`, salvo em ultimo caso justificado.
 - Usar os waits automaticos do Playwright sempre que possivel.
 - Registrar bloqueios como captcha, MFA, ambiente indisponivel, permissao insuficiente, instabilidade, regra de negocio ambigua ou ausencia de massa de dados.
-- Criar ou atualizar `README.md` com instrucoes de instalacao, configuracao, execucao e limitacoes.
+- No modo padrao, documentar comandos essenciais, variaveis e limitacoes; no modo profundo, atualizar README completo.
 - Criar ou atualizar `.env.example`.
 - Criar ou atualizar `.gitignore`.
 - Criar ou atualizar scripts uteis no `package.json`.
@@ -265,7 +278,7 @@ Quando a resposta obrigatoria for Sim e o usuario informar credenciais no chat:
 - Para fluxos com login pesado, usar `storageState` somente quando permitido pelo ambiente e sem versionar estado autenticado, tokens, cookies ou credenciais reais.
 - Para fluxos destrutivos, como exclusao, cancelamento, envio definitivo ou alteracao irreversivel, preferir ambiente de teste, usar dados unicos e pedir confirmacao quando houver risco de impacto real.
 - Em producao, evitar criacao, alteracao, submissao, exclusao, aprovacao ou qualquer acao irreversivel em dados reais. Se o fluxo for destrutivo ou irreversivel, interromper antes da acao final e registrar orientacao, salvo autorizacao explicita do usuario.
-- Executar o teste ao final quando o ambiente permitir; se o usuario nao especificar modo, executar em modo headed por padrao e corrigir falhas possiveis.
+- Executar o teste final quando o ambiente permitir; se o usuario nao especificar modo de execucao, executar em headed por padrao.
 
 ## Projeto Novo Ou Existente
 
@@ -276,41 +289,7 @@ Quando a resposta obrigatoria for Sim e o usuario informar credenciais no chat:
 
 ## Estrutura Recomendada
 
-Para projeto novo, usar uma estrutura semelhante a esta, ajustando nomes conforme a aplicacao e o fluxo:
-
-```text
-tests/
-  e2e/
-    fluxo-principal.spec.js
-pages/
-  LoginPage.js
-  HomePage.js
-  [DemaisPageObjects].js
-fixtures/
-  test.js
-data/
-  fluxo.data.js
-utils/
-  unique.js
-playwright.config.js
-package.json
-.env.example
-.gitignore
-README.md
-```
-
-Criar ou manter estes arquivos principais:
-
-- `playwright.config.js`;
-- `package.json`;
-- `.env.example`;
-- `.gitignore`;
-- `README.md`;
-- testes em `tests/e2e`;
-- Page Objects em `pages`;
-- dados de teste em `data`;
-- fixtures em `fixtures`;
-- utilitarios em `utils`.
+Para projeto novo, usar estrutura minima com `tests/e2e`, `pages`, `fixtures`, `data`, `utils`, `playwright.config.js`, `package.json`, `.env.example`, `.gitignore` e `README.md`. Em projeto existente, preservar a organizacao local.
 
 ## Padrao De Nomes
 
@@ -456,29 +435,7 @@ Quando houver bloqueio, registrar tela onde ocorreu, mensagem exibida, estado da
 
 ## README
 
-Garantir que o `README.md` contenha:
-
-- objetivo da automacao;
-- aplicacao testada;
-- URL base;
-- ambiente;
-- modo de execucao padrao e comando headed;
-- caminho funcional;
-- fluxo coberto;
-- evidencias da exploracao com Playwright MCP;
-- validacoes funcionais implementadas;
-- massa externa necessaria;
-- dados dinamicos gerados;
-- pre-requisitos;
-- como instalar dependencias;
-- como configurar variaveis de ambiente;
-- como executar em modo normal;
-- como executar em modo headed;
-- como executar em modo UI;
-- como abrir relatorio;
-- como visualizar traces;
-- limitacoes ou bloqueios encontrados;
-- pendencias funcionais, se existirem.
+No modo padrao, garantir no `README.md` apenas objetivo, URL/ambiente quando aplicavel, variaveis, comandos de execucao, validacoes principais e limitacoes. No modo profundo, incluir tambem caminho funcional, evidencias MCP, massa externa, dados dinamicos, relatorios, traces e pendencias detalhadas.
 
 ## Criterios De Pronto
 
