@@ -1,6 +1,6 @@
 {
   "name": "playwright-mcp-e2e-automation",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "Reusable Codex workflow for Playwright MCP E2E automation in web applications.",
   "author": {
     "name": "wkavenss"

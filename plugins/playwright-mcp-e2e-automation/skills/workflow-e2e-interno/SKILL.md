@@ -23,6 +23,12 @@ Considerar obrigatorias estas informacoes quando o usuario perguntar o que preci
 - dados obrigatorios;
 - passo a passo.
 
+Antes de iniciar a automacao, verificar se URL base, usuario, senha, dados obrigatorios e passo a passo foram informados.
+
+Se algum desses dados minimos estiver ausente, interromper a execucao e pedir objetivamente apenas os dados faltantes.
+
+Nao criar projeto, nao instalar dependencias, nao explorar tela e nao executar teste ate receber todos os dados minimos.
+
 Aceitar tambem dados complementares do fluxo, quando estiverem disponiveis:
 
 - ambiente;
@@ -37,7 +43,7 @@ Aceitar tambem dados complementares do fluxo, quando estiverem disponiveis:
 - modo de execucao desejado: headed, headless ou UI;
 - observacoes ou restricoes do ambiente.
 
-Quando uma informacao nao for fornecida, usar Playwright MCP para explorar a interface e identificar o que for possivel. Quando uma regra funcional nao puder ser inferida pela tela, registrar como pendencia, sem inventar regra de negocio.
+Quando uma informacao complementar nao for fornecida, usar Playwright MCP para explorar a interface e identificar o que for possivel somente depois que os dados minimos estiverem completos. Quando uma regra funcional nao puder ser inferida pela tela, registrar como pendencia, sem inventar regra de negocio.
 
 Sempre que possivel, obter do usuario ambiente, objetivo do teste, caminho funcional, acao final permitida, massa externa, validacoes esperadas e observacoes. Essas informacoes complementares reduzem o risco de executar a acao errada, submeter dados indevidos ou validar resultado incompleto, mas nao devem substituir a lista obrigatoria.
 
@@ -89,21 +95,23 @@ Se resultado esperado ou acao final permitida nao forem informados, inferir apen
 ## Fluxo De Trabalho
 
 1. Ler os dados informados pelo usuario.
-2. Identificar o objetivo funcional do teste.
-3. Verificar se ja existe projeto Playwright no repositorio.
-4. Criar ou ajustar a estrutura do projeto.
-5. Configurar JavaScript, Playwright Test, `.env`, `.env.example` e variaveis de ambiente.
-6. Usar Playwright MCP para explorar a aplicacao antes de implementar ou alterar testes.
-7. Confirmar telas, campos, botoes, links, mensagens e caminhos reais pela interface.
-8. Mapear as telas em Page Objects.
-9. Criar ou atualizar dados de teste separados do fluxo.
-10. Implementar o teste E2E principal.
-11. Adicionar validacoes funcionais.
-12. Executar o teste em modo headed quando o usuario nao especificar outro modo.
-13. Corrigir falhas possiveis de seletor, navegacao, sincronizacao ou validacao.
-14. Classificar falhas encontradas e registrar diagnostico.
-15. Atualizar a documentacao.
-16. Responder ao final com o resumo padronizado.
+2. Validar se URL base, usuario, senha, dados obrigatorios e passo a passo foram informados.
+3. Se faltar dado minimo, interromper e pedir somente os dados faltantes.
+4. Identificar o objetivo funcional do teste.
+5. Verificar se ja existe projeto Playwright no repositorio.
+6. Criar ou ajustar a estrutura do projeto.
+7. Configurar JavaScript, Playwright Test, `.env`, `.env.example` e variaveis de ambiente.
+8. Usar Playwright MCP para explorar a aplicacao antes de implementar ou alterar testes.
+9. Confirmar telas, campos, botoes, links, mensagens e caminhos reais pela interface.
+10. Mapear as telas em Page Objects.
+11. Criar ou atualizar dados de teste separados do fluxo.
+12. Implementar o teste E2E principal.
+13. Adicionar validacoes funcionais.
+14. Executar o teste em modo headed quando o usuario nao especificar outro modo.
+15. Corrigir falhas possiveis de seletor, navegacao, sincronizacao ou validacao.
+16. Classificar falhas encontradas e registrar diagnostico.
+17. Atualizar a documentacao.
+18. Responder ao final com o resumo padronizado.
 
 ## Exploracao Com Playwright MCP
 
