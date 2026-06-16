@@ -1,6 +1,6 @@
 # Seletores E Page Objects
 
-Use este arquivo quando houver muitos Page Objects, seletores frageis, tabelas/listagens complexas ou refatoracao de automacao existente.
+Use este arquivo ao criar ou refatorar Page Objects, quando houver seletores frageis, tabelas/listagens complexas ou automacao existente fora do padrao.
 
 ## Seletores
 
@@ -41,7 +41,7 @@ package.json
 
 Preservar a estrutura existente quando houver Playwright no repositorio.
 
-Usar kebab-case para specs/dados/utils e PascalCase para Page Objects. O teste principal deve contar o fluxo:
+Usar kebab-case para specs/dados/utils e PascalCase para Page Objects. Criar pelo menos um Page Object por tela ou area funcional tocada pelo fluxo. O teste principal deve contar o fluxo:
 
 ```javascript
 test('deve concluir o fluxo principal com sucesso', async ({ page }) => {
@@ -55,4 +55,4 @@ test('deve concluir o fluxo principal com sucesso', async ({ page }) => {
 
 Page Objects devem representar acoes funcionais, como `realizarLogin`, `acessarFuncionalidade`, `preencherDadosObrigatorios`, `avancarEtapa`, `confirmarOperacao`, `validarMensagemSucesso` e `validarRegistroNaListagem`.
 
-Evitar metodos como `clickButton1`, `fillInput2`, `goNext` ou seletores complexos direto no spec.
+Evitar metodos como `clickButton1`, `fillInput2`, `goNext` ou seletores complexos direto no spec. A spec nao deve usar `page.locator`, `getByRole`, `getByLabel` ou seletores CSS/XPath diretamente, salvo em asserts muito simples e justificados pelo padrao local.

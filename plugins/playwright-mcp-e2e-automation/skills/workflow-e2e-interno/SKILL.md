@@ -31,6 +31,7 @@ Quando o usuario informar credenciais no chat, gravar em `.env` local, proteger 
 - Campos obrigatorios: descobrir na tela; quando houver estrela azul e legenda, tratar esses campos como obrigatorios.
 - Projeto existente: preservar estrutura, scripts, fixtures, helpers e padroes locais.
 - Projeto novo: criar somente estrutura minima necessaria.
+- Page Objects: usar por padrao para toda implementacao Playwright; a spec deve orquestrar o fluxo e nao concentrar seletores/interacoes.
 - Fluxo simples: aceitar `modo rapido` para reduzir exploracao, correcao, documentacao e evidencias.
 
 ## Modos De Trabalho
@@ -57,7 +58,7 @@ Mesmo em `minimo`, a saida normal do terminal pode existir. Evitar copiar logs l
 4. Detectar se ja existe Playwright no repositorio antes de instalar ou criar arquivos.
 5. Explorar com Playwright MCP somente o caminho necessario.
 6. Mapear para cada tela: identificacao da tela, campos obrigatorios, acao principal, mensagem/estado esperado e proxima acao.
-7. Implementar ou atualizar teste, Page Objects, dados, fixtures e utilitarios na menor superficie possivel.
+7. Implementar ou atualizar spec, Page Objects, dados, fixtures e utilitarios na menor superficie possivel.
 8. Configurar `.env`, `.env.example`, `.gitignore`, scripts e Playwright apenas quando necessario.
 9. Executar validacao final em Chromium headed, salvo pedido contrario.
 10. Corrigir falhas dentro do limite do modo de trabalho.
@@ -71,6 +72,7 @@ Se o usuario pedir explicitamente execucao sem codigo, usar Playwright MCP de fo
 - Nao assumir nomes de menus, botoes, campos, mensagens ou fluxos sem observar a interface.
 - Priorizar seletores: `getByRole`, `getByLabel`, `getByPlaceholder`, `getByText` escopado, `getByTestId`, CSS semantico relativo e XPath so em ultimo caso.
 - Em tabelas, localizar a linha por texto unico e so entao a acao dentro da linha.
+- Manter seletores e interacoes dentro de Page Objects; specs devem conter passos funcionais, dados e assertions de alto nivel.
 - Validar resultado funcional: mensagem, registro, detalhe persistido, estado final, download, protocolo ou bloqueio esperado.
 - Evitar `waitForTimeout`; preferir waits automaticos e assertions do Playwright.
 - Pedir autorizacao quando houver rede, instalacao, navegador, credenciais, escrita sensivel, ambiente externo ou sandbox.
@@ -78,12 +80,18 @@ Se o usuario pedir explicitamente execucao sem codigo, usar Playwright MCP de fo
 - Nao automatizar captcha, burlar MFA, commitar segredos, usar dados reais sensiveis ou executar acao destrutiva em ambiente real sem confirmacao explicita.
 - Em falha, classificar causa principal antes de responder: seletor, navegacao, autenticacao, massa, permissao, regra funcional, ambiente, captcha/MFA ou sincronizacao.
 
+## Codigo E Boas Praticas
+
+Quando implementar codigo Playwright, a automacao so esta pronta se usar Page Objects para telas ou areas funcionais tocadas pelo fluxo. Excecao: projeto existente com arquitetura diferente e padrao claro; nesse caso, preservar o padrao local e justificar no resumo.
+
+Evitar seletores, cliques e preenchimentos diretamente na spec. A spec deve ficar legivel como historia do usuario; Page Objects devem ter metodos funcionais como `realizarLogin`, `acessarFuncionalidade`, `preencherDadosObrigatorios`, `submeterFluxo` e `validarResultado`.
+
 ## Referencias Sob Demanda
 
 Carregar estes arquivos apenas quando necessario:
 
 - `references/exploracao-mcp.md`: carregar no modo `profundo`, quando a tela for complexa ou quando a exploracao inicial nao bastar.
-- `references/seletores-page-objects.md`: carregar ao criar/refatorar muitos Page Objects, lidar com tabelas/listagens complexas ou seletores frageis.
+- `references/seletores-page-objects.md`: carregar ao criar/refatorar Page Objects, lidar com tabelas/listagens complexas ou seletores frageis.
 - `references/configuracao-playwright.md`: carregar para projeto novo, instalacao/configuracao, scripts, `.env`, evidencias e templates.
 - `references/diagnostico-e-evidencias.md`: carregar em falhas, bloqueios, ambientes instaveis ou quando precisar de diagnostico detalhado.
 
