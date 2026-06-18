@@ -1,6 +1,6 @@
 # Exploracao MCP Detalhada
 
-Use este arquivo no modo `profundo`, quando a tela tiver fluxo complexo, quando a leitura inicial nao bastar ou quando houver falha de navegacao/campo.
+Use este arquivo quando a tela tiver fluxo complexo, quando a leitura inicial nao bastar ou quando houver falha de navegacao/campo.
 
 ## Mapa De Tela
 
@@ -28,7 +28,7 @@ Reaproveitar o mapa quando voltar para a mesma tela na mesma execucao.
 - Tratar estrela azul com legenda como obrigatoriedade.
 - Considerar tambem atributo HTML, asterisco, legenda visual, mensagem de validacao e regra de tela.
 - Para cada campo usado: registrar label, tipo, obrigatoriedade, valor usado, seletor escolhido e validacao esperada.
-- Submeter formulario incompleto para observar validacoes somente no modo `profundo` ou quando os obrigatorios nao estiverem claros pela tela.
+- Submeter formulario incompleto para observar validacoes somente quando os obrigatorios nao estiverem claros pela tela.
 - Diferenciar acoes intermediarias de finais: salvar, avancar, enviar, confirmar, cancelar ou excluir.
 - Antes de acao final, verificar permissao explicita, ambiente seguro, dados de teste, reversibilidade e ausencia de impacto real.
 

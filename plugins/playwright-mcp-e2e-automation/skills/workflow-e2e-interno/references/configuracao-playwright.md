@@ -57,9 +57,9 @@ Quando o usuario pedir `evidencias: falha`, usar artefatos somente em falha:
 - `screenshot: 'only-on-failure'`;
 - `video: 'retain-on-failure'`.
 
-Quando o usuario pedir `evidencias: completo` ou modo `profundo`, habilitar evidencias suficientes para diagnostico e documentar onde ficam relatorio HTML, traces, screenshots e videos.
+Quando o usuario pedir `evidencias: completo`, habilitar evidencias suficientes para diagnostico e documentar onde ficam relatorio HTML, traces, screenshots e videos.
 
-No modo `minimo`, nao criar nem atualizar README por causa de evidencias. No modo `falha`, registrar apenas o necessario para entender o erro. No modo `completo`, documentar comandos, relatorios, traces, screenshots, videos e limitacoes no README.
+Com `evidencias: minimo`, nao criar nem atualizar README por causa de evidencias. Com `evidencias: falha`, registrar apenas o necessario para entender o erro. Com `evidencias: completo`, documentar comandos, relatorios, traces, screenshots, videos e limitacoes no README.
 
 ## Dados De Teste
 

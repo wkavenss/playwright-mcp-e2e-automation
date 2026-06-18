@@ -1,6 +1,6 @@
 # Diagnostico E Evidencias
 
-Use este arquivo em falhas, bloqueios, ambientes instaveis, `evidencias: falha`, `evidencias: completo`, modo `profundo` ou quando precisar explicar por que a automacao nao chegou ao fim.
+Use este arquivo em falhas, bloqueios, ambientes instaveis, `evidencias: falha`, `evidencias: completo` ou quando precisar explicar por que a automacao nao chegou ao fim.
 
 ## Classificacao De Falhas
 
@@ -37,9 +37,9 @@ Se houver captcha, MFA, bloqueio de automacao, indisponibilidade, permissao insu
 
 Em producao ou ambiente real, nao executar criacao, alteracao, submissao, aprovacao, exclusao ou acao irreversivel sem autorizacao explicita e dados seguros.
 
-## Resumo Profundo
+## Resumo Completo
 
-Quando o modo for `profundo` ou `evidencias: completo`, incluir no resumo:
+Com `evidencias: completo`, incluir no resumo:
 
 - evidencias geradas: relatorio, trace, screenshot, video;
 - estado visivel da tela no bloqueio;

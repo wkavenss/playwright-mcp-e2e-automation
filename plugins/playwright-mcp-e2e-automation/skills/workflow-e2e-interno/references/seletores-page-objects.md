@@ -14,7 +14,7 @@ Escolher localizadores nesta ordem:
 6. CSS semantico relativo ao formulario, tabela, linha ou container correto.
 7. XPath somente em ultimo caso.
 
-Nunca usar indice global, "primeiro botao da pagina", classe gerada ou seletor de layout quando houver contexto funcional. Se nao houver nome acessivel, registrar a limitacao e sugerir `data-testid` estavel quando isso desbloquear a automacao ou no modo `profundo`.
+Nunca usar indice global, "primeiro botao da pagina", classe gerada ou seletor de layout quando houver contexto funcional. Se nao houver nome acessivel, registrar a limitacao e sugerir `data-testid` estavel quando isso desbloquear a automacao.
 
 Mapear seletores sob demanda: identificar o seletor no momento em que o passo precisa dele, gravar no Page Object e seguir. Nao criar inventario de todos os campos/botoes antes de implementar o fluxo.
 

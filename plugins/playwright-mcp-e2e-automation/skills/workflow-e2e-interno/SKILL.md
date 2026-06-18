@@ -5,7 +5,7 @@ description: Workflow interno do plugin para criar ou atualizar automacoes Playw
 
 # Automacao E2E com Playwright MCP
 
-Criar ou atualizar automacoes E2E com Playwright Test, JavaScript e Playwright MCP. Por padrao, implementar codigo e validar em Chromium headed. So usar modo sem codigo quando o usuario pedir diagnostico/execucao sem implementar.
+Criar ou atualizar automacoes E2E com Playwright Test, JavaScript e Playwright MCP. Sempre implementar codigo Playwright, sem perguntar se o usuario quer gerar codigo. Por padrao, validar em Chromium headed.
 
 O plugin inclui configuracao de Playwright MCP em `.mcp.json`; usar esse servidor quando estiver disponivel. Em primeira execucao, o MCP pode exigir rede para baixar `@playwright/mcp@latest` via `npx`.
 
@@ -20,53 +20,54 @@ Antes de agir, exigir apenas:
 
 Se faltar algo, interromper e responder em uma linha: `Faltam: ...`. Nao criar projeto, instalar dependencias, explorar tela nem executar teste ate receber esses dados.
 
-Dados opcionais: ambiente, objetivo, caminho, acao final, massa, validacoes, modo de execucao, modo de trabalho, evidencias e restricoes.
+Dados opcionais: ambiente, objetivo, caminho, acao final, massa, validacoes, evidencias e restricoes.
 
 Quando houver credenciais no chat, gravar em `.env`, proteger no `.gitignore`, criar `.env.example` seguro e usar `process.env`. Nunca repetir segredos no codigo, README, logs ou resposta final.
 
 ## Padroes
 
-- Implementar codigo Playwright: assumir `Sim` quando nao informado.
-- Modo de execucao: assumir Chromium `headed` quando nao informado.
-- Modo de trabalho: assumir `padrao` quando nao informado.
+- Implementar codigo Playwright: obrigatorio sempre, sem perguntar ao usuario.
+- Execucao no navegador: assumir Chromium `headed` quando nao informado.
+- Trabalho: sempre rapido, com baixo consumo de tokens.
 - Evidencias: assumir `minimo` quando nao informado.
 - Campos obrigatorios: descobrir na tela; quando houver estrela azul e legenda, tratar esses campos como obrigatorios.
 - Projeto existente: preservar estrutura e padroes locais.
 - Projeto novo: criar somente estrutura minima necessaria.
 - Page Objects: usar por padrao para toda implementacao Playwright; a spec deve orquestrar o fluxo e nao concentrar seletores/interacoes.
-- Fluxo simples: usar comportamento efetivo de `rapido` quando o passo a passo for curto e nao houver indicio de tela complexa.
 
-## Modos De Trabalho
+## Execucao Rapida
 
-- `rapido`: caminho principal, Page Objects minimos, 1 validacao funcional, 1 correcao, resumo curto.
-- `padrao`: telas do passo a passo, seletores sob demanda, Page Objects suficientes, headed e ate 2 correcoes.
-- `profundo`: carregar referencias, detalhar formularios/modais/abas, ampliar evidencias, README e acessibilidade.
+Usar sempre o caminho mais curto que preserve boas praticas:
 
-Nao explorar menus, telas ou campos fora do passo a passo, salvo para desbloquear o fluxo.
+- caminho principal informado pelo usuario;
+- Page Objects minimos para telas ou areas tocadas;
+- seletores mapeados sob demanda;
+- uma validacao funcional forte;
+- uma tentativa objetiva de correcao por falha;
+- resumo curto.
+
+Nao explorar menus, telas ou campos fora do passo a passo, salvo para desbloquear o fluxo ou entender uma falha.
 
 ## Evidencias
 
 - `minimo` (padrao): sem README, trace, screenshot, video ou diagnostico detalhado. Usar `trace: 'off'`, `screenshot: 'off'` e `video: 'off'`.
 - `falha`: gerar artefatos somente em falha ou quando forem indispensaveis para explicar bloqueio.
-- `completo`: gerar README, traces, screenshots/videos quando util e diagnostico detalhado; usar com modo `profundo` ou quando o usuario pedir.
+- `completo`: gerar README, traces, screenshots/videos quando util e diagnostico detalhado; usar somente quando o usuario pedir.
 
 Mesmo em `minimo`, o terminal pode emitir saida. Nao copiar logs longos; resumir resultado, erro principal e proximo passo.
 
 ## Fluxo Principal
 
 1. Validar contrato minimo.
-2. Detectar se o usuario pediu explicitamente para nao implementar codigo.
-3. Identificar modo de trabalho, modo de execucao e nivel de evidencias.
-4. Detectar se ja existe Playwright no repositorio antes de instalar ou criar arquivos.
-5. Explorar com Playwright MCP somente o caminho necessario, com uma leitura por tela e sem inventario completo.
-6. Mapear sob demanda apenas campos/acoes do proximo passo e uma validacao funcional.
-7. Implementar ou atualizar spec, Page Objects, dados, fixtures e utilitarios na menor superficie possivel.
-8. Configurar `.env`, `.env.example`, `.gitignore`, scripts e Playwright apenas quando necessario.
-9. Executar validacao final em Chromium headed, salvo pedido contrario.
-10. Corrigir falhas dentro do limite do modo de trabalho.
-11. Responder com resumo compacto.
-
-Se o usuario pedir explicitamente execucao sem codigo, usar Playwright MCP de forma interativa, nao alterar arquivos e informar isso no resumo.
+2. Identificar execucao no navegador e nivel de evidencias.
+3. Detectar se ja existe Playwright no repositorio antes de instalar ou criar arquivos.
+4. Explorar com Playwright MCP somente o caminho necessario, com uma leitura por tela e sem inventario completo.
+5. Mapear sob demanda apenas campos/acoes do proximo passo e uma validacao funcional.
+6. Implementar ou atualizar spec, Page Objects, dados, fixtures e utilitarios na menor superficie possivel.
+7. Configurar `.env`, `.env.example`, `.gitignore`, scripts e Playwright apenas quando necessario.
+8. Executar validacao final em Chromium headed, salvo pedido contrario.
+9. Corrigir uma falha objetiva quando houver causa clara; se exigir investigacao ampla, resumir bloqueio e pedir direcionamento.
+10. Responder com resumo compacto.
 
 ## Regras Essenciais
 
@@ -95,21 +96,21 @@ Em fluxos simples, criar Page Objects minimos e evoluir somente em falha ou dupl
 
 Carregar estes arquivos apenas quando necessario:
 
-- `references/exploracao-mcp.md`: carregar no modo `profundo`, quando a tela for complexa ou quando a exploracao inicial nao bastar.
+- `references/exploracao-mcp.md`: carregar quando a tela for complexa ou quando a exploracao inicial nao bastar.
 - `references/seletores-page-objects.md`: carregar somente ao refatorar muitos Page Objects, lidar com tabelas/listagens complexas ou apos falha por seletor fragil.
 - `references/configuracao-playwright.md`: carregar para projeto novo, instalacao/configuracao, scripts, `.env`, evidencias e templates.
 - `references/diagnostico-e-evidencias.md`: carregar em falhas, bloqueios, ambientes instaveis ou quando precisar de diagnostico detalhado.
 
-No modo `rapido` ou `padrao`, nao carregar referencias se o fluxo puder ser implementado com o nucleo acima.
+Nao carregar referencias se o fluxo puder ser implementado com o nucleo acima.
 
 ## Saida E Documentacao
 
-No modo `rapido` ou com `evidencias: minimo`, responder curto e nao criar/atualizar README. No modo `padrao` com `evidencias: falha`, documentar somente limitacoes necessarias. No modo `profundo` ou com `evidencias: completo`, usar `references/configuracao-playwright.md` e `references/diagnostico-e-evidencias.md` para README e evidencias completas.
+Com `evidencias: minimo`, responder curto e nao criar/atualizar README. Com `evidencias: falha`, documentar somente limitacoes necessarias. Com `evidencias: completo`, usar `references/configuracao-playwright.md` e `references/diagnostico-e-evidencias.md` para README e evidencias completas.
 
 Resumo final padrao:
 
 ```text
-Codigo Playwright implementado: Sim/Nao
+Codigo Playwright implementado: Sim
 Arquivos criados/alterados:
 Fluxo automatizado:
 Validacoes:
