@@ -7,6 +7,8 @@ description: Workflow interno do plugin para criar ou atualizar automacoes Playw
 
 Criar ou atualizar automacoes E2E com Playwright Test, JavaScript e Playwright MCP. Por padrao, implementar codigo Playwright e executar validacao em Chromium headed. So usar modo sem codigo quando o usuario pedir explicitamente diagnostico/execucao sem implementar.
 
+O plugin inclui configuracao de Playwright MCP em `.mcp.json`; usar esse servidor quando estiver disponivel. Em primeira execucao, o MCP pode exigir rede para baixar `@playwright/mcp@latest` via `npx`.
+
 ## Contrato Minimo
 
 Antes de agir, exigir apenas:
