@@ -5,7 +5,7 @@ description: Workflow interno do plugin para criar ou atualizar automacoes Playw
 
 # Automacao E2E com Playwright MCP
 
-Criar ou atualizar automacoes E2E com Playwright Test, JavaScript e Playwright MCP. Por padrao, implementar codigo Playwright e executar validacao em Chromium headed. So usar modo sem codigo quando o usuario pedir explicitamente diagnostico/execucao sem implementar.
+Criar ou atualizar automacoes E2E com Playwright Test, JavaScript e Playwright MCP. Por padrao, implementar codigo e validar em Chromium headed. So usar modo sem codigo quando o usuario pedir diagnostico/execucao sem implementar.
 
 O plugin inclui configuracao de Playwright MCP em `.mcp.json`; usar esse servidor quando estiver disponivel. Em primeira execucao, o MCP pode exigir rede para baixar `@playwright/mcp@latest` via `npx`.
 
@@ -20,9 +20,9 @@ Antes de agir, exigir apenas:
 
 Se faltar algo, interromper e responder em uma linha: `Faltam: ...`. Nao criar projeto, instalar dependencias, explorar tela nem executar teste ate receber esses dados.
 
-Dados opcionais: ambiente, objetivo, caminho conhecido, acao final permitida, massa externa, validacoes esperadas, modo de execucao (`headed`, `headless`, `ui`), modo de trabalho (`rapido`, `padrao`, `profundo`), evidencias (`minimo`, `falha`, `completo`) e restricoes.
+Dados opcionais: ambiente, objetivo, caminho, acao final, massa, validacoes, modo de execucao, modo de trabalho, evidencias e restricoes.
 
-Quando o usuario informar credenciais no chat, gravar em `.env` local, proteger `.env` no `.gitignore`, criar `.env.example` seguro e usar apenas `process.env` no codigo. Nunca repetir segredos no codigo, README, logs ou resposta final.
+Quando houver credenciais no chat, gravar em `.env`, proteger no `.gitignore`, criar `.env.example` seguro e usar `process.env`. Nunca repetir segredos no codigo, README, logs ou resposta final.
 
 ## Padroes
 
@@ -31,26 +31,26 @@ Quando o usuario informar credenciais no chat, gravar em `.env` local, proteger 
 - Modo de trabalho: assumir `padrao` quando nao informado.
 - Evidencias: assumir `minimo` quando nao informado.
 - Campos obrigatorios: descobrir na tela; quando houver estrela azul e legenda, tratar esses campos como obrigatorios.
-- Projeto existente: preservar estrutura, scripts, fixtures, helpers e padroes locais.
+- Projeto existente: preservar estrutura e padroes locais.
 - Projeto novo: criar somente estrutura minima necessaria.
 - Page Objects: usar por padrao para toda implementacao Playwright; a spec deve orquestrar o fluxo e nao concentrar seletores/interacoes.
-- Fluxo simples: aceitar `modo rapido` para reduzir exploracao, correcao, documentacao e evidencias.
+- Fluxo simples: usar comportamento efetivo de `rapido` quando o passo a passo for curto e nao houver indicio de tela complexa.
 
 ## Modos De Trabalho
 
-- `rapido`: seguir caminho principal, Page Objects minimos, 1 validacao funcional, 1 ciclo de correcao, resumo curto.
-- `padrao`: explorar apenas telas do passo a passo, reaproveitar mapa de telas, Page Objects suficientes, executar uma vez em headed e fazer ate 2 ciclos de correcao.
-- `profundo`: carregar referencias detalhadas, mapear formularios/modais/abas com mais rigor, ampliar evidencias, atualizar README completo e sugerir melhorias de acessibilidade quando util.
+- `rapido`: caminho principal, Page Objects minimos, 1 validacao funcional, 1 correcao, resumo curto.
+- `padrao`: telas do passo a passo, seletores sob demanda, Page Objects suficientes, headed e ate 2 correcoes.
+- `profundo`: carregar referencias, detalhar formularios/modais/abas, ampliar evidencias, README e acessibilidade.
 
 Nao explorar menus, telas ou campos fora do passo a passo, salvo para desbloquear o fluxo.
 
 ## Evidencias
 
-- `minimo` (padrao): nao criar/atualizar README, trace, screenshot, video ou diagnostico detalhado. Usar `trace: 'off'`, `screenshot: 'off'` e `video: 'off'` quando configurar Playwright.
+- `minimo` (padrao): sem README, trace, screenshot, video ou diagnostico detalhado. Usar `trace: 'off'`, `screenshot: 'off'` e `video: 'off'`.
 - `falha`: gerar artefatos somente em falha ou quando forem indispensaveis para explicar bloqueio.
 - `completo`: gerar README, traces, screenshots/videos quando util e diagnostico detalhado; usar com modo `profundo` ou quando o usuario pedir.
 
-Mesmo em `minimo`, a saida normal do terminal pode existir. Evitar copiar logs longos para a resposta; resumir apenas resultado, erro principal e proximo passo.
+Mesmo em `minimo`, o terminal pode emitir saida. Nao copiar logs longos; resumir resultado, erro principal e proximo passo.
 
 ## Fluxo Principal
 
@@ -58,8 +58,8 @@ Mesmo em `minimo`, a saida normal do terminal pode existir. Evitar copiar logs l
 2. Detectar se o usuario pediu explicitamente para nao implementar codigo.
 3. Identificar modo de trabalho, modo de execucao e nivel de evidencias.
 4. Detectar se ja existe Playwright no repositorio antes de instalar ou criar arquivos.
-5. Explorar com Playwright MCP somente o caminho necessario.
-6. Mapear para cada tela: identificacao da tela, campos obrigatorios, acao principal, mensagem/estado esperado e proxima acao.
+5. Explorar com Playwright MCP somente o caminho necessario, com uma leitura por tela e sem inventario completo.
+6. Mapear sob demanda apenas campos/acoes do proximo passo e uma validacao funcional.
 7. Implementar ou atualizar spec, Page Objects, dados, fixtures e utilitarios na menor superficie possivel.
 8. Configurar `.env`, `.env.example`, `.gitignore`, scripts e Playwright apenas quando necessario.
 9. Executar validacao final em Chromium headed, salvo pedido contrario.
@@ -72,28 +72,31 @@ Se o usuario pedir explicitamente execucao sem codigo, usar Playwright MCP de fo
 
 - Usar Playwright MCP antes de codar ou alterar teste.
 - Nao assumir nomes de menus, botoes, campos, mensagens ou fluxos sem observar a interface.
-- Priorizar seletores: `getByRole`, `getByLabel`, `getByPlaceholder`, `getByText` escopado, `getByTestId`, CSS semantico relativo e XPath so em ultimo caso.
+- Priorizar: `getByRole`, `getByLabel`, `getByPlaceholder`, `getByText` escopado, `getByTestId`, CSS semantico relativo e XPath so em ultimo caso.
+- Nao mapear todos os campos/botoes; escolher o menor conjunto para executar o passo atual e validar o resultado.
 - Em tabelas, localizar a linha por texto unico e so entao a acao dentro da linha.
 - Manter seletores e interacoes dentro de Page Objects; specs devem conter passos funcionais, dados e assertions de alto nivel.
 - Validar resultado funcional: mensagem, registro, detalhe persistido, estado final, download, protocolo ou bloqueio esperado.
 - Evitar `waitForTimeout`; preferir waits automaticos e assertions do Playwright.
-- Pedir autorizacao quando houver rede, instalacao, navegador, credenciais, escrita sensivel, ambiente externo ou sandbox.
+- Pedir autorizacao para rede, instalacao, navegador, credenciais, escrita sensivel, ambiente externo ou sandbox.
 - Nao gerar README, traces, screenshots, videos ou diagnostico detalhado por padrao; usar o nivel de evidencias solicitado.
 - Nao automatizar captcha, burlar MFA, commitar segredos, usar dados reais sensiveis ou executar acao destrutiva em ambiente real sem confirmacao explicita.
 - Em falha, classificar causa principal antes de responder: seletor, navegacao, autenticacao, massa, permissao, regra funcional, ambiente, captcha/MFA ou sincronizacao.
 
 ## Codigo E Boas Praticas
 
-Quando implementar codigo Playwright, a automacao so esta pronta se usar Page Objects para telas ou areas funcionais tocadas pelo fluxo. Excecao: projeto existente com arquitetura diferente e padrao claro; nesse caso, preservar o padrao local e justificar no resumo.
+Codigo Playwright so fica pronto com Page Objects para telas ou areas tocadas. Excecao: projeto existente com arquitetura diferente; preservar o padrao local e justificar.
 
-Evitar seletores, cliques e preenchimentos diretamente na spec. A spec deve ficar legivel como historia do usuario; Page Objects devem ter metodos funcionais como `realizarLogin`, `acessarFuncionalidade`, `preencherDadosObrigatorios`, `submeterFluxo` e `validarResultado`.
+Evitar seletores, cliques e fills na spec. A spec conta a historia; Page Objects expõem metodos como `realizarLogin`, `preencherDadosObrigatorios`, `submeterFluxo` e `validarResultado`.
+
+Em fluxos simples, criar Page Objects minimos e evoluir somente em falha ou duplicacao real.
 
 ## Referencias Sob Demanda
 
 Carregar estes arquivos apenas quando necessario:
 
 - `references/exploracao-mcp.md`: carregar no modo `profundo`, quando a tela for complexa ou quando a exploracao inicial nao bastar.
-- `references/seletores-page-objects.md`: carregar ao criar/refatorar Page Objects, lidar com tabelas/listagens complexas ou seletores frageis.
+- `references/seletores-page-objects.md`: carregar somente ao refatorar muitos Page Objects, lidar com tabelas/listagens complexas ou apos falha por seletor fragil.
 - `references/configuracao-playwright.md`: carregar para projeto novo, instalacao/configuracao, scripts, `.env`, evidencias e templates.
 - `references/diagnostico-e-evidencias.md`: carregar em falhas, bloqueios, ambientes instaveis ou quando precisar de diagnostico detalhado.
 

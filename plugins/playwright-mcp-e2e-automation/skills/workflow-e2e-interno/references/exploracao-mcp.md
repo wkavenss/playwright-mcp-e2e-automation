@@ -4,7 +4,7 @@ Use este arquivo no modo `profundo`, quando a tela tiver fluxo complexo, quando 
 
 ## Mapa De Tela
 
-Para cada tela relevante, levantar apenas o necessario para agir com seguranca:
+Para cada tela relevante, levantar apenas o necessario para agir com seguranca. Nao catalogar todos os seletores da tela.
 
 - tela, URL/rota, titulo/cabecalho;
 - formulario principal, campos visiveis e origem da obrigatoriedade;
@@ -24,11 +24,11 @@ Reaproveitar o mapa quando voltar para a mesma tela na mesma execucao.
 
 ## Formularios
 
-- Mapear labels, inputs, textareas, selects, radios, checkboxes, datas, buscas, uploads e editores ricos.
+- Mapear somente os controles usados pelo passo a passo atual. Expandir para outros labels, inputs, selects, radios, checkboxes, datas, buscas, uploads e editores ricos apenas se o fluxo exigir.
 - Tratar estrela azul com legenda como obrigatoriedade.
 - Considerar tambem atributo HTML, asterisco, legenda visual, mensagem de validacao e regra de tela.
-- Para cada campo: registrar label, tipo, obrigatoriedade, valor usado, seletor escolhido e validacao esperada.
-- Quando apropriado, submeter formulario incompleto para observar validacoes.
+- Para cada campo usado: registrar label, tipo, obrigatoriedade, valor usado, seletor escolhido e validacao esperada.
+- Submeter formulario incompleto para observar validacoes somente no modo `profundo` ou quando os obrigatorios nao estiverem claros pela tela.
 - Diferenciar acoes intermediarias de finais: salvar, avancar, enviar, confirmar, cancelar ou excluir.
 - Antes de acao final, verificar permissao explicita, ambiente seguro, dados de teste, reversibilidade e ausencia de impacto real.
 
