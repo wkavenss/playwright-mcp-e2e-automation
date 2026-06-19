@@ -35,6 +35,18 @@ Quando houver credenciais no chat, gravar em `.env`, proteger no `.gitignore`, c
 - Projeto novo: criar somente estrutura minima necessaria.
 - Page Objects: usar por padrao para toda implementacao Playwright; a spec deve orquestrar o fluxo e nao concentrar seletores/interacoes.
 
+## Saida Obrigatoria
+
+A entrega principal sempre e codigo Playwright no workspace: spec, Page Objects e suporte minimo de `.env`/config quando necessario. Navegar pela aplicacao com Playwright MCP e apenas descoberta ou validacao; nunca encerrar entregando somente navegacao, diagnostico ou relato de telas.
+
+Se nao conseguir criar ou alterar arquivos, declarar bloqueio de escrita. Nao substituir a automacao por execucao manual no navegador.
+
+## Escopo Rigido
+
+Seguir somente a URL, credenciais e passo a passo informados pelo usuario. Nao abrir casos de uso vizinhos, menus parecidos, telas alternativas ou funcionalidades nao citadas. Se o caminho informado nao aparecer, parar no ponto exato, relatar o item ausente e manter o codigo estruturado ate onde foi possivel.
+
+Quando o usuario pedir para preencher campos com dados aleatorios, gerar massa de teste rastreavel e preencher apenas os campos exigidos pela tela ou necessarios para concluir o passo solicitado.
+
 ## Execucao Rapida
 
 Usar sempre o caminho mais curto que preserve boas praticas:

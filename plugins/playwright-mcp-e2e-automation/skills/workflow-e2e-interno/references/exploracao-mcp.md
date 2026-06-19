@@ -16,6 +16,7 @@ Reaproveitar o mapa quando voltar para a mesma tela na mesma execucao.
 ## Navegacao
 
 - Confirmar pagina inicial, caminho de usuario, telas intermediarias e estado final pela interface real.
+- Seguir somente o caminho informado pelo usuario. Nao abrir funcionalidade vizinha, menu parecido ou caso de uso alternativo para explorar.
 - Preferir navegacao pela interface quando o objetivo for validar o fluxo do usuario.
 - Usar URL direta somente se o fluxo exigir ou se o usuario tiver informado essa rota.
 - Validar mudanca de tela por cabecalho, texto principal, formulario, tabela, rota ou estado visual confiavel.
