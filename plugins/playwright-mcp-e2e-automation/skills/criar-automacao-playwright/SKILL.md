@@ -1,9 +1,9 @@
 ---
-name: workflow-e2e-interno
-description: Workflow interno do plugin para criar ou atualizar automacoes Playwright E2E em aplicacoes web. Use quando o plugin for acionado para automatizar fluxo web, validar fluxo funcional em navegador, transformar passo a passo manual em teste, estruturar testes com Page Objects, melhorar ou corrigir automacao existente a partir de URL, credenciais, passo a passo e validacoes esperadas.
+name: criar-automacao-playwright
+description: Criar uma nova automacao Playwright E2E ou ampliar um fluxo existente a partir de URL, usuario, senha e passo a passo. Use para transformar um procedimento web em codigo Playwright com Page Objects, .env, Playwright MCP e validacao funcional em Chromium headed. Nao usar para apenas corrigir falha, revisar codigo ou somente configurar o projeto.
 ---
 
-# Automacao E2E com Playwright MCP
+# Criar Automacao Playwright
 
 Criar ou atualizar automacoes E2E com Playwright Test, JavaScript e Playwright MCP. Sempre implementar codigo Playwright, sem perguntar se o usuario quer gerar codigo. Por padrao, validar em Chromium headed.
 
@@ -72,14 +72,15 @@ Mesmo em `minimo`, o terminal pode emitir saida. Nao copiar logs longos; resumir
 
 1. Validar contrato minimo.
 2. Identificar execucao no navegador e nivel de evidencias.
-3. Detectar se ja existe Playwright no repositorio antes de instalar ou criar arquivos.
+3. Detectar se ja existe Playwright no repositorio antes de instalar ou criar arquivos. Se nao existir, usar a skill `preparar-projeto-playwright` ou executar `../../scripts/scaffold-playwright.mjs` a partir desta skill.
 4. Explorar com Playwright MCP somente o caminho necessario, com uma leitura por tela e sem inventario completo.
 5. Mapear sob demanda apenas campos/acoes do proximo passo e uma validacao funcional.
 6. Implementar ou atualizar spec, Page Objects, dados, fixtures e utilitarios na menor superficie possivel.
 7. Configurar `.env`, `.env.example`, `.gitignore`, scripts e Playwright apenas quando necessario.
 8. Executar validacao final em Chromium headed, salvo pedido contrario.
 9. Corrigir uma falha objetiva quando houver causa clara; se exigir investigacao ampla, resumir bloqueio e pedir direcionamento.
-10. Responder com resumo compacto.
+10. Executar `../../scripts/audit-playwright.mjs <raiz-do-projeto>` a partir desta skill. Corrigir erros dentro do escopo solicitado, sem ampliar o fluxo para eliminar alertas opcionais.
+11. Responder com resumo compacto.
 
 ## Regras Essenciais
 

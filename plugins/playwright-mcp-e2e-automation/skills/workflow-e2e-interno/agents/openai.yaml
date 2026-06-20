@@ -1,7 +1,0 @@
-interface:
-  display_name: "Workflow E2E interno"
-  short_description: "Skill interna do plugin"
-  default_prompt: "Use $workflow-e2e-interno para executar o workflow E2E interno."
-
-policy:
-  allow_implicit_invocation: false

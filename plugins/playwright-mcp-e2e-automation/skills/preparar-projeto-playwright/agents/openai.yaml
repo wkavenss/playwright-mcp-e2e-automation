@@ -1,0 +1,4 @@
+interface:
+  display_name: "Preparar projeto Playwright"
+  short_description: "Configura um projeto Playwright minimo"
+  default_prompt: "Use $preparar-projeto-playwright para configurar a estrutura minima de um projeto Playwright."

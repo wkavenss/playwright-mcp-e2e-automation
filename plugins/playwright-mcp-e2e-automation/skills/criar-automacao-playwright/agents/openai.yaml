@@ -1,0 +1,4 @@
+interface:
+  display_name: "Criar automacao Playwright"
+  short_description: "Cria E2E com Page Objects e MCP"
+  default_prompt: "Use $criar-automacao-playwright para criar uma automacao E2E com Page Objects, .env e validacao em Chromium headed."

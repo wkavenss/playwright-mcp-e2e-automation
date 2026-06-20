@@ -1,0 +1,4 @@
+interface:
+  display_name: "Corrigir automacao Playwright"
+  short_description: "Corrige testes Playwright existentes"
+  default_prompt: "Use $corrigir-automacao-playwright para diagnosticar e corrigir uma automacao Playwright existente."

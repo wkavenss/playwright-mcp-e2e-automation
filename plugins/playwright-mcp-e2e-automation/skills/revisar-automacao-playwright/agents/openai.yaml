@@ -1,0 +1,4 @@
+interface:
+  display_name: "Revisar automacao Playwright"
+  short_description: "Revisa qualidade de testes Playwright"
+  default_prompt: "Use $revisar-automacao-playwright para revisar arquitetura, seletores, seguranca e cobertura de uma automacao Playwright."

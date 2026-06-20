@@ -1,12 +1,13 @@
 # Playwright MCP E2E Automation
 
-Plugin publico para Codex com a skill interna `workflow-e2e-interno`.
+Plugin publico para Codex com skills especializadas e Playwright MCP.
 
 ## O Que Inclui
 
-- Skill para criar ou atualizar automacoes E2E com Playwright, JavaScript e Playwright MCP.
-- Orientacoes para projetos novos e existentes.
-- Estrutura com Page Objects, dados de teste, fixtures, variaveis de ambiente e documentacao.
+- Skills para criar, corrigir e revisar automacoes E2E e preparar projetos Playwright.
+- Playwright MCP para descoberta e validacao do caminho solicitado.
+- Scripts deterministas para scaffolding minimo e auditoria de boas praticas.
+- Estrutura com Page Objects, variaveis de ambiente e evidencias minimas.
 - Marketplace local de repositorio em `.agents/plugins/marketplace.json`.
 
 ## Como Publicar
@@ -46,8 +47,12 @@ codex
 ```text
 .agents/plugins/marketplace.json
 plugins/playwright-mcp-e2e-automation/.codex-plugin/plugin.json
-plugins/playwright-mcp-e2e-automation/skills/workflow-e2e-interno/SKILL.md
-plugins/playwright-mcp-e2e-automation/skills/workflow-e2e-interno/agents/openai.yaml
+plugins/playwright-mcp-e2e-automation/skills/criar-automacao-playwright/SKILL.md
+plugins/playwright-mcp-e2e-automation/skills/corrigir-automacao-playwright/SKILL.md
+plugins/playwright-mcp-e2e-automation/skills/revisar-automacao-playwright/SKILL.md
+plugins/playwright-mcp-e2e-automation/skills/preparar-projeto-playwright/SKILL.md
+plugins/playwright-mcp-e2e-automation/scripts/scaffold-playwright.mjs
+plugins/playwright-mcp-e2e-automation/scripts/audit-playwright.mjs
 ```
 
 ## Validacao
@@ -55,6 +60,6 @@ plugins/playwright-mcp-e2e-automation/skills/workflow-e2e-interno/agents/openai.
 Validado com:
 
 ```bash
-python3 /path/to/quick_validate.py plugins/playwright-mcp-e2e-automation/skills/workflow-e2e-interno
+python3 /path/to/quick_validate.py plugins/playwright-mcp-e2e-automation/skills/criar-automacao-playwright
 python3 /path/to/validate_plugin.py plugins/playwright-mcp-e2e-automation
 ```
