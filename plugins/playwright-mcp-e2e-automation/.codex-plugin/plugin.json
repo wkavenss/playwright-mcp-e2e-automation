@@ -1,6 +1,6 @@
 {
   "name": "playwright-mcp-e2e-automation",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Playwright MCP E2E toolkit for creating, correcting, reviewing, and configuring web automation.",
   "author": {
     "name": "wkavenss"
@@ -16,6 +16,8 @@
     "capabilities": [
       "Write"
     ],
+    "composerIcon": "./assets/playwright.png",
+    "logo": "./assets/playwright.png",
     "defaultPrompt": "Crie uma automacao E2E com Playwright MCP usando Page Objects, siga somente os passos informados, execute em Chromium headed e use evidencias minimas."
   }
 }
