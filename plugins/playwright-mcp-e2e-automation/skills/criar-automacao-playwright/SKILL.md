@@ -7,6 +7,8 @@ description: Criar uma nova automacao Playwright E2E ou ampliar um fluxo existen
 
 Criar ou atualizar automacoes E2E com Playwright Test, JavaScript e Playwright MCP. Sempre implementar codigo Playwright, sem perguntar se o usuario quer gerar codigo. Por padrao, validar em Chromium headed.
 
+Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra skill do plugin durante a criacao.
+
 O plugin inclui configuracao de Playwright MCP em `.mcp.json`; usar esse servidor quando estiver disponivel. Em primeira execucao, o MCP pode exigir rede para baixar `@playwright/mcp@latest` via `npx`.
 
 ## Contrato Minimo
@@ -72,14 +74,14 @@ Mesmo em `minimo`, o terminal pode emitir saida. Nao copiar logs longos; resumir
 
 1. Validar contrato minimo.
 2. Identificar execucao no navegador e nivel de evidencias.
-3. Detectar se ja existe Playwright no repositorio antes de instalar ou criar arquivos. Se nao existir, usar a skill `preparar-projeto-playwright` ou executar `../../scripts/scaffold-playwright.mjs` a partir desta skill.
+3. Detectar se ja existe Playwright no repositorio antes de instalar ou criar arquivos. Se nao existir, executar diretamente `../../scripts/scaffold-playwright.mjs <raiz-do-projeto>` a partir desta skill.
 4. Explorar com Playwright MCP somente o caminho necessario, com uma leitura por tela e sem inventario completo.
 5. Mapear sob demanda apenas campos/acoes do proximo passo e uma validacao funcional.
 6. Implementar ou atualizar spec, Page Objects, dados, fixtures e utilitarios na menor superficie possivel.
 7. Configurar `.env`, `.env.example`, `.gitignore`, scripts e Playwright apenas quando necessario.
 8. Executar validacao final em Chromium headed, salvo pedido contrario.
 9. Corrigir uma falha objetiva quando houver causa clara; se exigir investigacao ampla, resumir bloqueio e pedir direcionamento.
-10. Executar `../../scripts/audit-playwright.mjs <raiz-do-projeto>` a partir desta skill. Corrigir erros dentro do escopo solicitado, sem ampliar o fluxo para eliminar alertas opcionais.
+10. Executar `../../scripts/audit-playwright.mjs <raiz-do-projeto> --changed` a partir desta skill. Auditar somente arquivos modificados e corrigir erros dentro do escopo solicitado.
 11. Responder com resumo compacto.
 
 ## Regras Essenciais

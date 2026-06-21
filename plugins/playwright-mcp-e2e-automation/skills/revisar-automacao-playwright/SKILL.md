@@ -7,10 +7,12 @@ description: Revisar codigo Playwright existente quanto a corretude, Page Object
 
 Atuar em postura de code review. Priorizar bugs, riscos de regressao, fragilidade e lacunas de teste; nao modificar arquivos salvo pedido explicito.
 
+Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra skill do plugin durante a revisao.
+
 ## Fluxo
 
 1. Identificar specs, Page Objects, fixtures, dados, configuracao e scripts de execucao.
-2. Executar `../../scripts/audit-playwright.mjs <raiz-do-projeto>` a partir desta skill.
+2. Executar `../../scripts/audit-playwright.mjs <raiz-do-projeto>` a partir desta skill para realizar a auditoria completa.
 3. Ler apenas os arquivos necessarios para confirmar ou descartar os achados.
 4. Avaliar resultado funcional, isolamento, massa, sincronizacao, seletores, segredos e manutencao.
 5. Quando util e seguro, executar o menor teste relevante; nao navegar por funcionalidades nao solicitadas.

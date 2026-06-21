@@ -7,6 +7,8 @@ description: Configurar a estrutura minima de Playwright Test em um projeto que 
 
 Preparar somente a infraestrutura minima, preservando o package manager e as convencoes do repositorio.
 
+Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra skill do plugin durante a preparacao.
+
 ## Fluxo
 
 1. Confirmar que nao existe configuracao Playwright equivalente. Se existir, ajustar somente o que estiver faltando.
@@ -15,7 +17,7 @@ Preparar somente a infraestrutura minima, preservando o package manager e as con
 4. Instalar `@playwright/test` e `dotenv` como dependencias de desenvolvimento somente quando ausentes e com autorizacao de rede.
 5. Instalar Chromium somente quando necessario e com autorizacao de rede.
 6. Manter `.env` fora do versionamento e deixar `.env.example` sem valores secretos.
-7. Executar `../../scripts/audit-playwright.mjs <raiz-do-projeto>` a partir desta skill.
+7. Executar `../../scripts/audit-playwright.mjs <raiz-do-projeto> --changed` a partir desta skill.
 8. Informar arquivos criados, dependencias instaladas e comandos disponiveis.
 
 ## Padrao Gerado

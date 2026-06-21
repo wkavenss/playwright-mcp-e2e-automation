@@ -2,9 +2,11 @@
 
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 
 const root = path.resolve(process.argv[2] || process.cwd());
 const jsonOutput = process.argv.includes("--json");
+const changedOnly = process.argv.includes("--changed");
 const ignoredDirs = new Set([".git", "node_modules", "playwright-report", "test-results", "blob-report"]);
 const codeExtensions = new Set([".js", ".cjs", ".mjs", ".ts", ".tsx"]);
 const findings = [];
@@ -22,6 +24,27 @@ function walk(directory) {
   });
 }
 
+function gitPaths(args) {
+  return execFileSync("git", ["-C", root, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })
+    .split(/\r?\n/)
+    .filter(Boolean);
+}
+
+function changedFiles() {
+  try {
+    const paths = new Set([
+      ...gitPaths(["diff", "--name-only", "--diff-filter=ACMR", "HEAD"]),
+      ...gitPaths(["ls-files", "--others", "--exclude-standard"]),
+    ]);
+    return [...paths]
+      .map((file) => path.join(root, file))
+      .filter((file) => fs.existsSync(file) && fs.statSync(file).isFile());
+  } catch {
+    const candidates = ["tests", "test", "e2e", "playwright"].flatMap((directory) => walk(path.join(root, directory)));
+    return [...new Set(candidates)];
+  }
+}
+
 function relative(file) {
   return path.relative(root, file) || ".";
 }
@@ -35,10 +58,14 @@ function firstMatch(content, regex) {
   return regex.exec(content);
 }
 
-const files = walk(root);
+const files = changedOnly ? changedFiles() : walk(root);
 const codeFiles = files.filter((file) => codeExtensions.has(path.extname(file)));
 const specFiles = codeFiles.filter((file) => /(?:\.spec|\.test)\.[cm]?[jt]sx?$/.test(file));
-const pageObjectFiles = codeFiles.filter((file) => /(?:^|[/\\])(?:pages?|page-objects?)(?:[/\\])/i.test(file));
+const changedPageObjectFiles = codeFiles.filter((file) => /(?:^|[/\\])(?:pages?|page-objects?)(?:[/\\])/i.test(file));
+const conventionalPageObjectFiles = ["tests/pages", "tests/page-objects", "test/pages", "page-objects"]
+  .flatMap((directory) => walk(path.join(root, directory)))
+  .filter((file) => codeExtensions.has(path.extname(file)));
+const pageObjectFiles = [...new Set([...changedPageObjectFiles, ...conventionalPageObjectFiles])];
 
 if (specFiles.length && !pageObjectFiles.length) {
   add("error", "page-objects-required", ".", 1, "Specs encontradas sem Page Objects em diretorio pages/page-objects.");
@@ -84,7 +111,10 @@ if (fs.existsSync(envExamplePath)) {
   });
 }
 
-const configFile = files.find((file) => /playwright\.config\.[cm]?[jt]s$/.test(file));
+const configFile = files.find((file) => /playwright\.config\.[cm]?[jt]s$/.test(file))
+  || ["playwright.config.js", "playwright.config.cjs", "playwright.config.mjs", "playwright.config.ts"]
+    .map((file) => path.join(root, file))
+    .find((file) => fs.existsSync(file));
 if (!configFile) {
   add("warning", "missing-config", ".", 1, "playwright.config nao encontrado.");
 } else {
@@ -100,6 +130,7 @@ if (!configFile) {
 
 const summary = {
   root,
+  mode: changedOnly ? "changed" : "full",
   scannedFiles: codeFiles.length,
   errors: findings.filter((item) => item.severity === "error").length,
   warnings: findings.filter((item) => item.severity === "warning").length,
