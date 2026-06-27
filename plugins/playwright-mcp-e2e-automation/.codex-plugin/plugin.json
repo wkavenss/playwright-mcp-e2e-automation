@@ -1,6 +1,6 @@
 {
   "name": "playwright-mcp-e2e-automation",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "Playwright MCP E2E toolkit for creating, correcting, reviewing, and configuring web automation.",
   "author": {
     "name": "wkavenss"
@@ -10,7 +10,7 @@
   "interface": {
     "displayName": "Playwright MCP E2E",
     "shortDescription": "Automacoes E2E com Playwright MCP",
-    "longDescription": "Crie, corrija, revise ou prepare automacoes Playwright. Na criacao, forneca URL, credenciais e passo a passo; o plugin gera codigo com Page Objects, segue somente o escopo informado, executa em Chromium headed e usa evidencias minimas.",
+    "longDescription": "Crie, corrija, revise ou prepare automacoes Playwright. Na criacao, forneca URL, credenciais e passo a passo; o plugin sempre gera codigo com Page Objects, mesmo sem pedido explicito, segue somente o escopo informado, executa em Chromium headed e usa evidencias minimas.",
     "developerName": "wkavenss",
     "category": "Developer tools",
     "capabilities": [
@@ -18,6 +18,6 @@
     ],
     "composerIcon": "./assets/playwright.png",
     "logo": "./assets/playwright.png",
-    "defaultPrompt": "Crie uma automacao E2E com Playwright MCP usando Page Objects, siga somente os passos informados, execute em Chromium headed e use evidencias minimas."
+    "defaultPrompt": "Crie uma automacao E2E com Playwright MCP usando Page Objects; ao receber URL, credenciais e passo a passo, sempre gere codigo Playwright, execute em Chromium headed e use evidencias minimas."
   }
 }

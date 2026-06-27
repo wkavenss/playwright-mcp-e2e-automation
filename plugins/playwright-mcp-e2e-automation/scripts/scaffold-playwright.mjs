@@ -47,6 +47,8 @@ function updatePackageJson() {
   packageJson.scripts ||= {};
   let changed = false;
   for (const [name, command] of Object.entries({
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
   })) {

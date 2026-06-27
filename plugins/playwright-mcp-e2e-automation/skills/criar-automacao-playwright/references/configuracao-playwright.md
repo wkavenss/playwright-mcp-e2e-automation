@@ -10,20 +10,18 @@ Instalar dependencias e Chromium somente quando necessario e com autorizacao qua
 
 ## Scripts Minimos
 
-Para projeto novo, configurar no minimo:
+Para projeto novo, configurar scripts minimos e preservar aliases locais existentes:
 
 ```json
 {
   "scripts": {
-    "test": "playwright test",
-    "test:headed": "playwright test --headed",
-    "test:ui": "playwright test --ui",
-    "report": "playwright show-report"
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed"
   }
 }
 ```
 
-Quando o usuario nao informar modo de execucao, usar `test:headed` ou comando equivalente com Chromium headed. O script `test` pode permanecer headless para CI.
+Quando o usuario nao informar modo de execucao, usar `test:e2e:headed` ou comando equivalente com Chromium headed.
 
 ## Variaveis E Segredos
 
@@ -31,7 +29,7 @@ Para projeto novo, usar:
 
 ```text
 BASE_URL=
-E2E_USER=
+E2E_USERNAME=
 E2E_PASSWORD=
 ```
 
@@ -68,3 +66,7 @@ Com `evidencias: minimo`, nao criar nem atualizar README por causa de evidencias
 - Usar massa externa informada pelo usuario quando o fluxo exigir.
 - Validar formato aceito pela tela para datas, valores, documentos e identificadores.
 - Usar textos neutros e rastreaveis para campos longos.
+- Manter massa simples dentro da spec quando usada uma unica vez.
+- Mover massa maior ou reutilizavel para `tests/data`.
+- Mover geradores e helpers reaproveitaveis para `tests/utils`.
+- Inferir dados obrigatorios secundarios somente quando neutros e sem impacto na regra testada; pedir ao usuario dados que alterem comportamento, perfil, status, tipo, modalidade, permissao ou resultado esperado.

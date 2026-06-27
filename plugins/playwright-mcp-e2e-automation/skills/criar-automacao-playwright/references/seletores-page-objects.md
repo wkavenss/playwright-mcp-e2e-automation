@@ -31,30 +31,66 @@ Em projeto novo, usar estrutura minima:
 
 ```text
 tests/e2e/
-pages/
-fixtures/
-data/
-utils/
+tests/pages/
+tests/fixtures/
+tests/data/
+tests/utils/
 playwright.config.js
 package.json
 .env.example
 .gitignore
 ```
 
-Preservar a estrutura existente quando houver Playwright no repositorio.
+Preservar a estrutura existente quando houver Playwright no repositorio. Criar `fixtures`, `data` e `utils` somente quando o fluxo exigir reuso ou massa maior; nao criar arquivos vazios por padrao.
 
 Usar kebab-case para specs/dados/utils e PascalCase para Page Objects. Criar pelo menos um Page Object por tela ou area funcional tocada pelo fluxo, mas com metodos minimos para o caminho solicitado. O teste principal deve contar o fluxo:
 
 ```javascript
-test('deve concluir o fluxo principal com sucesso', async ({ page }) => {
-  await loginPage.realizarLogin();
-  await homePage.acessarFuncionalidade();
-  await fluxoPage.preencherDadosObrigatorios();
-  await fluxoPage.submeterFluxo();
-  await fluxoPage.validarResultado();
+test('deve cadastrar projeto quando dados obrigatorios forem validos', async ({ page }) => {
+  await test.step('Realizar login', async () => {
+    await loginPage.realizarLogin();
+  });
+
+  await test.step('Preencher dados obrigatorios', async () => {
+    await cadastroPage.preencherDadosObrigatorios(dadosProjeto);
+  });
+
+  await test.step('Salvar e validar cadastro', async () => {
+    await cadastroPage.salvar();
+    await cadastroPage.validarMensagemSucesso();
+  });
 });
 ```
 
 Page Objects devem representar acoes funcionais, como `realizarLogin`, `acessarFuncionalidade`, `preencherDadosObrigatorios`, `avancarEtapa`, `confirmarOperacao`, `validarMensagemSucesso` e `validarRegistroNaListagem`.
 
 Evitar metodos como `clickButton1`, `fillInput2`, `goNext` ou seletores complexos direto no spec. A spec nao deve usar `page.locator`, `getByRole`, `getByLabel` ou seletores CSS/XPath diretamente, salvo em asserts muito simples e justificados pelo padrao local.
+
+## Page Objects
+
+Cada Page Object deve conter locators da tela, acoes reutilizaveis, metodos com nomes claros e pequenas validacoes ligadas aquela tela quando fizer sentido. Preferir locators no `constructor` ou getters simples; evitar objetos gigantes ou genericos demais.
+
+Exemplo de formato:
+
+```javascript
+class LoginPage {
+  constructor(page) {
+    this.page = page;
+    this.usuarioInput = page.getByLabel('Usuario');
+    this.senhaInput = page.getByLabel('Senha');
+    this.entrarButton = page.getByRole('button', { name: 'Entrar' });
+  }
+
+  async acessar() {
+    await this.page.goto('/');
+  }
+
+  async realizarLogin(usuario, senha) {
+    await this.usuarioInput.fill(usuario);
+    await this.senhaInput.fill(senha);
+    await this.entrarButton.click();
+  }
+}
+```
+
+Manter dados variaveis fora do Page Object, recebidos por parametro. O Page Object conhece a tela; a spec conhece o cenario.

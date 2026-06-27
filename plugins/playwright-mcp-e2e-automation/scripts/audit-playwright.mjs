@@ -89,6 +89,24 @@ for (const file of specFiles) {
   if (directLocator) {
     add("error", "selector-in-spec", relative(file), lineNumber(content, directLocator.index), "Mova seletores e interacoes da spec para um Page Object.");
   }
+
+  const directActions = [...content.matchAll(/\bpage\s*\.\s*(?:click|fill|selectOption|check|uncheck|press|type)\s*\(/g)];
+  if (directActions.length >= 2) {
+    add("warning", "linear-actions-in-spec", relative(file), lineNumber(content, directActions[0].index), "Spec com muitas acoes diretas em page; mova interacoes para Page Objects.");
+  }
+
+  const genericName = firstMatch(content, /\btest\s*\(\s*["'`](?:teste\s*\d+|validar cadastro|fluxo completo|automacao tela|automação tela)["'`]/gi);
+  if (genericName) {
+    add("warning", "generic-test-name", relative(file), lineNumber(content, genericName.index), "Use nome de teste no padrao: deve [comportamento] quando [condicao].");
+  }
+}
+
+for (const file of pageObjectFiles) {
+  const content = fs.readFileSync(file, "utf8");
+  const genericMethod = firstMatch(content, /\b(?:async\s+)?(?:clickButton\d*|fillInput\d*|goNext)\s*\(/g);
+  if (genericMethod) {
+    add("warning", "generic-page-object-method", relative(file), lineNumber(content, genericMethod.index), "Use metodos funcionais no Page Object, como realizarLogin, salvar ou validarMensagemSucesso.");
+  }
 }
 
 const gitignorePath = path.join(root, ".gitignore");
