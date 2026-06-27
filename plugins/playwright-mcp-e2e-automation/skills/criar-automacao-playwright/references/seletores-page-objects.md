@@ -18,6 +18,32 @@ Nunca usar indice global, "primeiro botao da pagina", classe gerada ou seletor d
 
 Mapear seletores sob demanda: identificar o seletor no momento em que o passo precisa dele, gravar no Page Object e seguir. Nao criar inventario de todos os campos/botoes antes de implementar o fluxo.
 
+## JSF E Sistemas Legados
+
+Nao usar IDs gerados como `j_id`, `j_id_jsp`, `j_idt` ou `javax.faces` como seletor principal. Esses valores mudam entre builds, sessoes ou telas e deixam a automacao fragil.
+
+Para campos em formularios tabulares ou telas legadas:
+
+- Preferir `getByLabel`, `getByRole` e `getByText` escopado quando houver nome acessivel.
+- Quando a label for apenas visual, localizar a linha ou container pelo texto da label e entao buscar `input`, `textarea` ou `select` dentro dele.
+- Quando so houver ID parcialmente estavel, usar sufixo escopado, como `textarea[id$=":justificativa-objetivos"]`, dentro da secao correta.
+- Evitar helpers genericos que recebem IDs internos crus, como `campo(id)` e `preencherValor(id, valor)`, quando isso esconder seletores frageis.
+- Criar getters/metodos semanticos, como `localCursoInput`, `objetivosTextarea` e `preencherObjetivosImportancia`.
+
+Exemplos preferidos:
+
+```javascript
+this.localCursoInput = page
+  .locator('tr', { hasText: /^Local/ })
+  .locator('input, textarea, select');
+
+this.objetivosTextarea = page
+  .locator('fieldset, table, form', { hasText: 'Objetivos e Importancia' })
+  .locator('textarea[id$=":justificativa-objetivos"]');
+```
+
+Usar ID completo gerado somente como ultimo recurso e deixar comentario curto no codigo explicando que nao havia label, role, texto contextual ou sufixo estavel suficiente.
+
 ## Tabelas E Listagens
 
 - Localizar primeiro a linha pelo texto unico do registro.

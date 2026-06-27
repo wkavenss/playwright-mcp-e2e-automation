@@ -101,6 +101,8 @@ Mesmo em `minimo`, o terminal pode emitir saida. Nao copiar logs longos; resumir
 - Usar Playwright MCP antes de codar ou alterar teste.
 - Nao assumir nomes de menus, botoes, campos, mensagens ou fluxos sem observar a interface.
 - Priorizar: `getByRole`, `getByLabel`, `getByPlaceholder`, `getByText` escopado, `getByTestId`, CSS semantico relativo e XPath so em ultimo caso.
+- Nao usar IDs JSF gerados (`j_id`, `j_id_jsp`, `j_idt`, `javax.faces` ou similares) como seletor principal.
+- Em telas JSF/legadas, substituir IDs gerados por label, role, texto visual, linha/container do formulario ou sufixo estavel do ID.
 - Nao mapear todos os campos/botoes; escolher o menor conjunto para executar o passo atual e validar o resultado.
 - Em tabelas, localizar a linha por texto unico e so entao a acao dentro da linha.
 - Manter seletores e interacoes dentro de Page Objects; specs devem conter passos funcionais, dados e assertions de alto nivel.
@@ -122,6 +124,8 @@ Em fluxos simples, criar Page Objects minimos e evoluir somente em falha ou dupl
 A spec deve conter cenario, passos principais, validacoes e chamadas para Page Objects/helpers. Usar `test.step` em fluxos medios ou longos. Nomear testes no padrao `deve [comportamento esperado] quando [condicao]`.
 
 Evitar codigo com aparencia de gravacao linear de cliques. Manter funcoes pequenas, nomes claros, pouca duplicacao e comentarios apenas para decisoes importantes, seletores frageis ou suposicoes relevantes.
+
+Antes de finalizar, revisar Page Objects para remover IDs gerados, helpers genericos baseados em `id` cru e preenchimento via `document.getElementById`/`element.value` quando houver alternativa observavel. Usar ID completo somente como ultimo recurso, com comentario curto explicando a limitacao.
 
 ## Referencias Sob Demanda
 

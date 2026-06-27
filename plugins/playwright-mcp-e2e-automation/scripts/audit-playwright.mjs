@@ -58,6 +58,11 @@ function firstMatch(content, regex) {
   return regex.exec(content);
 }
 
+function matches(content, regex) {
+  regex.lastIndex = 0;
+  return [...content.matchAll(regex)];
+}
+
 const files = changedOnly ? changedFiles() : walk(root);
 const codeFiles = files.filter((file) => codeExtensions.has(path.extname(file)));
 const specFiles = codeFiles.filter((file) => /(?:\.spec|\.test)\.[cm]?[jt]sx?$/.test(file));
@@ -77,6 +82,26 @@ for (const file of codeFiles) {
   const wait = firstMatch(content, /\bwaitForTimeout\s*\(/g);
   if (wait) add("warning", "fixed-timeout", rel, lineNumber(content, wait.index), "Evite waitForTimeout; espere uma condicao observavel.");
 
+  const generatedJsfId = firstMatch(content, /(?:j_id(?:_jsp)?_?\d+|j_idt_?\d+|javax\.faces)/gi);
+  if (generatedJsfId) {
+    add("warning", "generated-jsf-id", rel, lineNumber(content, generatedJsfId.index), "Evite ID JSF gerado; prefira label, role, texto contextual ou sufixo estavel escopado.");
+  }
+
+  const fullGeneratedJsfSelector = firstMatch(content, /(?:#|id=["'`]|id\\=|\\#)(?:j_id(?:_jsp)?_?\d+|j_idt_?\d+)/gi);
+  if (fullGeneratedJsfSelector) {
+    add("warning", "generated-jsf-css-selector", rel, lineNumber(content, fullGeneratedJsfSelector.index), "Seletor CSS com ID JSF gerado e fragil; use locator semantico ou sufixo estavel.");
+  }
+
+  const documentGetById = firstMatch(content, /\bdocument\.getElementById\s*\(/g);
+  if (documentGetById) {
+    add("warning", "dom-get-element-by-id", rel, lineNumber(content, documentGetById.index), "Evite document.getElementById em page.evaluate; prefira locator Playwright observavel.");
+  }
+
+  const directValueMutation = firstMatch(content, /\.(?:value|checked)\s*=|dispatchEvent\s*\(/g);
+  if (directValueMutation) {
+    add("warning", "direct-dom-mutation", rel, lineNumber(content, directValueMutation.index), "Evite alterar DOM diretamente; use fill/selectOption/check ou justifique fallback JSF inevitavel.");
+  }
+
   const secret = firstMatch(content, /\b(?:password|senha|passwd|username|usuario)\s*[:=]\s*["'`]([^"'`\n]{3,})["'`]/gi);
   if (secret && !secret[0].includes("process.env")) {
     add("error", "hardcoded-credential", rel, lineNumber(content, secret.index), "Possivel credencial fixa; use process.env.");
@@ -90,7 +115,7 @@ for (const file of specFiles) {
     add("error", "selector-in-spec", relative(file), lineNumber(content, directLocator.index), "Mova seletores e interacoes da spec para um Page Object.");
   }
 
-  const directActions = [...content.matchAll(/\bpage\s*\.\s*(?:click|fill|selectOption|check|uncheck|press|type)\s*\(/g)];
+  const directActions = matches(content, /\bpage\s*\.\s*(?:click|fill|selectOption|check|uncheck|press|type)\s*\(/g);
   if (directActions.length >= 2) {
     add("warning", "linear-actions-in-spec", relative(file), lineNumber(content, directActions[0].index), "Spec com muitas acoes diretas em page; mova interacoes para Page Objects.");
   }
@@ -106,6 +131,11 @@ for (const file of pageObjectFiles) {
   const genericMethod = firstMatch(content, /\b(?:async\s+)?(?:clickButton\d*|fillInput\d*|goNext)\s*\(/g);
   if (genericMethod) {
     add("warning", "generic-page-object-method", relative(file), lineNumber(content, genericMethod.index), "Use metodos funcionais no Page Object, como realizarLogin, salvar ou validarMensagemSucesso.");
+  }
+
+  const rawIdHelper = firstMatch(content, /\b(?:campo|field|input|preencherValor|fillValue)\s*\(\s*id\b|locator\s*\(\s*`?\[id=/g);
+  if (rawIdHelper) {
+    add("warning", "raw-id-helper", relative(file), lineNumber(content, rawIdHelper.index), "Evite helper generico baseado em id cru; crie getters/metodos semanticos para cada campo relevante.");
   }
 }
 

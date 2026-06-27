@@ -1,6 +1,6 @@
 {
   "name": "playwright-mcp-e2e-automation",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Playwright MCP E2E toolkit for creating, correcting, reviewing, and configuring web automation.",
   "author": {
     "name": "wkavenss"
