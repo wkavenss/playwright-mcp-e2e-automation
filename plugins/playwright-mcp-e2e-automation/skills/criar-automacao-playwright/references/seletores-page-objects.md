@@ -27,8 +27,20 @@ Para campos em formularios tabulares ou telas legadas:
 - Preferir `getByLabel`, `getByRole` e `getByText` escopado quando houver nome acessivel.
 - Quando a label for apenas visual, localizar a linha ou container pelo texto da label e entao buscar `input`, `textarea` ou `select` dentro dele.
 - Quando so houver ID parcialmente estavel, usar sufixo escopado, como `textarea[id$=":justificativa-objetivos"]`, dentro da secao correta.
+- Para ID JSF estavel inevitavel, preferir helper legivel a escape manual repetido:
+
+```javascript
+byId(id) {
+  return this.page.locator(`[id="${id}"]`);
+}
+```
+
 - Evitar helpers genericos que recebem IDs internos crus, como `campo(id)` e `preencherValor(id, valor)`, quando isso esconder seletores frageis.
 - Criar getters/metodos semanticos, como `localCursoInput`, `objetivosTextarea` e `preencherObjetivosImportancia`.
+- Se usar sufixo `id$` em campo critico, validar unicidade antes de preencher: `await expect(campo).toHaveCount(1)`.
+- Em autocomplete, filtrar sugestoes pelo texto esperado antes de `.first()`; nao selecionar a primeira linha cegamente.
+- Para campos visiveis, usar `await expect(campo).toBeEditable()` e `fill`; reservar `evaluate`/eventos para editor JSF oculto com comentario curto.
+- Para JSF/AJAX, substituir `waitForLoadState` generico por assert do efeito esperado: campo habilitado, opcao carregada, texto da proxima etapa ou mensagem.
 
 Exemplos preferidos:
 
@@ -49,6 +61,7 @@ Usar ID completo gerado somente como ultimo recurso e deixar comentario curto no
 - Localizar primeiro a linha pelo texto unico do registro.
 - Clicar em icone, link ou botao dentro da mesma linha.
 - Preferir `alt`, `title`, `aria-label` ou texto acessivel quando existir.
+- Para links e botoes, tentar `getByRole` com nome acessivel antes de procurar `img[title]` interno.
 - Se a acao nao tiver nome acessivel, usar seletor relativo ao container correto e justificar no codigo.
 
 ## Estrutura De Codigo

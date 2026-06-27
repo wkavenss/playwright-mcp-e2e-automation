@@ -103,6 +103,11 @@ Mesmo em `minimo`, o terminal pode emitir saida. Nao copiar logs longos; resumir
 - Priorizar: `getByRole`, `getByLabel`, `getByPlaceholder`, `getByText` escopado, `getByTestId`, CSS semantico relativo e XPath so em ultimo caso.
 - Nao usar IDs JSF gerados (`j_id`, `j_id_jsp`, `j_idt`, `javax.faces` ou similares) como seletor principal.
 - Em telas JSF/legadas, substituir IDs gerados por label, role, texto visual, linha/container do formulario ou sufixo estavel do ID.
+- Quando ID JSF estavel for inevitavel, centralizar em helper semantico como `byId(id)` e expor getters funcionais; nao espalhar `#form\\:campo`.
+- Evitar `waitForLoadState` generico; depois de acoes JSF/AJAX, esperar o efeito visivel da UI.
+- Evitar `.first()` sem filtro em autocomplete, sugestoes, tabelas ou listagens; filtrar pelo texto esperado antes.
+- Evitar `force: true` amplo; usar `toBeEditable` + `fill`, deixando fallback JSF oculto em metodo separado e comentado.
+- Em seletores por sufixo `id$`, escopar ao container correto e validar unicidade em campos criticos.
 - Nao mapear todos os campos/botoes; escolher o menor conjunto para executar o passo atual e validar o resultado.
 - Em tabelas, localizar a linha por texto unico e so entao a acao dentro da linha.
 - Manter seletores e interacoes dentro de Page Objects; specs devem conter passos funcionais, dados e assertions de alto nivel.

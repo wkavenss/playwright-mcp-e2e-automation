@@ -82,6 +82,31 @@ for (const file of codeFiles) {
   const wait = firstMatch(content, /\bwaitForTimeout\s*\(/g);
   if (wait) add("warning", "fixed-timeout", rel, lineNumber(content, wait.index), "Evite waitForTimeout; espere uma condicao observavel.");
 
+  const loadState = firstMatch(content, /\bwaitForLoadState\s*\(\s*["'`](?:domcontentloaded|load|networkidle)["'`]/g);
+  if (loadState) {
+    add("warning", "generic-load-state", rel, lineNumber(content, loadState.index), "Evite waitForLoadState generico; espere o efeito observavel da UI.");
+  }
+
+  const forceAction = firstMatch(content, /\b(?:fill|click|check|uncheck|selectOption|press)\s*\([^)]*\{[^}]*force\s*:\s*true/gs);
+  if (forceAction) {
+    add("warning", "force-true-action", rel, lineNumber(content, forceAction.index), "Evite force: true amplo; prefira elemento editavel/visivel ou fallback JSF isolado e comentado.");
+  }
+
+  const bodyInnerText = firstMatch(content, /locator\s*\(\s*["'`]body["'`]\s*\)\s*\.\s*innerText\s*\(/g);
+  if (bodyInnerText) {
+    add("warning", "body-inner-text", rel, lineNumber(content, bodyInnerText.index), "Evite ler body inteiro para mensagens; prefira container de erro/alerta quando existir.");
+  }
+
+  const imageTitleLink = firstMatch(content, /locator\s*\([^)]*["'`][^"'`]*img\[title=/gs);
+  if (imageTitleLink) {
+    add("warning", "image-title-link-selector", rel, lineNumber(content, imageTitleLink.index), "Evite acoplar link/botao a img[title]; tente getByRole ou seletor acessivel antes.");
+  }
+
+  const idSuffixSelector = firstMatch(content, /\[\s*id\$\s*=/g);
+  if (idSuffixSelector && !/toHaveCount\s*\(\s*1\s*\)/.test(content)) {
+    add("warning", "id-suffix-without-uniqueness", rel, lineNumber(content, idSuffixSelector.index), "Se usar id$ em campo critico, escopo e unicidade devem ficar evidentes.");
+  }
+
   const generatedJsfId = firstMatch(content, /(?:j_id(?:_jsp)?_?\d+|j_idt_?\d+|javax\.faces)/gi);
   if (generatedJsfId) {
     add("warning", "generated-jsf-id", rel, lineNumber(content, generatedJsfId.index), "Evite ID JSF gerado; prefira label, role, texto contextual ou sufixo estavel escopado.");
@@ -136,6 +161,18 @@ for (const file of pageObjectFiles) {
   const rawIdHelper = firstMatch(content, /\b(?:campo|field|input|preencherValor|fillValue)\s*\(\s*id\b|locator\s*\(\s*`?\[id=/g);
   if (rawIdHelper) {
     add("warning", "raw-id-helper", relative(file), lineNumber(content, rawIdHelper.index), "Evite helper generico baseado em id cru; crie getters/metodos semanticos para cada campo relevante.");
+  }
+
+  const lines = content.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index += 1) {
+    if (!/\.first\s*\(\s*\)/.test(lines[index])) continue;
+    const windowText = lines.slice(Math.max(0, index - 4), index + 1).join("\n");
+    const looksLikeCollection = /sugest|suggest|autocomplete|op[cç][aã]o|option|linha|row|table|lista|list/i.test(windowText);
+    const hasTextFilter = /\.filter\s*\(\s*\{[^}]*hasText|locator\s*\([^)]*\{[^}]*hasText/si.test(windowText);
+    if (looksLikeCollection && !hasTextFilter) {
+      add("warning", "unfiltered-first-collection", relative(file), index + 1, "Evite .first() em sugestoes/listagens sem filtrar pelo texto esperado.");
+      break;
+    }
   }
 }
 
