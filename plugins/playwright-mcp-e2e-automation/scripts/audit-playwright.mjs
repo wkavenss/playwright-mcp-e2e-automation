@@ -63,6 +63,12 @@ function matches(content, regex) {
   return [...content.matchAll(regex)];
 }
 
+function hasNearby(content, index, pattern, radius = 180) {
+  const start = Math.max(0, index - radius);
+  const end = Math.min(content.length, index + radius);
+  return pattern.test(content.slice(start, end));
+}
+
 const files = changedOnly ? changedFiles() : walk(root);
 const codeFiles = files.filter((file) => codeExtensions.has(path.extname(file)));
 const specFiles = codeFiles.filter((file) => /(?:\.spec|\.test)\.[cm]?[jt]sx?$/.test(file));
@@ -123,7 +129,7 @@ for (const file of codeFiles) {
   }
 
   const directValueMutation = firstMatch(content, /\.(?:value|checked)\s*=|dispatchEvent\s*\(/g);
-  if (directValueMutation) {
+  if (directValueMutation && !hasNearby(content, directValueMutation.index, /JSF|RichFaces|Oculto|oculto|setter nativo|HTMLTextAreaElement/)) {
     add("warning", "direct-dom-mutation", rel, lineNumber(content, directValueMutation.index), "Evite alterar DOM diretamente; use fill/selectOption/check ou justifique fallback JSF inevitavel.");
   }
 
@@ -158,9 +164,14 @@ for (const file of pageObjectFiles) {
     add("warning", "generic-page-object-method", relative(file), lineNumber(content, genericMethod.index), "Use metodos funcionais no Page Object, como realizarLogin, salvar ou validarMensagemSucesso.");
   }
 
-  const rawIdHelper = firstMatch(content, /\b(?:campo|field|input|preencherValor|fillValue)\s*\(\s*id\b|locator\s*\(\s*`?\[id=/g);
+  const rawIdHelper = firstMatch(content, /\b(?:campo|field|input|preencherValor|fillValue)\s*\(\s*id\b/g);
   if (rawIdHelper) {
     add("warning", "raw-id-helper", relative(file), lineNumber(content, rawIdHelper.index), "Evite helper generico baseado em id cru; crie getters/metodos semanticos para cada campo relevante.");
+  }
+
+  const escapedStableJsfId = firstMatch(content, /locator\s*\(\s*["'`]#[A-Za-z0-9_]+\\\\:/g);
+  if (escapedStableJsfId && !/\bbyId\s*\(\s*id\s*\)/.test(content)) {
+    add("warning", "escaped-jsf-id", relative(file), lineNumber(content, escapedStableJsfId.index), "Centralize IDs JSF estaveis em helper byId(id) em vez de espalhar seletores escapados.");
   }
 
   const lines = content.split(/\r?\n/);

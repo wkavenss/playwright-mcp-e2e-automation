@@ -103,11 +103,10 @@ Mesmo em `minimo`, o terminal pode emitir saida. Nao copiar logs longos; resumir
 - Priorizar: `getByRole`, `getByLabel`, `getByPlaceholder`, `getByText` escopado, `getByTestId`, CSS semantico relativo e XPath so em ultimo caso.
 - Nao usar IDs JSF gerados (`j_id`, `j_id_jsp`, `j_idt`, `javax.faces` ou similares) como seletor principal.
 - Em telas JSF/legadas, substituir IDs gerados por label, role, texto visual, linha/container do formulario ou sufixo estavel do ID.
-- Quando ID JSF estavel for inevitavel, centralizar em helper semantico como `byId(id)` e expor getters funcionais; nao espalhar `#form\\:campo`.
-- Evitar `waitForLoadState` generico; depois de acoes JSF/AJAX, esperar o efeito visivel da UI.
-- Evitar `.first()` sem filtro em autocomplete, sugestoes, tabelas ou listagens; filtrar pelo texto esperado antes.
-- Evitar `force: true` amplo; usar `toBeEditable` + `fill`, deixando fallback JSF oculto em metodo separado e comentado.
-- Em seletores por sufixo `id$`, escopar ao container correto e validar unicidade em campos criticos.
+- Em JSF/RichFaces legado, nao converter tudo cegamente para `getByRole/getByLabel`; centralizar IDs estaveis em `byId(id)` quando forem o contrato mais confiavel.
+- Evitar `waitForLoadState` generico, `.first()` sem filtro, `force: true` amplo e leitura do `body` inteiro; esperar efeitos observaveis e escopar ao conteudo principal.
+- Em sufixos `id$` e textareas/editors JSF ocultos, validar unicidade; se usar setter nativo, disparar `input` e `change` e confirmar `toHaveValue`.
+- Em autocomplete e `select`, filtrar/normalizar pelo texto esperado e usar o valor real do input apos selecionar.
 - Nao mapear todos os campos/botoes; escolher o menor conjunto para executar o passo atual e validar o resultado.
 - Em tabelas, localizar a linha por texto unico e so entao a acao dentro da linha.
 - Manter seletores e interacoes dentro de Page Objects; specs devem conter passos funcionais, dados e assertions de alto nivel.
@@ -130,7 +129,7 @@ A spec deve conter cenario, passos principais, validacoes e chamadas para Page O
 
 Evitar codigo com aparencia de gravacao linear de cliques. Manter funcoes pequenas, nomes claros, pouca duplicacao e comentarios apenas para decisoes importantes, seletores frageis ou suposicoes relevantes.
 
-Antes de finalizar, revisar Page Objects para remover IDs gerados, helpers genericos baseados em `id` cru e preenchimento via `document.getElementById`/`element.value` quando houver alternativa observavel. Usar ID completo somente como ultimo recurso, com comentario curto explicando a limitacao.
+Antes de finalizar, revisar Page Objects para remover IDs gerados, helpers genericos baseados em `id` cru e preenchimento via `document.getElementById`/`element.value` quando houver alternativa observavel. Em JSF/RichFaces legado, manter IDs estaveis centralizados em `byId(id)` quando isso for mais confiavel que acessibilidade inexistente.
 
 ## Referencias Sob Demanda
 

@@ -22,6 +22,8 @@ Mapear seletores sob demanda: identificar o seletor no momento em que o passo pr
 
 Nao usar IDs gerados como `j_id`, `j_id_jsp`, `j_idt` ou `javax.faces` como seletor principal. Esses valores mudam entre builds, sessoes ou telas e deixam a automacao fragil.
 
+Nao converter tudo cegamente para `getByRole/getByLabel`: em JSF/RichFaces legado, muitos elementos nao possuem acessibilidade confiavel. IDs JSF estaveis, como `form:campo`, podem ser o melhor contrato quando centralizados em helper e nomeados por getter funcional.
+
 Para campos em formularios tabulares ou telas legadas:
 
 - Preferir `getByLabel`, `getByRole` e `getByText` escopado quando houver nome acessivel.
@@ -35,12 +37,24 @@ byId(id) {
 }
 ```
 
+- Para textareas ocultos por editor JSF, centralizar sufixos estaveis:
+
+```javascript
+byTextareaIdSuffix(suffix) {
+  return this.conteudo.locator(`textarea[id$="${suffix}"]`);
+}
+```
+
 - Evitar helpers genericos que recebem IDs internos crus, como `campo(id)` e `preencherValor(id, valor)`, quando isso esconder seletores frageis.
 - Criar getters/metodos semanticos, como `localCursoInput`, `objetivosTextarea` e `preencherObjetivosImportancia`.
 - Se usar sufixo `id$` em campo critico, validar unicidade antes de preencher: `await expect(campo).toHaveCount(1)`.
 - Em autocomplete, filtrar sugestoes pelo texto esperado antes de `.first()`; nao selecionar a primeira linha cegamente.
+- Depois de clicar em sugestao de autocomplete, preferir o valor real do input via `await campo.inputValue()` em vez do texto completo da linha.
 - Para campos visiveis, usar `await expect(campo).toBeEditable()` e `fill`; reservar `evaluate`/eventos para editor JSF oculto com comentario curto.
+- Ao preencher editor JSF oculto via setter nativo, disparar `input` e `change` com `{ bubbles: true }`, e finalizar com `toHaveValue`.
 - Para JSF/AJAX, substituir `waitForLoadState` generico por assert do efeito esperado: campo habilitado, opcao carregada, texto da proxima etapa ou mensagem.
+- Para mensagens obrigatorias, tentar containers de erro/alerta e fazer fallback para o conteudo principal, evitando `body` inteiro.
+- Em `select`, buscar opcoes com `textContent || ''`, `trim`, normalizacao de espacos e uppercase antes de comparar.
 
 Exemplos preferidos:
 
