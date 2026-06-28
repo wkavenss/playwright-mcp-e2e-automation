@@ -29,10 +29,10 @@ codex plugin marketplace add wkavenss/playwright-mcp-e2e-automation
 codex plugin add playwright-mcp-e2e-automation --marketplace playwright-mcp-e2e-automation
 ```
 
-No Codex App, abra ou crie a pasta do projeto e envie o primeiro prompt:
+No Codex App, abra ou crie a pasta do projeto. No chat, digite `@play`, selecione o plugin **Playwright MCP E2E** na lista e envie:
 
 ```text
-@playwright-mcp-e2e-automation Verifique se meu ambiente está pronto para criar automações Playwright. Se faltar Node, Git, Playwright, Chromium ou qualquer requisito essencial, me informe exatamente o que falta e os comandos para corrigir.
+Verifique se meu ambiente está pronto para criar automações Playwright. Se faltar Node, Git, Playwright, Chromium ou qualquer requisito essencial, me informe exatamente o que falta e os comandos para corrigir.
 ```
 
 ### macOS
@@ -51,10 +51,10 @@ codex plugin marketplace add wkavenss/playwright-mcp-e2e-automation
 codex plugin add playwright-mcp-e2e-automation --marketplace playwright-mcp-e2e-automation
 ```
 
-No Codex App, abra ou crie a pasta do projeto e envie o primeiro prompt:
+No Codex App, abra ou crie a pasta do projeto. No chat, digite `@play`, selecione o plugin **Playwright MCP E2E** na lista e envie:
 
 ```text
-@playwright-mcp-e2e-automation Verifique se meu ambiente está pronto para criar automações Playwright. Se faltar Node, Git, Playwright, Chromium ou qualquer requisito essencial, me informe exatamente o que falta e os comandos para corrigir.
+Verifique se meu ambiente está pronto para criar automações Playwright. Se faltar Node, Git, Playwright, Chromium ou qualquer requisito essencial, me informe exatamente o que falta e os comandos para corrigir.
 ```
 
 ### Linux
@@ -74,19 +74,17 @@ codex plugin marketplace add wkavenss/playwright-mcp-e2e-automation
 codex plugin add playwright-mcp-e2e-automation --marketplace playwright-mcp-e2e-automation
 ```
 
-No Codex, abra ou crie a pasta do projeto e envie o primeiro prompt:
+No Codex, abra ou crie a pasta do projeto. No chat, digite `@play`, selecione o plugin **Playwright MCP E2E** na lista e envie:
 
 ```text
-@playwright-mcp-e2e-automation Verifique se meu ambiente está pronto para criar automações Playwright. Se faltar Node, Git, Playwright, Chromium ou qualquer requisito essencial, me informe exatamente o que falta e os comandos para corrigir.
+Verifique se meu ambiente está pronto para criar automações Playwright. Se faltar Node, Git, Playwright, Chromium ou qualquer requisito essencial, me informe exatamente o que falta e os comandos para corrigir.
 ```
 
 ## Criar Uma Automação
 
-Quando o ambiente estiver pronto, envie os dados mínimos:
+Quando o ambiente estiver pronto, digite `@play`, selecione o plugin **Playwright MCP E2E** na lista e envie os dados mínimos:
 
 ```text
-@playwright-mcp-e2e-automation
-
 URL base: ...
 Usuário: ...
 Senha: ...
