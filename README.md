@@ -1,16 +1,16 @@
 # Playwright MCP E2E Automation
 
-Plugin publico para Codex que cria, corrige, revisa e prepara automacoes E2E com Playwright, Playwright MCP, Page Objects, variaveis de ambiente e Chromium headed por padrao.
+Plugin público para Codex que cria, corrige, revisa e prepara automações E2E com Playwright, Playwright MCP, Page Objects, variáveis de ambiente e Chromium headed por padrão.
 
-O plugin ja inclui a configuracao do Playwright MCP via:
+O plugin já inclui a configuração do Playwright MCP via:
 
 ```bash
 npx -y @playwright/mcp@latest
 ```
 
-Nao e necessario instalar o Playwright MCP manualmente. O que precisa existir na maquina e Node.js/npm/npx, Git, Playwright Test no projeto e o Chromium do Playwright.
+Não é necessário instalar o Playwright MCP manualmente. O que precisa existir na máquina é Node.js/npm/npx, Git, Playwright Test no projeto e o Chromium do Playwright.
 
-## Instalacao Do Zero
+## Instalação Do Zero
 
 ### Windows
 
@@ -32,7 +32,7 @@ codex plugin add playwright-mcp-e2e-automation --marketplace playwright-mcp-e2e-
 No Codex App, abra ou crie a pasta do projeto e envie o primeiro prompt:
 
 ```text
-@playwright-mcp-e2e-automation Verifique se meu ambiente esta pronto para criar automacoes Playwright. Se faltar Node, Git, Playwright, Chromium ou qualquer requisito essencial, me informe exatamente o que falta e os comandos para corrigir.
+@playwright-mcp-e2e-automation Verifique se meu ambiente está pronto para criar automações Playwright. Se faltar Node, Git, Playwright, Chromium ou qualquer requisito essencial, me informe exatamente o que falta e os comandos para corrigir.
 ```
 
 ### macOS
@@ -54,7 +54,7 @@ codex plugin add playwright-mcp-e2e-automation --marketplace playwright-mcp-e2e-
 No Codex App, abra ou crie a pasta do projeto e envie o primeiro prompt:
 
 ```text
-@playwright-mcp-e2e-automation Verifique se meu ambiente esta pronto para criar automacoes Playwright. Se faltar Node, Git, Playwright, Chromium ou qualquer requisito essencial, me informe exatamente o que falta e os comandos para corrigir.
+@playwright-mcp-e2e-automation Verifique se meu ambiente está pronto para criar automações Playwright. Se faltar Node, Git, Playwright, Chromium ou qualquer requisito essencial, me informe exatamente o que falta e os comandos para corrigir.
 ```
 
 ### Linux
@@ -77,7 +77,7 @@ codex plugin add playwright-mcp-e2e-automation --marketplace playwright-mcp-e2e-
 No Codex, abra ou crie a pasta do projeto e envie o primeiro prompt:
 
 ```text
-@playwright-mcp-e2e-automation Verifique se meu ambiente esta pronto para criar automacoes Playwright. Se faltar Node, Git, Playwright, Chromium ou qualquer requisito essencial, me informe exatamente o que falta e os comandos para corrigir.
+@playwright-mcp-e2e-automation Verifique se meu ambiente está pronto para criar automações Playwright. Se faltar Node, Git, Playwright, Chromium ou qualquer requisito essencial, me informe exatamente o que falta e os comandos para corrigir.
 ```
 
 ## Marketplace E Plugin
@@ -96,23 +96,23 @@ codex plugin add playwright-mcp-e2e-automation --marketplace playwright-mcp-e2e-
 
 ## Primeiro Uso
 
-Depois de instalar, sempre comece pedindo a verificacao do ambiente:
+Depois de instalar, sempre comece pedindo a verificação do ambiente:
 
 ```text
-@playwright-mcp-e2e-automation Verifique se meu ambiente esta pronto para criar automacoes Playwright. Se faltar Node, Git, Playwright, Chromium ou qualquer requisito essencial, me informe exatamente o que falta e os comandos para corrigir.
+@playwright-mcp-e2e-automation Verifique se meu ambiente está pronto para criar automações Playwright. Se faltar Node, Git, Playwright, Chromium ou qualquer requisito essencial, me informe exatamente o que falta e os comandos para corrigir.
 ```
 
-Se algo estiver faltando, o plugin deve retornar comandos para Windows, macOS e Linux. Ele nao instala ferramentas de sistema automaticamente.
+Se algo estiver faltando, o plugin deve retornar comandos para Windows, macOS e Linux. Ele não instala ferramentas de sistema automaticamente.
 
-## Criar Uma Automacao
+## Criar Uma Automação
 
-Quando o ambiente estiver pronto, envie os dados minimos:
+Quando o ambiente estiver pronto, envie os dados mínimos:
 
 ```text
 @playwright-mcp-e2e-automation
 
 URL base: ...
-Usuario: ...
+Usuário: ...
 Senha: ...
 Passo a passo:
 1. ...
@@ -120,30 +120,30 @@ Passo a passo:
 3. ...
 ```
 
-Com esses dados, o plugin deve navegar, entender o fluxo e gerar codigo Playwright com Page Objects. Mesmo que o usuario nao peca explicitamente para gerar codigo, a criacao do codigo Playwright e o comportamento padrao.
+Com esses dados, o plugin deve navegar, entender o fluxo e gerar código Playwright com Page Objects. Mesmo que o usuário não peça explicitamente para gerar código, a criação do código Playwright é o comportamento padrão.
 
 ## O Que O Plugin Faz
 
-- Cria automacoes Playwright E2E com JavaScript.
-- Usa Playwright MCP para descobrir e validar telas quando disponivel.
-- Mantem credenciais em `.env` e cria `.env.example` seguro.
-- Usa Page Objects por padrao.
-- Executa em Chromium headed por padrao.
-- Mantem evidencias minimas por padrao, sem README, trace, screenshot ou video, salvo pedido explicito.
-- Audita boas praticas com scripts locais.
+- Cria automações Playwright E2E com JavaScript.
+- Usa Playwright MCP para descobrir e validar telas quando disponível.
+- Mantém credenciais em `.env` e cria `.env.example` seguro.
+- Usa Page Objects por padrão.
+- Executa em Chromium headed por padrão.
+- Mantém evidências mínimas por padrão, sem README, trace, screenshot ou vídeo, salvo pedido explícito.
+- Audita boas práticas com scripts locais.
 
-## Dados Minimos
+## Dados Mínimos
 
-Para criar uma automacao, informe:
+Para criar uma automação, informe:
 
 - URL base;
-- usuario;
+- usuário;
 - senha;
 - passo a passo.
 
-Campos obrigatorios secundarios devem ser descobertos na tela quando possivel. Quando houver legenda de estrela azul, o plugin trata esses campos como obrigatorios.
+Campos obrigatórios secundários devem ser descobertos na tela quando possível. Quando houver legenda de estrela azul, o plugin trata esses campos como obrigatórios.
 
-## Estrutura Do Repositorio
+## Estrutura Do Repositório
 
 ```text
 .agents/plugins/marketplace.json
@@ -158,9 +158,9 @@ plugins/playwright-mcp-e2e-automation/scripts/scaffold-playwright.mjs
 plugins/playwright-mcp-e2e-automation/scripts/audit-playwright.mjs
 ```
 
-## Validacao Do Plugin
+## Validação Do Plugin
 
-Validacao usada durante desenvolvimento:
+Validação usada durante desenvolvimento:
 
 ```bash
 python3 /path/to/quick_validate.py plugins/playwright-mcp-e2e-automation/skills/criar-automacao-playwright
