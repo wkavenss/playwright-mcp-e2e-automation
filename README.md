@@ -80,30 +80,6 @@ No Codex, abra ou crie a pasta do projeto e envie o primeiro prompt:
 @playwright-mcp-e2e-automation Verifique se meu ambiente está pronto para criar automações Playwright. Se faltar Node, Git, Playwright, Chromium ou qualquer requisito essencial, me informe exatamente o que falta e os comandos para corrigir.
 ```
 
-## Marketplace E Plugin
-
-O comando abaixo adiciona a fonte do marketplace:
-
-```bash
-codex plugin marketplace add wkavenss/playwright-mcp-e2e-automation
-```
-
-O comando abaixo instala o plugin dessa fonte:
-
-```bash
-codex plugin add playwright-mcp-e2e-automation --marketplace playwright-mcp-e2e-automation
-```
-
-## Primeiro Uso
-
-Depois de instalar, sempre comece pedindo a verificação do ambiente:
-
-```text
-@playwright-mcp-e2e-automation Verifique se meu ambiente está pronto para criar automações Playwright. Se faltar Node, Git, Playwright, Chromium ou qualquer requisito essencial, me informe exatamente o que falta e os comandos para corrigir.
-```
-
-Se algo estiver faltando, o plugin deve retornar comandos para Windows, macOS e Linux. Ele não instala ferramentas de sistema automaticamente.
-
 ## Criar Uma Automação
 
 Quando o ambiente estiver pronto, envie os dados mínimos:
@@ -131,39 +107,3 @@ Com esses dados, o plugin deve navegar, entender o fluxo e gerar código Playwri
 - Executa em Chromium headed por padrão.
 - Mantém evidências mínimas por padrão, sem README, trace, screenshot ou vídeo, salvo pedido explícito.
 - Audita boas práticas com scripts locais.
-
-## Dados Mínimos
-
-Para criar uma automação, informe:
-
-- URL base;
-- usuário;
-- senha;
-- passo a passo.
-
-Campos obrigatórios secundários devem ser descobertos na tela quando possível. Quando houver legenda de estrela azul, o plugin trata esses campos como obrigatórios.
-
-## Estrutura Do Repositório
-
-```text
-.agents/plugins/marketplace.json
-plugins/playwright-mcp-e2e-automation/.codex-plugin/plugin.json
-plugins/playwright-mcp-e2e-automation/.mcp.json
-plugins/playwright-mcp-e2e-automation/skills/criar-automacao-playwright/SKILL.md
-plugins/playwright-mcp-e2e-automation/skills/corrigir-automacao-playwright/SKILL.md
-plugins/playwright-mcp-e2e-automation/skills/revisar-automacao-playwright/SKILL.md
-plugins/playwright-mcp-e2e-automation/skills/preparar-projeto-playwright/SKILL.md
-plugins/playwright-mcp-e2e-automation/scripts/check-environment.mjs
-plugins/playwright-mcp-e2e-automation/scripts/scaffold-playwright.mjs
-plugins/playwright-mcp-e2e-automation/scripts/audit-playwright.mjs
-```
-
-## Validação Do Plugin
-
-Validação usada durante desenvolvimento:
-
-```bash
-python3 /path/to/quick_validate.py plugins/playwright-mcp-e2e-automation/skills/criar-automacao-playwright
-python3 /path/to/quick_validate.py plugins/playwright-mcp-e2e-automation/skills/preparar-projeto-playwright
-python3 /path/to/validate_plugin.py plugins/playwright-mcp-e2e-automation
-```
