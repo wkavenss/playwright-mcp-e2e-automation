@@ -29,6 +29,14 @@ codex plugin marketplace add wkavenss/playwright-mcp-e2e-automation
 codex plugin add playwright-mcp-e2e-automation --marketplace playwright-mcp-e2e-automation
 ```
 
+Depois abra ou instale o Codex App:
+
+```powershell
+codex app
+```
+
+Se o Codex App ainda não estiver instalado, siga o fluxo de instalação aberto pelo comando.
+
 No Codex App, abra ou crie a pasta do projeto. No chat, digite `@play`, selecione o plugin **Playwright MCP E2E** na lista e envie:
 
 ```text
@@ -50,6 +58,14 @@ Feche e abra o terminal novamente. Depois rode:
 codex plugin marketplace add wkavenss/playwright-mcp-e2e-automation
 codex plugin add playwright-mcp-e2e-automation --marketplace playwright-mcp-e2e-automation
 ```
+
+Depois abra ou instale o Codex App:
+
+```bash
+codex app
+```
+
+Se o Codex App ainda não estiver instalado, siga o fluxo de instalação aberto pelo comando.
 
 No Codex App, abra ou crie a pasta do projeto. No chat, digite `@play`, selecione o plugin **Playwright MCP E2E** na lista e envie:
 
@@ -74,7 +90,15 @@ codex plugin marketplace add wkavenss/playwright-mcp-e2e-automation
 codex plugin add playwright-mcp-e2e-automation --marketplace playwright-mcp-e2e-automation
 ```
 
-No Codex, abra ou crie a pasta do projeto. No chat, digite `@play`, selecione o plugin **Playwright MCP E2E** na lista e envie:
+Acesse ou crie a pasta do projeto pelo terminal e abra o Codex CLI:
+
+```bash
+mkdir -p meu-projeto-playwright
+cd meu-projeto-playwright
+codex
+```
+
+Dentro do Codex CLI, digite `@play`, selecione o plugin **Playwright MCP E2E** na lista e envie:
 
 ```text
 Verifique se meu ambiente está pronto para criar automações Playwright. Se faltar Node, Git, Playwright, Chromium ou qualquer requisito essencial, me informe exatamente o que falta e os comandos para corrigir.
@@ -82,7 +106,7 @@ Verifique se meu ambiente está pronto para criar automações Playwright. Se fa
 
 ## Criar Uma Automação
 
-Quando o ambiente estiver pronto, digite `@play`, selecione o plugin **Playwright MCP E2E** na lista e envie os dados mínimos:
+Quando o ambiente estiver pronto, use o Codex App no Windows/macOS ou o Codex CLI no Linux. Digite `@play`, selecione o plugin **Playwright MCP E2E** na lista e envie os dados mínimos:
 
 ```text
 URL base: ...
