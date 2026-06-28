@@ -85,20 +85,22 @@ Mesmo em `minimo`, o terminal pode emitir saida. Nao copiar logs longos; resumir
 ## Fluxo Principal
 
 1. Validar contrato minimo.
-2. Identificar execucao no navegador e nivel de evidencias.
-3. Detectar se ja existe Playwright no repositorio antes de instalar ou criar arquivos. Se nao existir, executar diretamente `../../scripts/scaffold-playwright.mjs <raiz-do-projeto>` a partir desta skill.
-4. Explorar com Playwright MCP somente o caminho necessario, com uma leitura por tela e sem inventario completo.
-5. Mapear sob demanda apenas campos/acoes do proximo passo e uma validacao funcional.
-6. Implementar ou atualizar spec, Page Objects, dados, fixtures e utilitarios na menor superficie possivel.
-7. Configurar `.env`, `.env.example`, `.gitignore`, scripts e Playwright apenas quando necessario.
-8. Executar validacao final em Chromium headed, salvo pedido contrario.
-9. Corrigir uma falha objetiva quando houver causa clara; se exigir investigacao ampla, resumir bloqueio e pedir direcionamento.
-10. Executar `../../scripts/audit-playwright.mjs <raiz-do-projeto> --changed` a partir desta skill. Auditar somente arquivos modificados e corrigir erros dentro do escopo solicitado.
-11. Responder com resumo compacto.
+2. Executar `node ../../scripts/check-environment.mjs <raiz-do-projeto>`; se `node` nao existir, informar o bootstrap (`winget install OpenJS.NodeJS.LTS`, `brew install node` ou NodeSource/apt). Se faltar outro requisito, interromper e devolver os comandos exibidos pelo script.
+3. Identificar execucao no navegador e nivel de evidencias.
+4. Detectar se ja existe Playwright no repositorio antes de instalar ou criar arquivos. Se nao existir, executar diretamente `../../scripts/scaffold-playwright.mjs <raiz-do-projeto>` a partir desta skill.
+5. Explorar com Playwright MCP somente o caminho necessario, com uma leitura por tela e sem inventario completo.
+6. Mapear sob demanda apenas campos/acoes do proximo passo e uma validacao funcional.
+7. Implementar ou atualizar spec, Page Objects, dados, fixtures e utilitarios na menor superficie possivel.
+8. Configurar `.env`, `.env.example`, `.gitignore`, scripts e Playwright apenas quando necessario.
+9. Executar validacao final em Chromium headed, salvo pedido contrario.
+10. Corrigir uma falha objetiva quando houver causa clara; se exigir investigacao ampla, resumir bloqueio e pedir direcionamento.
+11. Executar `../../scripts/audit-playwright.mjs <raiz-do-projeto> --changed` a partir desta skill. Auditar somente arquivos modificados e corrigir erros dentro do escopo solicitado.
+12. Responder com resumo compacto.
 
 ## Regras Essenciais
 
 - Usar Playwright MCP antes de codar ou alterar teste.
+- Nao instalar ferramentas de sistema automaticamente; se o check de ambiente falhar, orientar com comandos objetivos.
 - Nao assumir nomes de menus, botoes, campos, mensagens ou fluxos sem observar a interface.
 - Priorizar: `getByRole`, `getByLabel`, `getByPlaceholder`, `getByText` escopado, `getByTestId`, CSS semantico relativo e XPath so em ultimo caso.
 - Nao usar IDs JSF gerados (`j_id`, `j_id_jsp`, `j_idt`, `javax.faces` ou similares) como seletor principal.
