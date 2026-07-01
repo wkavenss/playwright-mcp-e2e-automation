@@ -20,6 +20,8 @@ Mapear seletores sob demanda: identificar o seletor no momento em que o passo pr
 
 Nao usar nomes reais de pessoas, usuarios, servidores/funcionarios, emails, documentos, matriculas ou telefones observados na tela como seletor, `hasText`, assert ou fixture versionada. Em tabelas/listagens, preferir registro criado pela propria automacao com `runId`, texto neutro fornecido pelo usuario ou variavel local nao versionada. Quando um dado real for inevitavel para localizar um registro preexistente, encapsular em parametro generico e nao repetir o valor em comentarios ou logs.
 
+Nao usar `.nth()`, indice numerico, posicao visual ou `.first()` sem filtro por texto/atributo estavel. Quando uma colecao exigir escolha, filtrar primeiro por escopo funcional, linha, label, cabecalho, role, `hasText` sanitizado ou dado de teste gerado pela propria automacao.
+
 ## JSF E Sistemas Legados
 
 Nao usar IDs gerados como `j_id`, `j_id_jsp`, `j_idt` ou `javax.faces` como seletor principal. Esses valores mudam entre builds, sessoes ou telas e deixam a automacao fragil.

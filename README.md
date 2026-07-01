@@ -6,6 +6,7 @@ O padrão é simples:
 
 - Playwright CLI roda e valida os testes.
 - Playwright MCP entra somente quando o plugin precisa observar a tela real.
+- Cache local ignorado pelo Git reduz redescoberta de telas e seletores.
 
 ## Requisitos Da Máquina
 
@@ -107,10 +108,20 @@ Passo a passo:
 Com esses dados, o plugin gera código Playwright E2E com Page Objects, `.env`, validação em Chromium headed e evidências mínimas por padrão.
 O código gerado deve ser reprodutível por CLI em outro ambiente com o mesmo perfil funcional e `.env` preenchido.
 
+## Modos De Uso
+
+- `padrao`: geração incremental, cache primeiro, MCP sob demanda.
+- `discovery`: mapeia somente telas e seletores necessários.
+- `repair`: corrige teste falho sem recriar o fluxo.
+- `cli-only`: usa CLI/cache quando não há incerteza visual.
+- `debug`: diagnóstico detalhado, sem expor dados sensíveis.
+- `full`: recria estrutura ou fluxo inteiro somente quando solicitado.
+
 ## Como O Plugin Trabalha
 
 - Usa Playwright CLI para executar e validar testes.
 - Usa Playwright MCP somente para descobrir tela, seletor, campo ou comportamento que precisa de observação real.
+- Usa `.playwright-e2e/cache/` somente para mapas sanitizados de telas, rotas, labels, seletores e validações.
 - Mantém credenciais em `.env` e cria `.env.example` seguro.
 - Mantém `trace`, `screenshot` e `video` desligados por padrão.
 - Audita boas práticas com scripts locais.

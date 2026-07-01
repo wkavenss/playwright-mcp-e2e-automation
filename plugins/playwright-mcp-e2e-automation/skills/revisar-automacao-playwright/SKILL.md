@@ -14,7 +14,7 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 1. Identificar specs, Page Objects, fixtures, dados, configuracao e scripts de execucao.
 2. Executar `../../scripts/audit-playwright.mjs <raiz-do-projeto>` a partir desta skill para realizar a auditoria completa.
 3. Ler apenas os arquivos necessarios para confirmar ou descartar os achados.
-4. Avaliar resultado funcional, isolamento, massa, sincronizacao, seletores, segredos, dados sensiveis hardcoded, higiene de codigo e manutencao.
+4. Avaliar resultado funcional, isolamento, massa, sincronizacao, seletores, cache local, segredos, dados sensiveis hardcoded, higiene de codigo e manutencao.
 5. Quando util e seguro, executar o menor teste relevante; nao navegar por funcionalidades nao solicitadas.
 6. Apresentar achados primeiro, por severidade, com arquivo e linha. Depois registrar duvidas e risco residual.
 
@@ -29,6 +29,7 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Erro cru, stack trace, timeout, texto de `body` inteiro, `console.log`, codigo comentado, `TODO/FIXME` e sobras de codegen devem ser tratados como sujeira de automacao.
 - Fluxos de negocio que atravessam varias telas devem preservar uma unica sessao de navegador dentro do mesmo `test`; dividir cada tela em um teste independente ou abrir/fechar navegador manualmente aumenta fragilidade e pode gerar dados duplicados.
 - A suite deve ser reprodutivel por outra pessoa com o mesmo perfil funcional e `.env` preenchido; dependencias de sessao local, perfil persistente, `storageState` manual, caminhos absolutos, `test.only/skip` ou massa escondida fora do projeto sao defeitos.
+- `.playwright-e2e/cache/` deve estar ignorado e conter somente mapas sanitizados; cache com senha, cookies, tokens, storageState, nomes reais, usuarios, documentos, emails ou telefones e defeito.
 - Testes devem evitar dependencia de ordem, dados compartilhados imprevisiveis e efeitos destrutivos sem controle.
 - Configuracao padrao do plugin deve usar Chromium headed e evidencias minimas, salvo decisao explicita do projeto.
 

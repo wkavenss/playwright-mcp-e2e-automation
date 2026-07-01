@@ -1,7 +1,7 @@
 {
   "name": "playwright-mcp-e2e-automation",
-  "version": "0.3.9",
-  "description": "Playwright CLI and MCP E2E toolkit for clean, reproducible web automation.",
+  "version": "0.4.0",
+  "description": "Playwright CLI and MCP E2E toolkit for token-efficient, reusable web automation.",
   "author": {
     "name": "wkavenss"
   },
@@ -10,7 +10,7 @@
   "interface": {
     "displayName": "Playwright MCP E2E",
     "shortDescription": "Automacoes E2E com Playwright CLI e MCP",
-    "longDescription": "Crie, corrija, revise ou prepare automacoes Playwright. Na criacao, forneca URL, credenciais e passo a passo; o plugin sempre gera codigo com Page Objects, usa Playwright CLI para executar e validar, aciona MCP somente para observar a tela real quando necessario, mantem o fluxo em sessao continua, evita dados reais hardcoded, preserva reprodutibilidade por CLI e usa evidencias minimas.",
+    "longDescription": "Crie, corrija, revise ou prepare automacoes Playwright. Na criacao, forneca URL, credenciais e passo a passo; o plugin sempre gera codigo com Page Objects, usa Playwright CLI para executar e validar, consulta cache local sanitizado, aciona MCP somente para observar a tela real quando necessario, mantem o fluxo em sessao continua, evita dados reais hardcoded, preserva reprodutibilidade por CLI e usa evidencias minimas.",
     "developerName": "wkavenss",
     "category": "Developer tools",
     "capabilities": [
@@ -18,6 +18,6 @@
     ],
     "composerIcon": "./assets/playwright.png",
     "logo": "./assets/playwright.png",
-    "defaultPrompt": "Crie uma automacao E2E com Playwright usando Page Objects; use CLI para executar e validar, acione MCP somente quando precisar observar a tela real, mantenha o fluxo em uma sessao continua e reprodutivel, nao grave dados reais ou erros crus no codigo, gere codigo ao receber URL, credenciais e passo a passo, e use evidencias minimas."
+    "defaultPrompt": "Crie uma automacao E2E com Playwright usando Page Objects; use CLI para executar e validar, consulte cache local sanitizado antes do MCP, acione MCP somente quando precisar observar a tela real, mantenha o fluxo em uma sessao continua e reprodutivel, nao grave dados reais ou erros crus no codigo, gere codigo ao receber URL, credenciais e passo a passo, e use evidencias minimas."
   }
 }

@@ -12,7 +12,7 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 ## Fluxo
 
 1. Localizar o teste afetado, Page Objects relacionados e comando de execucao.
-2. Executar somente o menor cenario que reproduza a falha.
+2. Consultar cache local sanitizado e executar somente o menor cenario que reproduza a falha.
 3. Classificar a causa: seletor, navegacao, sincronizacao, autenticacao, massa, permissao, regra funcional, ambiente ou captcha/MFA.
 4. Usar Playwright MCP apenas na tela necessaria para confirmar o estado real e o seletor seguinte.
 5. Alterar a menor superficie possivel, mantendo seletores e interacoes nos Page Objects.
@@ -32,6 +32,7 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Nao reexecutar submissao que cria/altera dado persistente sem antes verificar se a tentativa anterior ja criou registro. Reutilizar ou limpar somente quando for seguro e autorizado.
 - Manter o cenario afetado em uma unica sessao de navegador quando as telas dependem do mesmo estado; nao quebrar uma correcao em um teste por tela.
 - Preservar reprodutibilidade por CLI: nao corrigir usando sessao local ja autenticada, perfil persistente, `storageState` manual, caminhos absolutos, `test.only/skip` ou massa escondida fora do projeto.
+- Cache local pode orientar a correcao, mas nao substituir confirmacao real quando seletor, tela ou estado estiverem incertos.
 - Fazer uma tentativa objetiva de correcao. Se a causa exigir investigacao ampla ou dados ausentes, parar e pedir somente o que falta.
 - Gerar trace, screenshot ou video apenas quando solicitado ou indispensavel para diagnosticar a falha.
 

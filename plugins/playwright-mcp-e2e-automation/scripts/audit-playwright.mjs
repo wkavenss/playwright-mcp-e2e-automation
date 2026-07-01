@@ -120,6 +120,46 @@ function hasSensitiveLiteral(value) {
     || hasLikelyPersonName(value);
 }
 
+function sensitiveCacheReasons(value, key = "") {
+  const reasons = [];
+  if (typeof value === "string" || typeof value === "number") {
+    if (hasSensitiveLiteral(String(value))) reasons.push("dado-pessoal");
+    if (/(bearer\s+|set-cookie|connect\.sid|localStorage|sessionStorage)/i.test(String(value))) reasons.push("estado-autenticado");
+  }
+  if (/(password|senha|passwd|token|cookie|secret|storage|session|usuario|username)/i.test(key)) reasons.push("chave-sensivel");
+  return [...new Set(reasons)];
+}
+
+function scanCacheValue(value, location = "$", findings = []) {
+  if (value == null) return findings;
+  if (typeof value === "string" || typeof value === "number") {
+    const reasons = sensitiveCacheReasons(value);
+    if (reasons.length) findings.push({ location, reasons });
+    return findings;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => scanCacheValue(item, `${location}[${index}]`, findings));
+    return findings;
+  }
+  if (typeof value === "object") {
+    for (const [key, nested] of Object.entries(value)) {
+      const keyReasons = sensitiveCacheReasons("", key);
+      if (keyReasons.length) findings.push({ location: `${location}.${key}`, reasons: keyReasons });
+      scanCacheValue(nested, `${location}.${key}`, findings);
+    }
+  }
+  return findings;
+}
+
+function isCacheIgnored() {
+  const gitignorePath = path.join(root, ".gitignore");
+  if (!fs.existsSync(gitignorePath)) return false;
+  return fs.readFileSync(gitignorePath, "utf8")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .some((line) => line === ".playwright-e2e/cache/" || line === ".playwright-e2e/" || line === ".playwright-e2e/cache");
+}
+
 const files = changedOnly ? changedFiles() : walk(root);
 const codeFiles = files.filter((file) => codeExtensions.has(path.extname(file)));
 const specFiles = codeFiles.filter((file) => /(?:\.spec|\.test)\.[cm]?[jt]sx?$/.test(file));
@@ -153,6 +193,21 @@ for (const file of codeFiles) {
   const bodyInnerText = firstMatch(content, /locator\s*\(\s*["'`]body["'`]\s*\)\s*\.\s*innerText\s*\(/g);
   if (bodyInnerText) {
     add("warning", "body-inner-text", rel, lineNumber(content, bodyInnerText.index), "Evite ler body inteiro para mensagens; prefira container de erro/alerta quando existir.");
+  }
+
+  const nthSelector = firstMatch(content, /\.nth\s*\(\s*\d+\s*\)/g);
+  if (nthSelector) {
+    add("warning", "nth-selector", rel, lineNumber(content, nthSelector.index), "Evite .nth() como seletor principal; filtre por label, role, linha, texto estavel ou dado gerado.");
+  }
+
+  const unfilteredFirst = firstMatch(content, /\.first\s*\(\s*\)/g);
+  if (unfilteredFirst && !hasNearby(content, unfilteredFirst.index, /\.filter\s*\(|hasText|has\s*:/, 160)) {
+    add("warning", "unfiltered-first", rel, lineNumber(content, unfilteredFirst.index), "Evite .first() sem filtro estavel; escopo e criterio funcional devem ficar claros.");
+  }
+
+  const xpathSelector = firstMatch(content, /(?:locator\s*\(\s*["'`]xpath=|locator\s*\(\s*["'`]\/\/)/g);
+  if (xpathSelector && !hasNearby(content, xpathSelector.index, /XPath|xpath|ultimo recurso|último recurso|sem acessibilidade|fallback/i, 220)) {
+    add("warning", "xpath-without-justification", rel, lineNumber(content, xpathSelector.index), "XPath deve ser ultimo recurso e ter justificativa curta no Page Object.");
   }
 
   const imageTitleLink = firstMatch(content, /locator\s*\([^)]*["'`][^"'`]*img\[title=/gs);
@@ -211,8 +266,8 @@ for (const file of codeFiles) {
       add("warning", "raw-error-literal", rel, lineNumber(content, rawErrorLiteral.index), "Nao copie erro bruto/stack trace para string, assert, comentario ou fixture.");
     }
 
-    const sensitiveLiteral = stringLiterals(content).find((literal) => hasSensitiveLiteral(literal.value));
-    if (sensitiveLiteral) {
+    const sensitiveLiterals = stringLiterals(content).filter((literal) => hasSensitiveLiteral(literal.value)).slice(0, 3);
+    for (const sensitiveLiteral of sensitiveLiterals) {
       add("warning", "possible-sensitive-literal", rel, lineNumber(content, sensitiveLiteral.index), "Possivel dado pessoal/institucional hardcoded; use massa neutra, process.env ou fixture local ignorada.");
     }
 
@@ -229,6 +284,11 @@ for (const file of codeFiles) {
     const persistentBrowserState = firstMatch(content, /\b(?:launchPersistentContext|userDataDir)\b|\bstorageState\s*:\s*["'`][^"'`]+["'`]/g);
     if (persistentBrowserState) {
       add("warning", "persistent-browser-state", rel, lineNumber(content, persistentBrowserState.index), "Evite depender de perfil/storageState manual; o fluxo deve autenticar ou gerar estado reprodutivel.");
+    }
+
+    const storageStateWrite = firstMatch(content, /\bstorageState\s*\(\s*\{[^}]*path\s*:/gs);
+    if (storageStateWrite) {
+      add("warning", "storage-state-path", rel, lineNumber(content, storageStateWrite.index), "storageState gravado em arquivo deve ser ignorado, reprodutivel e nao usado como atalho para passar teste.");
     }
   }
 }
@@ -320,6 +380,27 @@ if (fs.existsSync(envExamplePath)) {
       add("error", "credential-in-env-example", ".env.example", index + 1, `${match[1]} deve ficar vazio ou usar placeholder seguro.`);
     }
   });
+}
+
+const cacheDir = path.join(root, ".playwright-e2e", "cache");
+if (fs.existsSync(cacheDir)) {
+  if (!isCacheIgnored()) {
+    add("error", "cache-not-ignored", ".gitignore", 1, ".playwright-e2e/cache/ existe, mas nao esta ignorado.");
+  }
+  for (const file of walk(cacheDir).filter((item) => path.extname(item) === ".json")) {
+    const rel = relative(file);
+    let parsed;
+    try {
+      parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+    } catch {
+      add("error", "invalid-cache-json", rel, 1, "Cache local deve ser JSON valido.");
+      continue;
+    }
+    const sensitive = scanCacheValue(parsed, rel);
+    if (sensitive.length) {
+      add("error", "sensitive-cache-data", rel, 1, "Cache local contem dado sensivel ou chave sensivel; remova/sanitize antes de reutilizar.");
+    }
+  }
 }
 
 const configFile = files.find((file) => /playwright\.config\.[cm]?[jt]s$/.test(file))

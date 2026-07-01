@@ -37,6 +37,8 @@ Para projeto novo, configurar scripts minimos e preservar aliases locais existen
 
 Quando o usuario nao informar modo de execucao, usar `test:e2e:headed` ou comando equivalente com Chromium headed.
 
+Antes de chamar MCP, consultar `../../scripts/optimize-context.mjs <raiz-do-projeto> --mode <modo> --json` quando Node estiver disponivel. Usar o retorno para reaproveitar cache seguro, validar se `.playwright-e2e/cache/` esta ignorado e manter a resposta curta.
+
 ## Variaveis E Segredos
 
 Para projeto novo, usar:
@@ -52,6 +54,7 @@ Se o projeto ja usar outro mecanismo, preservar o padrao. Quando o usuario forne
 - gravar valores reais somente em `.env`;
 - criar `.env.example` com nomes e valores vazios/ficticios;
 - garantir `.env` no `.gitignore`;
+- garantir `.playwright-e2e/cache/` no `.gitignore`;
 - usar `process.env` no codigo;
 - nao repetir segredos em README, logs, traces, screenshots ou resposta final.
 
@@ -104,6 +107,13 @@ Com `evidencias: minimo`, nao criar nem atualizar README por causa de evidencias
 - Dados criados pela automacao devem usar `runId` ou prefixo rastreavel. Dados preexistentes inevitaveis devem vir de `.env` ou fixture local ignorada, com nome generico.
 - Nao deixar `test.only`, `test.skip`, flags temporarias ou ordem manual de execucao no codigo final.
 - Se a reprodutibilidade exigir perfil, permissao ou massa especifica, registrar no resumo o requisito funcional sem expor valores sensiveis.
+
+## Cache Local
+
+- Usar `.playwright-e2e/cache/` somente para mapas sanitizados de telas, rotas, labels, acoes, seletores escolhidos e validacoes.
+- Nao versionar cache e nao salvar senha, usuario real, nome de pessoa, documento, email, telefone, cookie, token ou storageState.
+- Tratar cache como sugestao. Confirmar via MCP quando houver falha, tela alterada, seletor ambiguo, permissao diferente ou estado dinamico.
+- Se o cache contiver dado sensivel, descartar o trecho e corrigir o cache antes de continuar.
 
 ## Higiene De Codigo Gerado
 

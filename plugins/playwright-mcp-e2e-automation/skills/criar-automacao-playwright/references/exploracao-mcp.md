@@ -15,6 +15,8 @@ Reaproveitar o mapa quando voltar para a mesma tela na mesma execucao.
 
 Manter a mesma sessao/pagina durante a exploracao do fluxo sempre que possivel. Nao fechar e reabrir navegador a cada tela para "descobrir" o proximo passo; isso perde estado, aumenta custo e pode gerar registros parciais ou duplicados.
 
+Nao capturar nem colar DOM completo, HTML completo, screenshots ou listas integrais de elementos quando um resumo de tela, labels relevantes e seletores candidatos bastarem. Registrar somente o mapa minimo necessario ao passo atual.
+
 ## Navegacao
 
 - Confirmar pagina inicial, caminho de usuario, telas intermediarias e estado final pela interface real.
@@ -33,6 +35,7 @@ Manter a mesma sessao/pagina durante a exploracao do fluxo sempre que possivel. 
 - Quando a estrela/asterisco azul estiver presente, nao usar submissao vazia para descobrir obrigatoriedade.
 - Considerar atributos HTML, legenda visual, mensagem de validacao e regra de tela apenas quando o marcador visual de obrigatoriedade nao existir ou quando houver falha funcional real.
 - Para cada campo usado: registrar label, tipo, obrigatoriedade, valor usado, seletor escolhido e validacao esperada.
+- Registrar valores usados de forma sanitizada. Dados pessoais, usuarios, documentos, emails e telefones devem aparecer como tipo de dado ou variavel generica, nunca como valor real.
 - Nao submeter formulario incompleto apenas para observar validacoes de campos obrigatorios.
 - Diferenciar acoes intermediarias de finais: salvar, avancar, enviar, confirmar, cancelar ou excluir.
 - Antes de acao final, verificar permissao explicita, ambiente seguro, dados de teste, reversibilidade e ausencia de impacto real.

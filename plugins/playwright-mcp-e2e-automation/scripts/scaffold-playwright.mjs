@@ -90,7 +90,7 @@ module.exports = defineConfig({
 `,
 );
 writeIfMissing(".env.example", "BASE_URL=\nE2E_USERNAME=\nE2E_PASSWORD=\n");
-ensureLines(".gitignore", [".env", "test-results/", "playwright-report/"]);
+ensureLines(".gitignore", [".env", ".playwright-e2e/cache/", "test-results/", "playwright-report/"]);
 writeIfMissing("tests/e2e/.gitkeep", "");
 writeIfMissing("tests/pages/.gitkeep", "");
 
