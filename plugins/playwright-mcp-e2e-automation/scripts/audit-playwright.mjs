@@ -295,6 +295,11 @@ for (const file of codeFiles) {
 
 for (const file of specFiles) {
   const content = fs.readFileSync(file, "utf8");
+  const globalCredential = firstMatch(content, /process\.env\.E2E_(?:USERNAME|PASSWORD)\b/g);
+  if (globalCredential) {
+    add("error", "global-auth-credential", relative(file), lineNumber(content, globalCredential.index), "Declare perfil funcional por spec com getAuthProfile(profileName); nao use E2E_USERNAME/E2E_PASSWORD globais.");
+  }
+
   const directLocator = firstMatch(content, /\bpage\s*\.\s*(?:locator|getByRole|getByLabel|getByText|getByPlaceholder|getByTestId)\s*\(/g);
   if (directLocator) {
     add("error", "selector-in-spec", relative(file), lineNumber(content, directLocator.index), "Mova seletores e interacoes da spec para um Page Object.");

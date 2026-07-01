@@ -76,6 +76,7 @@ require('dotenv').config();
 module.exports = defineConfig({
   testDir: './tests/e2e',
   reporter: 'line',
+  workers: process.env.E2E_WORKERS ? Number(process.env.E2E_WORKERS) : 1,
   use: {
     baseURL: process.env.BASE_URL,
     headless: false,
@@ -89,7 +90,38 @@ module.exports = defineConfig({
 });
 `,
 );
-writeIfMissing(".env.example", "BASE_URL=\nE2E_USERNAME=\nE2E_PASSWORD=\n");
+writeIfMissing(".env.example", "BASE_URL=\nE2E_WORKERS=1\nE2E_EXAMPLE_USERNAME=\nE2E_EXAMPLE_PASSWORD=\n");
+writeIfMissing(
+  "tests/utils/authProfiles.js",
+  `const { expect } = require('@playwright/test');
+
+function profileToEnvPrefix(profileName) {
+  expect(profileName, 'Informe o perfil de autenticacao da spec').toBeTruthy();
+
+  return String(profileName)
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/[^a-zA-Z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .toUpperCase();
+}
+
+function getAuthProfile(profileName) {
+  const prefix = profileToEnvPrefix(profileName);
+  const usernameKey = \`E2E_\${prefix}_USERNAME\`;
+  const passwordKey = \`E2E_\${prefix}_PASSWORD\`;
+  const username = process.env[usernameKey];
+  const password = process.env[passwordKey];
+
+  expect(username, \`Informe \${usernameKey} no .env\`).toBeTruthy();
+  expect(password, \`Informe \${passwordKey} no .env\`).toBeTruthy();
+
+  return { username, password };
+}
+
+module.exports = { getAuthProfile, profileToEnvPrefix };
+`,
+);
 ensureLines(".gitignore", [".env", ".playwright-e2e/cache/", "test-results/", "playwright-report/"]);
 writeIfMissing("tests/e2e/.gitkeep", "");
 writeIfMissing("tests/pages/.gitkeep", "");

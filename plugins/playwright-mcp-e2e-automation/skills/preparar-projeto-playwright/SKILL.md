@@ -18,18 +18,20 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 5. Instalar `@playwright/test` e `dotenv` como dependencias de desenvolvimento somente quando ausentes e com autorizacao de rede.
 6. Instalar Chromium somente quando necessario e com autorizacao de rede.
 7. Manter `.env` fora do versionamento e deixar `.env.example` sem valores secretos.
-8. Manter `.playwright-e2e/cache/` fora do versionamento para mapas locais sanitizados.
-9. Executar `../../scripts/audit-playwright.mjs <raiz-do-projeto> --changed` a partir desta skill.
-10. Informar arquivos criados, dependencias instaladas e comandos disponiveis.
+8. Gerar/usar `tests/utils/authProfiles.js` para que cada spec declare seu perfil funcional com `getAuthProfile(profileName)`.
+9. Manter `.playwright-e2e/cache/` fora do versionamento para mapas locais sanitizados.
+10. Executar `../../scripts/audit-playwright.mjs <raiz-do-projeto> --changed` a partir desta skill.
+11. Informar arquivos criados, dependencias instaladas e comandos disponiveis.
 
 ## Padrao Gerado
 
 - JavaScript e Playwright Test.
-- `tests/e2e` para specs e `tests/pages` para Page Objects.
+- `tests/e2e` para specs, `tests/pages` para Page Objects e `tests/utils/authProfiles.js` para perfis de autenticacao.
 - Chromium headed por padrao.
+- `workers: 1` por padrao, com override por `E2E_WORKERS`, para evitar conflito de sessao quando perfis locais usam a mesma conta.
 - `trace`, `screenshot` e `video` desligados por padrao.
 - Scripts `test:e2e` e `test:e2e:headed`.
-- Variaveis `BASE_URL`, `E2E_USERNAME` e `E2E_PASSWORD`.
+- Variaveis `BASE_URL`, `E2E_WORKERS` e credenciais por perfil, como `E2E_EXAMPLE_USERNAME`/`E2E_EXAMPLE_PASSWORD`.
 - `.playwright-e2e/cache/` ignorado para cache local sanitizado.
 
 Nao criar teste de exemplo, README, trace, screenshot ou video. O scaffolder e nao destrutivo e nao sobrescreve arquivos existentes.

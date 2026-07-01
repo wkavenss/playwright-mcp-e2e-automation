@@ -45,8 +45,9 @@ Para projeto novo, usar:
 
 ```text
 BASE_URL=
-E2E_USERNAME=
-E2E_PASSWORD=
+E2E_WORKERS=1
+E2E_EXAMPLE_USERNAME=
+E2E_EXAMPLE_PASSWORD=
 ```
 
 Se o projeto ja usar outro mecanismo, preservar o padrao. Quando o usuario fornecer credenciais:
@@ -55,8 +56,21 @@ Se o projeto ja usar outro mecanismo, preservar o padrao. Quando o usuario forne
 - criar `.env.example` com nomes e valores vazios/ficticios;
 - garantir `.env` no `.gitignore`;
 - garantir `.playwright-e2e/cache/` no `.gitignore`;
-- usar `process.env` no codigo;
+- usar `getAuthProfile(profileName)` nas specs e `process.env` somente dentro do helper;
 - nao repetir segredos em README, logs, traces, screenshots ou resposta final.
+
+Credenciais devem ser separadas por perfil funcional. Criar/usar `tests/utils/authProfiles.js`:
+
+```javascript
+const { getAuthProfile } = require('../utils/authProfiles');
+
+const auth = getAuthProfile('docente');
+await loginPage.realizarLogin(auth.username, auth.password);
+```
+
+O helper deve mapear o perfil para variaveis de ambiente no formato `E2E_<PERFIL>_USERNAME` e `E2E_<PERFIL>_PASSWORD`, convertendo hifens e espacos para `_`. Exemplos: `docente` -> `E2E_DOCENTE_USERNAME`; `coord-graduacao` -> `E2E_COORD_GRADUACAO_USERNAME`. Nao usar `process.env.E2E_USERNAME` ou `process.env.E2E_PASSWORD` em specs novas.
+
+Configurar Playwright com `workers: process.env.E2E_WORKERS ? Number(process.env.E2E_WORKERS) : 1`. O padrao serial evita conflito de sessao em sistemas legados quando varios perfis do `.env` apontam temporariamente para a mesma conta. Aumentar `E2E_WORKERS` somente quando as contas e massas forem independentes.
 
 Aplicar a mesma regra para dados pessoais ou institucionais observados na tela: nomes reais de pessoas, usuarios, servidores/funcionarios, emails, telefones, documentos, matriculas, protocolos sensiveis e identificadores pessoais nao devem aparecer hardcoded em specs, Page Objects, fixtures versionadas, asserts, comentarios ou logs. Quando forem indispensaveis para um ambiente especifico, usar `.env` local ou fixture local ignorada pelo Git, com nomes de variaveis genericos.
 
@@ -102,7 +116,7 @@ Com `evidencias: minimo`, nao criar nem atualizar README por causa de evidencias
 ## Reprodutibilidade
 
 - A spec deve rodar do zero pelo CLI em outra maquina com Node, Playwright, Chromium, projeto versionado e `.env` preenchido.
-- Sempre partir de `BASE_URL`/`baseURL`, autenticar pelo fluxo automatizado e usar credenciais via `process.env`.
+- Sempre partir de `BASE_URL`/`baseURL`, autenticar pelo fluxo automatizado e usar credenciais via `getAuthProfile(profileName)`.
 - Nao depender de sessao aberta no MCP, navegador ja logado, perfil local do Chrome, `launchPersistentContext`, `storageState` gravado manualmente, cache local, caminhos absolutos ou arquivos fora do projeto.
 - Dados criados pela automacao devem usar `runId` ou prefixo rastreavel. Dados preexistentes inevitaveis devem vir de `.env` ou fixture local ignorada, com nome generico.
 - Nao deixar `test.only`, `test.skip`, flags temporarias ou ordem manual de execucao no codigo final.

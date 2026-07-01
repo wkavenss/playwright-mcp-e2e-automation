@@ -105,7 +105,7 @@ Passo a passo:
 3. ...
 ```
 
-Com esses dados, o plugin gera código Playwright E2E com Page Objects, `.env`, validação em Chromium headed e evidências mínimas por padrão.
+Com esses dados, o plugin gera código Playwright E2E com Page Objects, `.env`, perfis de autenticação por spec, validação em Chromium headed e evidências mínimas por padrão.
 O código gerado deve ser reprodutível por CLI em outro ambiente com o mesmo perfil funcional e `.env` preenchido.
 
 ## Modos De Uso
@@ -122,6 +122,6 @@ O código gerado deve ser reprodutível por CLI em outro ambiente com o mesmo pe
 - Usa Playwright CLI para executar e validar testes.
 - Usa Playwright MCP somente para descobrir tela, seletor, campo ou comportamento que precisa de observação real.
 - Usa `.playwright-e2e/cache/` somente para mapas sanitizados de telas, rotas, labels, seletores e validações.
-- Mantém credenciais em `.env` e cria `.env.example` seguro.
+- Mantém credenciais em `.env`, separadas por perfil funcional, e cria `.env.example` seguro.
 - Mantém `trace`, `screenshot` e `video` desligados por padrão.
 - Audita boas práticas com scripts locais.

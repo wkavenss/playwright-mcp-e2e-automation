@@ -24,9 +24,11 @@ Antes de agir, exigir apenas:
 
 Se faltar algo, interromper e responder em uma linha: `Faltam: ...`. Nao criar projeto, instalar dependencias, explorar tela nem executar teste ate receber esses dados.
 
-Dados opcionais: ambiente, objetivo, caminho, acao final, massa, validacoes, evidencias, modo e restricoes.
+Dados opcionais: ambiente, objetivo, caminho, acao final, massa, validacoes, evidencias, modo, perfil funcional e restricoes.
 
-Quando houver credenciais no chat, gravar em `.env`, proteger no `.gitignore`, criar `.env.example` seguro e usar `process.env`. Nunca repetir segredos no codigo, README, logs ou resposta final.
+Quando houver credenciais no chat, gravar em `.env`, proteger no `.gitignore`, criar `.env.example` seguro e usar perfil funcional explicito por spec. Nunca repetir segredos no codigo, README, logs ou resposta final.
+
+Credenciais devem ser modeladas por perfil, nao como par global da suite. Para cada spec, escolher um nome funcional curto e estavel, criar/usar `tests/utils/authProfiles.js` com `getAuthProfile(profileName)`, e chamar login com `auth.username`/`auth.password`. O helper deve mapear `getAuthProfile('stricto')` para `E2E_STRICTO_USERNAME`/`E2E_STRICTO_PASSWORD` e `getAuthProfile('coord-graduacao')` para `E2E_COORD_GRADUACAO_USERNAME`/`E2E_COORD_GRADUACAO_PASSWORD`. Nao criar novas specs com `process.env.E2E_USERNAME` ou `process.env.E2E_PASSWORD`; esse par global mascara usuario errado quando a suite tem multiplos perfis.
 
 Tratar tambem como sensiveis nomes reais de pessoas, usuarios, servidores/funcionarios, emails, telefones, documentos, matriculas, identificadores pessoais e valores especificos observados na interface. Nao hardcodar esses dados em specs, Page Objects, fixtures, asserts, comentarios, nomes de teste ou logs. Usar massa neutra gerada, dados fornecidos explicitamente pelo usuario para teste, `.env` local ou fixture local nao versionada; se o dado real for indispensavel para localizar um registro existente, pedir confirmacao e encapsular em variavel com nome generico.
 
@@ -38,7 +40,7 @@ Tratar tambem como sensiveis nomes reais de pessoas, usuarios, servidores/funcio
 - So nao gerar codigo se faltar dado minimo, houver bloqueio de escrita/tecnico ou o usuario disser explicitamente que nao quer codigo.
 - Execucao no navegador: assumir Chromium `headed` quando nao informado.
 - Sessao do fluxo: uma automacao de negocio deve rodar em uma unica spec/teste e uma unica pagina/contexto, sem fechar e reabrir navegador a cada tela.
-- Reprodutibilidade: a spec deve poder ser executada por outra pessoa com o mesmo perfil funcional, dependencias instaladas e `.env` preenchido, sem depender da sessao local do autor.
+- Reprodutibilidade: a spec deve poder ser executada por outra pessoa com o mesmo perfil funcional declarado por `getAuthProfile(...)`, dependencias instaladas e `.env` preenchido, sem depender da sessao local do autor.
 - Trabalho: sempre rapido, com baixo consumo de tokens.
 - Evidencias: assumir `minimo` quando nao informado.
 - Campos obrigatorios: campos com estrela/asterisco azul na label sao obrigatorios.
@@ -85,7 +87,7 @@ Usar sempre o caminho mais curto que preserve boas praticas e economize contexto
 - Playwright CLI para executar e validar;
 - Playwright MCP somente quando cache, CLI, codigo e passo a passo nao explicarem a tela real;
 - uma sessao continua de navegador por fluxo, sem reiniciar a cada tela;
-- reprodutibilidade por CLI a partir de `.env`, massa controlada e projeto versionado;
+- reprodutibilidade por CLI a partir de `.env`, perfil funcional explicito, massa controlada e projeto versionado;
 - Page Objects minimos para telas ou areas tocadas;
 - seletores mapeados sob demanda;
 - uma validacao funcional forte;
@@ -127,7 +129,7 @@ Mesmo em `minimo`, o terminal pode emitir saida. Nao copiar logs longos; resumir
 12. Antes de acao que cria/altera dado persistente, confirmar que campos obrigatorios, seletores e validacao final ja estao mapeados o suficiente para evitar cadastros parciais.
 13. Sanitizar dados observados: substituir nomes reais, usuarios, identificadores pessoais e mensagens de erro cruas por massa neutra, variaveis de ambiente ou fixtures locais.
 14. Implementar ou atualizar spec, Page Objects, dados, fixtures e utilitarios na menor superficie possivel.
-15. Garantir reprodutibilidade: a spec deve partir de `BASE_URL`, autenticar com `process.env`, gerar/receber massa controlada e nao depender de estado manual da maquina atual.
+15. Garantir reprodutibilidade: a spec deve partir de `BASE_URL`, autenticar com perfil funcional explicito via `getAuthProfile(profileName)`, gerar/receber massa controlada e nao depender de estado manual da maquina atual.
 16. Configurar `.env`, `.env.example`, `.gitignore`, scripts e Playwright apenas quando necessario.
 17. Executar validacao final pelo CLI em Chromium headed, salvo pedido contrario.
 18. Se o CLI falhar e o log nao explicar a causa, usar MCP apenas na tela necessaria, corrigir uma falha objetiva e executar o CLI novamente. Nao reiniciar o navegador por tela nem transformar cada tela em uma execucao separada.
@@ -142,7 +144,7 @@ Mesmo em `minimo`, o terminal pode emitir saida. Nao copiar logs longos; resumir
 - Nao ler, colar ou resumir DOM completo, HTML completo, screenshot, trace ou arquivos inteiros quando um trecho, locator ou resumo de tela bastar.
 - Manter o fluxo em uma unica sessao de navegador sempre que tecnicamente possivel. Nao fechar/reabrir navegador entre telas, nao criar uma spec/teste por tela e nao usar `chromium.launch` manual dentro de specs Playwright Test salvo exigencia explicita do projeto.
 - Evitar lixo funcional: nao repetir submissao ou acao final apenas para descobrir a proxima tela; preferir observar antes, executar uma vez com massa rastreavel e validar o registro criado. Se uma execucao parcial criar dado, registrar no resumo e reutilizar ou limpar somente com seguranca.
-- Construir a spec para ser reprodutivel por qualquer usuario com o mesmo perfil funcional: login pelo fluxo automatizado, URL e credenciais por `.env`, massa gerada ou parametrizada, assertions funcionais e sem dependencia de sessao local.
+- Construir a spec para ser reprodutivel por qualquer usuario com o mesmo perfil funcional: login pelo fluxo automatizado, URL e credenciais por `.env` usando `getAuthProfile(profileName)`, massa gerada ou parametrizada, assertions funcionais e sem dependencia de sessao local.
 - Nao usar `test.only`, `test.skip`, perfil persistente de navegador, `launchPersistentContext`, `storageState` manual, caminho absoluto local ou dado secreto fora de `.env` para fazer o teste passar.
 - Quando um registro preexistente for indispensavel, parametrizar por `.env`/fixture local ignorada e documentar no resumo qual tipo de dado e necessario, sem revelar o valor.
 - Nao instalar ferramentas de sistema automaticamente; se o check de ambiente falhar, orientar com comandos objetivos.
