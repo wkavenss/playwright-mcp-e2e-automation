@@ -123,5 +123,6 @@ O código gerado deve ser reprodutível por CLI em outro ambiente com o mesmo pe
 - Usa Playwright MCP somente para descobrir tela, seletor, campo ou comportamento que precisa de observação real.
 - Usa `.playwright-e2e/cache/` somente para mapas sanitizados de telas, rotas, labels, seletores e validações.
 - Mantém credenciais em `.env`, separadas por perfil funcional, e cria `.env.example` seguro.
+- Gera datas e outros dados variáveis dinamicamente para manter specs reutilizáveis.
 - Mantém `trace`, `screenshot` e `video` desligados por padrão.
 - Audita boas práticas com scripts locais.

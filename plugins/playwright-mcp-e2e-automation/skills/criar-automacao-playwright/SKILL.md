@@ -32,6 +32,8 @@ Credenciais devem ser modeladas por perfil, nao como par global da suite. Para c
 
 Tratar tambem como sensiveis nomes reais de pessoas, usuarios, servidores/funcionarios, emails, telefones, documentos, matriculas, identificadores pessoais e valores especificos observados na interface. Nao hardcodar esses dados em specs, Page Objects, fixtures, asserts, comentarios, nomes de teste ou logs. Usar massa neutra gerada, dados fornecidos explicitamente pelo usuario para teste, `.env` local ou fixture local nao versionada; se o dado real for indispensavel para localizar um registro existente, pedir confirmacao e encapsular em variavel com nome generico.
 
+Tratar datas, periodos, anos, semestres, prazos, vencimentos, codigos com timestamp e qualquer valor que envelheca como dados variaveis. Nao hardcodar datas de inicio/fim, ano-periodo, semestre ou prazo capturados da tela ou inventados para a execucao atual. Gerar esses valores em runtime com helper relativo a data da execucao, `runId` ou parametro local ignorado quando a regra de negocio exigir valor fixo.
+
 ## Padroes
 
 - Implementar codigo Playwright: obrigatorio sempre, sem perguntar ao usuario.
@@ -46,6 +48,7 @@ Tratar tambem como sensiveis nomes reais de pessoas, usuarios, servidores/funcio
 - Campos obrigatorios: campos com estrela/asterisco azul na label sao obrigatorios.
 - Nao submeter ou avancar formulario com campos vazios apenas para descobrir obrigatoriedade.
 - Dados sensiveis: nao gravar no codigo nomes reais, usuarios, servidores/funcionarios, emails, telefones, documentos, matriculas ou identificadores vistos na tela.
+- Dados variaveis: datas, periodos, anos, semestres e prazos devem ser gerados dinamicamente ou parametrizados; nao usar literais que fiquem desatualizados.
 - Erros e diagnosticos: nao transformar erro lancado, stack trace, log cru, timeout, mensagem transitoria ou tentativa falha em comentario, constante, fixture, assert ou documentacao no codigo.
 - Higiene: remover sobras de exploracao, `console.log`, codigo comentado, `TODO/FIXME`, seletores temporarios, constantes nao usadas, snapshots de `body` e codigo linear de codegen antes de finalizar.
 - Dados no sistema: evitar reexecucoes que criem registros parciais, duplicados ou lixo funcional. Planejar o fluxo antes da acao final, usar `runId` rastreavel e reutilizar/limpar dados criados somente quando for seguro.
@@ -68,6 +71,8 @@ Se nao conseguir criar ou alterar arquivos, declarar bloqueio de escrita. Nao su
 Seguir somente a URL, credenciais e passo a passo informados pelo usuario. Nao abrir casos de uso vizinhos, menus parecidos, telas alternativas ou funcionalidades nao citadas. Se o caminho informado nao aparecer, parar no ponto exato, relatar o item ausente e manter o codigo estruturado ate onde foi possivel.
 
 Quando o usuario pedir para preencher campos com dados aleatorios, gerar massa de teste rastreavel e preencher apenas os campos exigidos pela tela ou necessarios para concluir o passo solicitado.
+
+Quando a massa incluir datas ou intervalos, calcular a data inicial em runtime e derivar a data final a partir dela. Manter internamente `Date`/ISO ou estrategia equivalente e formatar no padrao da tela apenas no momento do preenchimento. Se houver calendario institucional, periodo letivo fechado ou data oficial que altere a regra, pedir o dado ou parametrizar em `.env`/fixture local ignorada em vez de inventar.
 
 ## Inferencia Controlada
 
@@ -127,9 +132,9 @@ Mesmo em `minimo`, o terminal pode emitir saida. Nao copiar logs longos; resumir
 10. Mapear sob demanda apenas campos/acoes do proximo passo e uma validacao funcional. Nao submeter formulario vazio para descobrir obrigatoriedade.
 11. Planejar o teste como fluxo continuo: uma spec/teste deve autenticar, navegar, preencher, avancar telas e validar o resultado sem reiniciar navegador entre etapas.
 12. Antes de acao que cria/altera dado persistente, confirmar que campos obrigatorios, seletores e validacao final ja estao mapeados o suficiente para evitar cadastros parciais.
-13. Sanitizar dados observados: substituir nomes reais, usuarios, identificadores pessoais e mensagens de erro cruas por massa neutra, variaveis de ambiente ou fixtures locais.
+13. Sanitizar dados observados: substituir nomes reais, usuarios, identificadores pessoais, datas fixas envelheciveis e mensagens de erro cruas por massa neutra, geradores dinamicos, variaveis de ambiente ou fixtures locais.
 14. Implementar ou atualizar spec, Page Objects, dados, fixtures e utilitarios na menor superficie possivel.
-15. Garantir reprodutibilidade: a spec deve partir de `BASE_URL`, autenticar com perfil funcional explicito via `getAuthProfile(profileName)`, gerar/receber massa controlada e nao depender de estado manual da maquina atual.
+15. Garantir reprodutibilidade: a spec deve partir de `BASE_URL`, autenticar com perfil funcional explicito via `getAuthProfile(profileName)`, gerar/receber massa controlada, calcular dados variaveis em runtime e nao depender de estado manual da maquina atual.
 16. Configurar `.env`, `.env.example`, `.gitignore`, scripts e Playwright apenas quando necessario.
 17. Executar validacao final pelo CLI em Chromium headed, salvo pedido contrario.
 18. Se o CLI falhar e o log nao explicar a causa, usar MCP apenas na tela necessaria, corrigir uma falha objetiva e executar o CLI novamente. Nao reiniciar o navegador por tela nem transformar cada tela em uma execucao separada.
@@ -147,6 +152,7 @@ Mesmo em `minimo`, o terminal pode emitir saida. Nao copiar logs longos; resumir
 - Construir a spec para ser reprodutivel por qualquer usuario com o mesmo perfil funcional: login pelo fluxo automatizado, URL e credenciais por `.env` usando `getAuthProfile(profileName)`, massa gerada ou parametrizada, assertions funcionais e sem dependencia de sessao local.
 - Nao usar `test.only`, `test.skip`, perfil persistente de navegador, `launchPersistentContext`, `storageState` manual, caminho absoluto local ou dado secreto fora de `.env` para fazer o teste passar.
 - Quando um registro preexistente for indispensavel, parametrizar por `.env`/fixture local ignorada e documentar no resumo qual tipo de dado e necessario, sem revelar o valor.
+- Nao deixar data, periodo, ano, semestre, prazo ou vencimento fixo no codigo final, salvo regra explicitamente fixa. Para intervalos, calcular fim a partir do inicio; para ano/periodo, derivar da data atual ou de parametro local seguro.
 - Nao instalar ferramentas de sistema automaticamente; se o check de ambiente falhar, orientar com comandos objetivos.
 - Nao assumir nomes de menus, botoes, campos, mensagens ou fluxos sem observar a interface.
 - Campos com estrela/asterisco azul na label sao obrigatorios.
@@ -187,7 +193,7 @@ Antes de finalizar, revisar Page Objects para remover IDs gerados, helpers gener
 
 Antes da resposta final, fazer uma passada de higiene nos arquivos alterados: remover `console.log`, comentarios de debug, codigo comentado, `TODO/FIXME`, mensagens de erro cruas, dados reais hardcoded e imports/constantes/helpers que sobraram da exploracao. Se uma falha precisa ser explicada, resumir no retorno ao usuario; nao deixar a falha documentada no codigo.
 
-Antes de finalizar, conferir que outra pessoa conseguiria executar o fluxo pelo mesmo comando CLI apos preencher `.env`: sem depender da janela aberta pelo MCP, sem perfil local do navegador, sem `test.only/skip`, sem caminho absoluto da maquina e sem dados manuais invisiveis.
+Antes de finalizar, conferir que outra pessoa conseguiria executar o fluxo pelo mesmo comando CLI apos preencher `.env`: sem depender da janela aberta pelo MCP, sem perfil local do navegador, sem `test.only/skip`, sem caminho absoluto da maquina, sem dados manuais invisiveis e sem datas/periodos que envelhecem.
 
 ## Referencias Sob Demanda
 

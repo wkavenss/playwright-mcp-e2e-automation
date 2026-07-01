@@ -99,6 +99,10 @@ Com `evidencias: minimo`, nao criar nem atualizar README por causa de evidencias
 - Nao reaproveitar nomes, usuarios ou identificadores reais vistos na tela como massa fixa.
 - Usar massa externa informada pelo usuario quando o fluxo exigir.
 - Validar formato aceito pela tela para datas, valores, documentos e identificadores.
+- Gerar datas, periodos, anos, semestres, prazos e vencimentos em runtime; nao hardcodar valores que envelhecem.
+- Para intervalos, calcular a data final a partir da data inicial, usando offset claro e rastreavel.
+- Manter datas como `Date`/ISO ou estrategia equivalente ate a borda de preenchimento; formatar para a tela somente no Page Object/helper.
+- Usar data fixa apenas quando a regra de negocio ou o usuario exigir; nesse caso, parametrizar em `.env` ou fixture local ignorada.
 - Usar textos neutros e rastreaveis para campos longos.
 - Manter massa simples dentro da spec quando usada uma unica vez.
 - Mover massa maior ou reutilizavel para `tests/data`.
@@ -118,14 +122,15 @@ Com `evidencias: minimo`, nao criar nem atualizar README por causa de evidencias
 - A spec deve rodar do zero pelo CLI em outra maquina com Node, Playwright, Chromium, projeto versionado e `.env` preenchido.
 - Sempre partir de `BASE_URL`/`baseURL`, autenticar pelo fluxo automatizado e usar credenciais via `getAuthProfile(profileName)`.
 - Nao depender de sessao aberta no MCP, navegador ja logado, perfil local do Chrome, `launchPersistentContext`, `storageState` gravado manualmente, cache local, caminhos absolutos ou arquivos fora do projeto.
-- Dados criados pela automacao devem usar `runId` ou prefixo rastreavel. Dados preexistentes inevitaveis devem vir de `.env` ou fixture local ignorada, com nome generico.
+- Dados criados pela automacao devem usar `runId` ou prefixo rastreavel. Dados variaveis devem ser calculados em runtime. Dados preexistentes inevitaveis devem vir de `.env` ou fixture local ignorada, com nome generico.
 - Nao deixar `test.only`, `test.skip`, flags temporarias ou ordem manual de execucao no codigo final.
 - Se a reprodutibilidade exigir perfil, permissao ou massa especifica, registrar no resumo o requisito funcional sem expor valores sensiveis.
 
 ## Cache Local
 
-- Usar `.playwright-e2e/cache/` somente para mapas sanitizados de telas, rotas, labels, acoes, seletores escolhidos e validacoes.
+- Usar `.playwright-e2e/cache/` somente para mapas sanitizados de telas, rotas, labels, acoes, seletores escolhidos, validacoes e estrategia de massa.
 - Nao versionar cache e nao salvar senha, usuario real, nome de pessoa, documento, email, telefone, cookie, token ou storageState.
+- Nao salvar no cache datas concretas que devem ser dinamicas; registrar somente a estrategia, como "inicio = hoje" e "fim = inicio + 30 dias".
 - Tratar cache como sugestao. Confirmar via MCP quando houver falha, tela alterada, seletor ambiguo, permissao diferente ou estado dinamico.
 - Se o cache contiver dado sensivel, descartar o trecho e corrigir o cache antes de continuar.
 

@@ -26,6 +26,7 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - `waitForTimeout`, retries excessivos e esperas globais podem mascarar sincronizacao incorreta.
 - Credenciais devem vir de `.env`, que precisa estar ignorado; `.env.example` nao deve conter segredos.
 - Nomes reais de pessoas, usuarios, servidores/funcionarios, documentos, matriculas, emails, telefones e identificadores pessoais nao devem aparecer hardcoded em specs, Page Objects, fixtures, asserts, comentarios ou logs.
+- Datas, periodos, anos, semestres, prazos e vencimentos fixos devem ser tratados como risco de reprodutibilidade, salvo regra explicitamente fixa e parametrizada.
 - Erro cru, stack trace, timeout, texto de `body` inteiro, `console.log`, codigo comentado, `TODO/FIXME` e sobras de codegen devem ser tratados como sujeira de automacao.
 - Fluxos de negocio que atravessam varias telas devem preservar uma unica sessao de navegador dentro do mesmo `test`; dividir cada tela em um teste independente ou abrir/fechar navegador manualmente aumenta fragilidade e pode gerar dados duplicados.
 - A suite deve ser reprodutivel por outra pessoa com o mesmo perfil funcional e `.env` preenchido; dependencias de sessao local, perfil persistente, `storageState` manual, caminhos absolutos, `test.only/skip` ou massa escondida fora do projeto sao defeitos.

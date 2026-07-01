@@ -44,8 +44,11 @@ Para reprodutibilidade:
 - login pelo fluxo automatizado com `process.env`;
 - URL por `BASE_URL`/`baseURL`;
 - massa neutra gerada com `runId`;
+- datas, periodos, anos, semestres e prazos gerados em runtime ou parametrizados localmente quando forem regra fixa;
 - registro preexistente inevitavel por variavel generica em `.env` ou fixture local ignorada;
 - assertions sobre efeito funcional, nao sobre dado pessoal real.
+
+Economia de tokens nao justifica copiar data observada ou valor valido apenas na execucao atual. Para dados temporais, guardar a estrategia curta: data inicial relativa a execucao, data final derivada da inicial, periodo calculado ou variavel local exigida pela regra.
 
 ## Cache Local
 
@@ -54,7 +57,7 @@ Cache permitido: `.playwright-e2e/cache/`, sempre ignorado pelo Git.
 Arquivos sugeridos:
 
 - `screens.json`: tela, rota, cabecalho, labels, acoes, seletores escolhidos e validacoes.
-- `flows.json`: roteiro compacto, telas usadas, comandos CLI e validacoes esperadas.
+- `flows.json`: roteiro compacto, telas usadas, comandos CLI, validacoes esperadas e estrategia de massa sem valores sensiveis.
 - `auth.json`: somente metadados seguros de perfil/autenticacao; nunca cookies, tokens, senha ou storageState.
 
 O cache e uma sugestao, nao uma verdade absoluta. Invalidar ou confirmar via MCP quando:
@@ -64,6 +67,7 @@ O cache e uma sugestao, nao uma verdade absoluta. Invalidar ou confirmar via MCP
 - permissao/perfil mudou;
 - seletor ficou ambiguo;
 - componente dinamico nao bate com o mapa;
+- data, periodo, semestre ou prazo cacheado ficou concreto demais;
 - cache contem dado sensivel ou informacao especifica demais.
 
 ## Modos

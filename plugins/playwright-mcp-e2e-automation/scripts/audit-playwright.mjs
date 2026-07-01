@@ -120,6 +120,31 @@ function hasSensitiveLiteral(value) {
     || hasLikelyPersonName(value);
 }
 
+function isTemporalPlaceholder(value) {
+  const text = String(value).trim();
+  return /^(?:DD[/-]MM[/-]YYYY|YYYY[/-]MM[/-]DD|MM[/-]DD[/-]YYYY)$/i.test(text)
+    || /^<[^>]+>$/.test(text)
+    || /^(?:example|change-me|data-exemplo|yyyy|yyyy\.[12])$/i.test(text);
+}
+
+function hasFixedDateLiteral(value) {
+  const text = String(value);
+  if (isTemporalPlaceholder(text)) return false;
+  return /\b(?:0[1-9]|[12]\d|3[01])[/-](?:0[1-9]|1[0-2])[/-](?:19|20)\d{2}\b/.test(text)
+    || /\b(?:19|20)\d{2}[/-](?:0[1-9]|1[0-2])[/-](?:0[1-9]|[12]\d|3[01])\b/.test(text);
+}
+
+function hasFixedTemporalScalar(value) {
+  const text = String(value).trim();
+  if (isTemporalPlaceholder(text)) return false;
+  return hasFixedDateLiteral(text)
+    || /^(?:19|20)\d{2}(?:[./-][12])?$/.test(text);
+}
+
+function isTemporalKey(value) {
+  return /(?:data|date|inicio|fim|termino|vencimento|prazo|validade|ano|year|semestre|periodo|period|letivo|deadline|start|end)/i.test(value);
+}
+
 function sensitiveCacheReasons(value, key = "") {
   const reasons = [];
   if (typeof value === "string" || typeof value === "number") {
@@ -128,6 +153,27 @@ function sensitiveCacheReasons(value, key = "") {
   }
   if (/(password|senha|passwd|token|cookie|secret|storage|session|usuario|username)/i.test(key)) reasons.push("chave-sensivel");
   return [...new Set(reasons)];
+}
+
+function scanTemporalCacheValue(value, location = "$", findings = []) {
+  if (value == null) return findings;
+  if (typeof value === "string" || typeof value === "number") {
+    const text = String(value);
+    if (hasFixedDateLiteral(text) || (isTemporalKey(location) && hasFixedTemporalScalar(text))) {
+      findings.push({ location, value: text });
+    }
+    return findings;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => scanTemporalCacheValue(item, `${location}[${index}]`, findings));
+    return findings;
+  }
+  if (typeof value === "object") {
+    for (const [key, nested] of Object.entries(value)) {
+      scanTemporalCacheValue(nested, `${location}.${key}`, findings);
+    }
+  }
+  return findings;
 }
 
 function scanCacheValue(value, location = "$", findings = []) {
@@ -271,6 +317,16 @@ for (const file of codeFiles) {
       add("warning", "possible-sensitive-literal", rel, lineNumber(content, sensitiveLiteral.index), "Possivel dado pessoal/institucional hardcoded; use massa neutra, process.env ou fixture local ignorada.");
     }
 
+    const fixedDateLiterals = stringLiterals(content).filter((literal) => hasFixedDateLiteral(literal.value)).slice(0, 3);
+    for (const fixedDateLiteral of fixedDateLiterals) {
+      add("warning", "fixed-date-literal", rel, lineNumber(content, fixedDateLiteral.index), "Evite data fixa; gere dinamicamente com helper relativo a data de execucao ou parametro local quando a regra exigir.");
+    }
+
+    const fixedTemporalValues = matches(content, /\b(?:data[A-Za-z0-9_]*|date[A-Za-z0-9_]*|inicio|fim|termino|vencimento|prazo|validade|ano|year|semestre|periodo[A-Za-z0-9_]*|period[A-Za-z0-9_]*|letivo|deadline|start|end)\s*[:=]\s*["'`]?(?:\d{2}[/-]\d{2}[/-](?:19|20)\d{2}|(?:19|20)\d{2}[/-]\d{2}[/-]\d{2}|(?:19|20)\d{2}(?:[./-][12])?)["'`]?/gi).slice(0, 5);
+    for (const fixedTemporalValue of fixedTemporalValues) {
+      add("warning", "fixed-temporal-value", rel, lineNumber(content, fixedTemporalValue.index), "Valor temporal fixo em data/ano/periodo; derive em runtime ou use .env/fixture local quando a regra exigir.");
+    }
+
     const absolutePathLiteral = stringLiterals(content).find((literal) => /(?:\/Users\/|\/home\/|C:\\Users\\|[A-Za-z]:\\)/.test(literal.value));
     if (absolutePathLiteral) {
       add("warning", "local-absolute-path", rel, lineNumber(content, absolutePathLiteral.index), "Evite caminho absoluto local; use caminho relativo ao projeto ou variavel de ambiente.");
@@ -404,6 +460,10 @@ if (fs.existsSync(cacheDir)) {
     const sensitive = scanCacheValue(parsed, rel);
     if (sensitive.length) {
       add("error", "sensitive-cache-data", rel, 1, "Cache local contem dado sensivel ou chave sensivel; remova/sanitize antes de reutilizar.");
+    }
+    const temporal = scanTemporalCacheValue(parsed, rel);
+    if (temporal.length) {
+      add("warning", "fixed-temporal-cache-data", rel, 1, "Cache local contem data/periodo concreto; guarde somente a estrategia dinamica de massa.");
     }
   }
 }
