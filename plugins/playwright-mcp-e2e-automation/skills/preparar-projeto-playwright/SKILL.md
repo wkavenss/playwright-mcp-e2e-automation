@@ -19,14 +19,15 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 6. Instalar Chromium somente quando necessario e com autorizacao de rede.
 7. Manter `.env` fora do versionamento e deixar `.env.example` sem valores secretos.
 8. Gerar/usar `tests/utils/authProfiles.js` para que cada spec declare seu perfil funcional com `getAuthProfile(profileName)`.
-9. Manter `.playwright-e2e/cache/` fora do versionamento para mapas locais sanitizados.
-10. Executar `../../scripts/audit-playwright.mjs <raiz-do-projeto> --changed` a partir desta skill.
-11. Informar arquivos criados, dependencias instaladas e comandos disponiveis.
+9. Gerar/usar `tests/utils/testData.js` para `runId`, textos neutros e datas dinamicas.
+10. Manter `.playwright-e2e/cache/` fora do versionamento para mapas locais sanitizados.
+11. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto> --changed` a partir desta skill.
+12. Informar arquivos criados, dependencias instaladas e comandos disponiveis.
 
 ## Padrao Gerado
 
 - JavaScript e Playwright Test.
-- `tests/e2e` para specs, `tests/pages` para Page Objects e `tests/utils/authProfiles.js` para perfis de autenticacao.
+- `tests/e2e` para specs, `tests/pages` para Page Objects, `tests/utils/authProfiles.js` para perfis de autenticacao e `tests/utils/testData.js` para massa dinamica.
 - Chromium headed por padrao.
 - `workers: 1` por padrao, com override por `E2E_WORKERS`, para evitar conflito de sessao quando perfis locais usam a mesma conta.
 - `trace`, `screenshot` e `video` desligados por padrao.

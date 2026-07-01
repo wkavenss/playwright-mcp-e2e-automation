@@ -122,6 +122,73 @@ function getAuthProfile(profileName) {
 module.exports = { getAuthProfile, profileToEnvPrefix };
 `,
 );
+writeIfMissing(
+  "tests/utils/testData.js",
+  `function pad(value) {
+  return String(value).padStart(2, '0');
+}
+
+function localDateParts(date) {
+  return {
+    day: pad(date.getDate()),
+    month: pad(date.getMonth() + 1),
+    year: String(date.getFullYear()),
+  };
+}
+
+function formatDatePtBr(date) {
+  const parts = localDateParts(date);
+  return \`\${parts.day}/\${parts.month}/\${parts.year}\`;
+}
+
+function formatDateIso(date) {
+  const parts = localDateParts(date);
+  return \`\${parts.year}-\${parts.month}-\${parts.day}\`;
+}
+
+function addDays(date, days) {
+  const next = new Date(date);
+  next.setDate(next.getDate() + Number(days));
+  return next;
+}
+
+function createRunId(prefix = 'E2E') {
+  const stamp = new Date()
+    .toISOString()
+    .replace(/[-:.TZ]/g, '')
+    .slice(0, 14);
+  const suffix = Math.random().toString(36).slice(2, 8).toUpperCase();
+  return \`\${prefix}_\${stamp}_\${suffix}\`;
+}
+
+function neutralText(prefix = 'AUTOMACAO_E2E') {
+  return \`\${prefix} \${createRunId('RUN')}\`;
+}
+
+function dateRangeFromToday({ startOffsetDays = 0, durationDays = 30 } = {}) {
+  const start = addDays(new Date(), startOffsetDays);
+  const end = addDays(start, durationDays);
+
+  return {
+    start,
+    end,
+    startIso: formatDateIso(start),
+    endIso: formatDateIso(end),
+    startPtBr: formatDatePtBr(start),
+    endPtBr: formatDatePtBr(end),
+  };
+}
+
+module.exports = {
+  addDays,
+  createRunId,
+  dateRangeFromToday,
+  formatDateIso,
+  formatDatePtBr,
+  neutralText,
+};
+`,
+);
 ensureLines(".gitignore", [".env", ".playwright-e2e/cache/", "test-results/", "playwright-report/"]);
 writeIfMissing("tests/e2e/.gitkeep", "");
 writeIfMissing("tests/pages/.gitkeep", "");

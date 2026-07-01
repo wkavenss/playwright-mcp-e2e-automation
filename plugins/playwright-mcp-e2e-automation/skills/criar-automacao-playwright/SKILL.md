@@ -138,7 +138,7 @@ Mesmo em `minimo`, o terminal pode emitir saida. Nao copiar logs longos; resumir
 16. Configurar `.env`, `.env.example`, `.gitignore`, scripts e Playwright apenas quando necessario.
 17. Executar validacao final pelo CLI em Chromium headed, salvo pedido contrario.
 18. Se o CLI falhar e o log nao explicar a causa, usar MCP apenas na tela necessaria, corrigir uma falha objetiva e executar o CLI novamente. Nao reiniciar o navegador por tela nem transformar cada tela em uma execucao separada.
-19. Executar `../../scripts/audit-playwright.mjs <raiz-do-projeto> --changed` a partir desta skill. Auditar somente arquivos modificados e corrigir erros dentro do escopo solicitado.
+19. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto> --changed` a partir desta skill. Auditar somente arquivos modificados e corrigir erros dentro do escopo solicitado.
 20. Responder com resumo compacto.
 
 ## Regras Essenciais
@@ -171,6 +171,7 @@ Mesmo em `minimo`, o terminal pode emitir saida. Nao copiar logs longos; resumir
 - Manter seletores e interacoes dentro de Page Objects; specs devem conter passos funcionais, dados e assertions de alto nivel.
 - Validar resultado funcional: mensagem, registro, detalhe persistido, estado final, download, protocolo ou bloqueio esperado.
 - Evitar `waitForTimeout`; preferir waits automaticos e assertions do Playwright.
+- Antes da resposta final, usar `quality-gate.mjs --changed` para obter um resumo compacto de auditoria, sintaxe e JSON.
 - Pedir autorizacao para rede, instalacao, navegador, credenciais, escrita sensivel, ambiente externo ou sandbox.
 - Nao gerar README, traces, screenshots, videos ou diagnostico detalhado por padrao; usar o nivel de evidencias solicitado.
 - Nao automatizar captcha, burlar MFA, commitar segredos, usar dados reais sensiveis ou executar acao destrutiva em ambiente real sem confirmacao explicita.

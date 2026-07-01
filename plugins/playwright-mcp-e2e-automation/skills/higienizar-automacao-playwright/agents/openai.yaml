@@ -1,0 +1,4 @@
+interface:
+  display_name: "Higienizar automacao Playwright"
+  short_description: "Limpa e endurece codigo Playwright"
+  default_prompt: "Use $higienizar-automacao-playwright para limpar e endurecer uma automacao Playwright existente sem recriar o fluxo."

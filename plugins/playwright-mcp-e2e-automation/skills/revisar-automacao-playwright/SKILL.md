@@ -12,7 +12,7 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 ## Fluxo
 
 1. Identificar specs, Page Objects, fixtures, dados, configuracao e scripts de execucao.
-2. Executar `../../scripts/audit-playwright.mjs <raiz-do-projeto>` a partir desta skill para realizar a auditoria completa.
+2. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto>` a partir desta skill para realizar auditoria, sintaxe e JSON em modo leitura.
 3. Ler apenas os arquivos necessarios para confirmar ou descartar os achados.
 4. Avaliar resultado funcional, isolamento, massa, sincronizacao, seletores, cache local, segredos, dados sensiveis hardcoded, higiene de codigo e manutencao.
 5. Quando util e seguro, executar o menor teste relevante; nao navegar por funcionalidades nao solicitadas.

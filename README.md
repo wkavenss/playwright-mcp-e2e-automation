@@ -1,6 +1,6 @@
 # Playwright MCP E2E Automation
 
-Plugin para Codex que cria, corrige, revisa e prepara automações E2E com Playwright, Page Objects, `.env`, Playwright CLI e Playwright MCP.
+Plugin para Codex que cria, corrige, revisa, higieniza e prepara automações E2E com Playwright, Page Objects, `.env`, Playwright CLI e Playwright MCP.
 
 O padrão é simples:
 
@@ -108,6 +108,8 @@ Passo a passo:
 Com esses dados, o plugin gera código Playwright E2E com Page Objects, `.env`, perfis de autenticação por spec, validação em Chromium headed e evidências mínimas por padrão.
 O código gerado deve ser reprodutível por CLI em outro ambiente com o mesmo perfil funcional e `.env` preenchido.
 
+Para limpar e endurecer uma automação existente sem recriar o fluxo, use `$higienizar-automacao-playwright`.
+
 ## Modos De Uso
 
 - `padrao`: geração incremental, cache primeiro, MCP sob demanda.
@@ -124,5 +126,6 @@ O código gerado deve ser reprodutível por CLI em outro ambiente com o mesmo pe
 - Usa `.playwright-e2e/cache/` somente para mapas sanitizados de telas, rotas, labels, seletores e validações.
 - Mantém credenciais em `.env`, separadas por perfil funcional, e cria `.env.example` seguro.
 - Gera datas e outros dados variáveis dinamicamente para manter specs reutilizáveis.
+- Usa um quality gate local para reduzir lixo de código sem reexplorar telas.
 - Mantém `trace`, `screenshot` e `video` desligados por padrão.
 - Audita boas práticas com scripts locais.

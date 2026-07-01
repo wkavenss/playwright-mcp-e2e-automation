@@ -317,6 +317,13 @@ for (const file of codeFiles) {
       add("warning", "possible-sensitive-literal", rel, lineNumber(content, sensitiveLiteral.index), "Possivel dado pessoal/institucional hardcoded; use massa neutra, process.env ou fixture local ignorada.");
     }
 
+    const literalFills = matches(content, /\.fill\s*\(\s*["'`]([^"'`\n]{3,})["'`]/g)
+      .filter((match) => !/^(?:example|change-me|placeholder|valor|texto|teste)$/i.test(match[1] || ""))
+      .slice(0, 3);
+    for (const literalFill of literalFills) {
+      add("warning", "literal-fill-value", rel, lineNumber(content, literalFill.index), "fill com literal fixo; prefira massa gerada, parametro do Page Object, process.env ou fixture local.");
+    }
+
     const fixedDateLiterals = stringLiterals(content).filter((literal) => hasFixedDateLiteral(literal.value)).slice(0, 3);
     for (const fixedDateLiteral of fixedDateLiterals) {
       add("warning", "fixed-date-literal", rel, lineNumber(content, fixedDateLiteral.index), "Evite data fixa; gere dinamicamente com helper relativo a data de execucao ou parametro local quando a regra exigir.");
@@ -365,6 +372,26 @@ for (const file of specFiles) {
   if (directActions.length >= 2) {
     add("warning", "linear-actions-in-spec", relative(file), lineNumber(content, directActions[0].index), "Spec com muitas acoes diretas em page; mova interacoes para Page Objects.");
   }
+  if (directActions.length >= 5) {
+    add("warning", "excessive-actions-in-spec", relative(file), lineNumber(content, directActions[0].index), "Spec concentra acoes demais; Page Objects devem conter as interacoes do fluxo.");
+  }
+
+  const visibilityAssertion = firstMatch(content, /\bexpect\s*\([\s\S]{0,200}?\)\s*\.\s*(?:toBeVisible|toBeHidden|toBeAttached)\s*\(/g);
+  const hasFunctionalAssertion = /\b(?:toHaveText|toContainText|toHaveURL|toHaveValue|toHaveAttribute|toHaveTitle|toHaveCount)\s*\(|waitForEvent\s*\(\s*["'`]download|\bvalidar[A-Za-z0-9_]*\s*\(/i.test(content);
+  if (visibilityAssertion && !hasFunctionalAssertion) {
+    add("warning", "weak-visibility-assertion", relative(file), lineNumber(content, visibilityAssertion.index), "Assertion parece validar apenas visibilidade; prefira efeito funcional estavel quando houver.");
+  }
+
+  const lines = content.split(/\r?\n/).filter((line) => line.trim()).length;
+  if (lines > 140 && !/\btest\.step\s*\(/.test(content)) {
+    add("warning", "long-spec-without-steps", relative(file), 1, "Spec longa sem test.step; divida o fluxo em passos funcionais para leitura e diagnostico.");
+  }
+
+  const createsData = /(?:cadastr|criar|inclu|registr|salvar|submet|confirmar|gerar|adicionar|novo\s)/i.test(content);
+  const hasRunId = /\brunId\b|createRunId|Date\.now|randomUUID|crypto\.randomUUID|timestamp/i.test(content);
+  if (createsData && !hasRunId) {
+    add("warning", "created-data-without-run-id", relative(file), 1, "Fluxo parece criar dados sem runId/massa rastreavel; use helper de massa para evitar duplicidade e lixo funcional.");
+  }
 
   const genericName = firstMatch(content, /\btest\s*\(\s*["'`](?:teste\s*\d+|validar cadastro|fluxo completo|automacao tela|automação tela)["'`]/gi);
   if (genericName) {
@@ -395,6 +422,14 @@ for (const file of specFiles) {
 
 for (const file of pageObjectFiles) {
   const content = fs.readFileSync(file, "utf8");
+  const pageObjectLines = content.split(/\r?\n/).filter((line) => line.trim()).length;
+  const methodCount = matches(content, /^\s*(?:async\s+)?[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\)\s*\{/gm)
+    .filter((match) => !/constructor\s*\(/.test(match[0]))
+    .length;
+  if (pageObjectLines > 260 || methodCount > 35) {
+    add("warning", "bloated-page-object", relative(file), 1, "Page Object grande demais; considere dividir por area funcional ou remover metodos sem uso.");
+  }
+
   const genericMethod = firstMatch(content, /\b(?:async\s+)?(?:clickButton\d*|fillInput\d*|goNext)\s*\(/g);
   if (genericMethod) {
     add("warning", "generic-page-object-method", relative(file), lineNumber(content, genericMethod.index), "Use metodos funcionais no Page Object, como realizarLogin, salvar ou validarMensagemSucesso.");
