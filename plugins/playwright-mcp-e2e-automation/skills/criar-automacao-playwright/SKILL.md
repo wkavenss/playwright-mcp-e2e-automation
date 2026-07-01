@@ -1,15 +1,15 @@
 ---
 name: criar-automacao-playwright
-description: Criar uma nova automacao Playwright E2E ou ampliar um fluxo existente a partir de URL, usuario, senha e passo a passo. Use para transformar um procedimento web em codigo Playwright com Page Objects, .env, Playwright MCP e validacao funcional em Chromium headed, mesmo quando o usuario nao pedir explicitamente para gerar codigo. Nao usar para apenas corrigir falha, revisar codigo ou somente configurar o projeto.
+description: Criar uma nova automacao Playwright E2E ou ampliar um fluxo existente a partir de URL, usuario, senha e passo a passo. Use para transformar um procedimento web em codigo Playwright com Page Objects, .env, Playwright CLI, MCP sob demanda e validacao funcional em Chromium headed, mesmo quando o usuario nao pedir explicitamente para gerar codigo. Nao usar para apenas corrigir falha, revisar codigo ou somente configurar o projeto.
 ---
 
 # Criar Automacao Playwright
 
-Criar ou atualizar automacoes E2E com Playwright Test, JavaScript e Playwright MCP. Sempre implementar codigo Playwright, sem perguntar se o usuario quer gerar codigo. Se o usuario informar URL, usuario, senha e passo a passo, interpretar que o trabalho e navegar, entender o fluxo e entregar codigo Playwright. Por padrao, validar em Chromium headed.
+Criar ou atualizar automacoes E2E com Playwright Test, JavaScript, Playwright CLI e Playwright MCP sob demanda. Sempre implementar codigo Playwright, sem perguntar se o usuario quer gerar codigo. Se o usuario informar URL, usuario, senha e passo a passo, interpretar que o trabalho e navegar quando necessario, entender o fluxo e entregar codigo Playwright. Por padrao, executar e validar com Playwright CLI em Chromium headed.
 
 Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra skill do plugin durante a criacao.
 
-O plugin inclui configuracao de Playwright MCP em `.mcp.json`; usar esse servidor quando estiver disponivel. Em primeira execucao, o MCP pode exigir rede para baixar `@playwright/mcp@latest` via `npx`.
+O plugin inclui configuracao de Playwright MCP em `.mcp.json`; usar esse servidor apenas quando for necessario observar a tela real. Em primeira execucao, o MCP pode exigir rede para baixar `@playwright/mcp@latest` via `npx`.
 
 ## Contrato Minimo
 
@@ -35,7 +35,8 @@ Quando houver credenciais no chat, gravar em `.env`, proteger no `.gitignore`, c
 - Execucao no navegador: assumir Chromium `headed` quando nao informado.
 - Trabalho: sempre rapido, com baixo consumo de tokens.
 - Evidencias: assumir `minimo` quando nao informado.
-- Campos obrigatorios: descobrir na tela; quando houver estrela azul e legenda, tratar esses campos como obrigatorios.
+- Campos obrigatorios: campos com estrela/asterisco azul na label sao obrigatorios.
+- Nao submeter ou avancar formulario com campos vazios apenas para descobrir obrigatoriedade.
 - Projeto existente: preservar estrutura e padroes locais.
 - Projeto novo: criar somente estrutura minima necessaria.
 - Page Objects: usar por padrao para toda implementacao Playwright; a spec deve orquestrar o fluxo e nao concentrar seletores/interacoes.
@@ -43,7 +44,7 @@ Quando houver credenciais no chat, gravar em `.env`, proteger no `.gitignore`, c
 
 ## Saida Obrigatoria
 
-A entrega principal sempre e codigo Playwright no workspace: spec, Page Objects e suporte minimo de `.env`/config quando necessario. Navegar pela aplicacao com Playwright MCP e apenas descoberta ou validacao; nunca encerrar entregando somente navegacao, diagnostico ou relato de telas.
+A entrega principal sempre e codigo Playwright no workspace: spec, Page Objects e suporte minimo de `.env`/config quando necessario. Playwright MCP e apenas observacao pontual para descoberta ou diagnostico; nunca encerrar entregando somente navegacao, diagnostico ou relato de telas.
 
 Se nao conseguir criar ou alterar arquivos, declarar bloqueio de escrita. Nao substituir a automacao por execucao manual no navegador.
 
@@ -55,7 +56,7 @@ Quando o usuario pedir para preencher campos com dados aleatorios, gerar massa d
 
 ## Inferencia Controlada
 
-O usuario normalmente informa apenas os dados principais do fluxo. Usar Playwright MCP para descobrir campos obrigatorios secundarios e preencher valores neutros e validos quando eles nao alterarem a regra testada.
+O usuario normalmente informa apenas os dados principais do fluxo. Mapear pela tela os campos com estrela/asterisco azul e preencher valores neutros e validos quando eles nao alterarem a regra testada. Usar Playwright MCP somente quando a tela real precisar ser observada para confirmar campo, seletor, estado ou comportamento.
 
 Pedir informacao somente quando o dado obrigatorio impactar diretamente objetivo, resultado esperado, perfil, status, tipo, modalidade, permissao, periodo ou regra de negocio. Nao inventar regras nem escolher automaticamente uma opcao que mude o comportamento do cenario.
 
@@ -63,9 +64,11 @@ Registrar no resumo, de forma curta, quais dados obrigatorios foram inferidos.
 
 ## Execucao Rapida
 
-Usar sempre o caminho mais curto que preserve boas praticas:
+Usar sempre o caminho mais curto que preserve boas praticas e economize contexto:
 
 - caminho principal informado pelo usuario;
+- Playwright CLI para executar e validar;
+- Playwright MCP somente quando o CLI, o codigo e o passo a passo nao explicarem a tela real;
 - Page Objects minimos para telas ou areas tocadas;
 - seletores mapeados sob demanda;
 - uma validacao funcional forte;
@@ -88,20 +91,24 @@ Mesmo em `minimo`, o terminal pode emitir saida. Nao copiar logs longos; resumir
 2. Executar `node ../../scripts/check-environment.mjs <raiz-do-projeto>`; se `node` nao existir, informar o bootstrap (`winget install OpenJS.NodeJS.LTS`, `brew install node` ou NodeSource/apt). Se faltar outro requisito, interromper e devolver os comandos exibidos pelo script.
 3. Identificar execucao no navegador e nivel de evidencias.
 4. Detectar se ja existe Playwright no repositorio antes de instalar ou criar arquivos. Se nao existir, executar diretamente `../../scripts/scaffold-playwright.mjs <raiz-do-projeto>` a partir desta skill.
-5. Explorar com Playwright MCP somente o caminho necessario, com uma leitura por tela e sem inventario completo.
-6. Mapear sob demanda apenas campos/acoes do proximo passo e uma validacao funcional.
-7. Implementar ou atualizar spec, Page Objects, dados, fixtures e utilitarios na menor superficie possivel.
-8. Configurar `.env`, `.env.example`, `.gitignore`, scripts e Playwright apenas quando necessario.
-9. Executar validacao final em Chromium headed, salvo pedido contrario.
-10. Corrigir uma falha objetiva quando houver causa clara; se exigir investigacao ampla, resumir bloqueio e pedir direcionamento.
-11. Executar `../../scripts/audit-playwright.mjs <raiz-do-projeto> --changed` a partir desta skill. Auditar somente arquivos modificados e corrigir erros dentro do escopo solicitado.
-12. Responder com resumo compacto.
+5. Definir o comando CLI mais curto para validar o fluxo, preservando scripts locais; preferir `test:e2e:headed`, `test:headed` ou `npx playwright test --headed --reporter=line`.
+6. Usar Playwright MCP somente quando precisar observar a tela real para confirmar caminho, seletor, campo com estrela/asterisco azul, menu, modal, autocomplete, tabela ou estado nao explicado pelo CLI.
+7. Mapear sob demanda apenas campos/acoes do proximo passo e uma validacao funcional. Nao submeter formulario vazio para descobrir obrigatoriedade.
+8. Implementar ou atualizar spec, Page Objects, dados, fixtures e utilitarios na menor superficie possivel.
+9. Configurar `.env`, `.env.example`, `.gitignore`, scripts e Playwright apenas quando necessario.
+10. Executar validacao final pelo CLI em Chromium headed, salvo pedido contrario.
+11. Se o CLI falhar e o log nao explicar a causa, usar MCP apenas na tela necessaria, corrigir uma falha objetiva e executar o CLI novamente.
+12. Executar `../../scripts/audit-playwright.mjs <raiz-do-projeto> --changed` a partir desta skill. Auditar somente arquivos modificados e corrigir erros dentro do escopo solicitado.
+13. Responder com resumo compacto.
 
 ## Regras Essenciais
 
-- Usar Playwright MCP antes de codar ou alterar teste.
+- Usar Playwright CLI como caminho padrao para executar e validar automacoes.
+- Usar Playwright MCP apenas quando for necessario observar a tela real para descobrir ou confirmar estado, seletor, campo, navegacao ou falha.
 - Nao instalar ferramentas de sistema automaticamente; se o check de ambiente falhar, orientar com comandos objetivos.
 - Nao assumir nomes de menus, botoes, campos, mensagens ou fluxos sem observar a interface.
+- Campos com estrela/asterisco azul na label sao obrigatorios.
+- Nao submeter ou avancar formulario com campos vazios apenas para descobrir obrigatoriedade.
 - Priorizar: `getByRole`, `getByLabel`, `getByPlaceholder`, `getByText` escopado, `getByTestId`, CSS semantico relativo e XPath so em ultimo caso.
 - Nao usar IDs JSF gerados (`j_id`, `j_id_jsp`, `j_idt`, `javax.faces` ou similares) como seletor principal.
 - Em telas JSF/legadas, substituir IDs gerados por label, role, texto visual, linha/container do formulario ou sufixo estavel do ID.
@@ -118,6 +125,7 @@ Mesmo em `minimo`, o terminal pode emitir saida. Nao copiar logs longos; resumir
 - Nao gerar README, traces, screenshots, videos ou diagnostico detalhado por padrao; usar o nivel de evidencias solicitado.
 - Nao automatizar captcha, burlar MFA, commitar segredos, usar dados reais sensiveis ou executar acao destrutiva em ambiente real sem confirmacao explicita.
 - Em falha, classificar causa principal antes de responder: seletor, navegacao, autenticacao, massa, permissao, regra funcional, ambiente, captcha/MFA ou sincronizacao.
+- `npx playwright codegen` pode ser usado apenas como apoio inicial quando fizer sentido; codigo gerado por gravacao linear nao e entrega final e deve ser refatorado para Page Objects.
 
 ## Codigo E Boas Praticas
 

@@ -8,6 +8,20 @@ Antes de instalar ou executar, detectar `package-lock.json`, `yarn.lock`, `pnpm-
 
 Instalar dependencias e Chromium somente quando necessario e com autorizacao quando houver rede/sandbox.
 
+## Execucao Por CLI
+
+Usar Playwright CLI como motor padrao para executar e validar automacoes. Preferir comandos existentes do projeto e saida compacta:
+
+```bash
+npm run test:e2e:headed
+npm run test:headed
+npx playwright test --headed --reporter=line
+```
+
+Escolher o menor comando que valide o cenario afetado. Quando houver uma spec especifica, executar somente essa spec. Usar Playwright MCP apenas quando o resultado do CLI nao explicar a tela real, o seletor, o campo ou o estado necessario para continuar.
+
+`npx playwright codegen` pode ser usado somente como apoio inicial. O codigo gravado nao e entrega final: refatorar para Page Objects, `.env`, massa rastreavel e validacao funcional.
+
 ## Scripts Minimos
 
 Para projeto novo, configurar scripts minimos e preservar aliases locais existentes:
@@ -69,4 +83,5 @@ Com `evidencias: minimo`, nao criar nem atualizar README por causa de evidencias
 - Manter massa simples dentro da spec quando usada uma unica vez.
 - Mover massa maior ou reutilizavel para `tests/data`.
 - Mover geradores e helpers reaproveitaveis para `tests/utils`.
+- Campos com estrela/asterisco azul na label sao obrigatorios e devem ser preenchidos quando fizerem parte do fluxo.
 - Inferir dados obrigatorios secundarios somente quando neutros e sem impacto na regra testada; pedir ao usuario dados que alterem comportamento, perfil, status, tipo, modalidade, permissao ou resultado esperado.

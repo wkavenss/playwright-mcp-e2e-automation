@@ -1,20 +1,18 @@
 # Playwright MCP E2E Automation
 
-Plugin público para Codex que cria, corrige, revisa e prepara automações E2E com Playwright, Playwright MCP, Page Objects, variáveis de ambiente e Chromium headed por padrão.
+Plugin para Codex que cria, corrige, revisa e prepara automações E2E com Playwright, Page Objects, `.env`, Playwright CLI e Playwright MCP.
 
-O plugin já inclui a configuração do Playwright MCP via:
+O padrão é simples:
 
-```bash
-npx -y @playwright/mcp@latest
-```
+- Playwright CLI roda e valida os testes.
+- Playwright MCP entra somente quando o plugin precisa observar a tela real.
+- Campos com estrela/asterisco azul na label são tratados como obrigatórios.
 
-Não é necessário instalar o Playwright MCP manualmente. O que precisa existir na máquina é Node.js/npm/npx, Git, Playwright Test no projeto e o Chromium do Playwright.
+## Requisitos Da Máquina
 
-## Instalação Do Zero
+Instale Node.js, npm/npx, Git e Codex.
 
 ### Windows
-
-No PowerShell ou terminal do Windows:
 
 ```powershell
 winget install OpenJS.NodeJS.LTS
@@ -22,60 +20,14 @@ winget install --id Git.Git -e --source winget
 npm install -g @openai/codex
 ```
 
-Feche e abra o terminal novamente. Depois rode:
-
-```powershell
-codex plugin marketplace add wkavenss/playwright-mcp-e2e-automation
-codex plugin add playwright-mcp-e2e-automation --marketplace playwright-mcp-e2e-automation
-```
-
-Depois abra ou instale o Codex App:
-
-```powershell
-codex app
-```
-
-Se o Codex App ainda não estiver instalado, siga o fluxo de instalação aberto pelo comando.
-
-No Codex App, abra ou crie a pasta do projeto. No chat, digite `@play`, selecione o plugin **Playwright MCP E2E** na lista e envie:
-
-```text
-Verifique se meu ambiente está pronto para criar automações Playwright. Se faltar Node, Git, Playwright, Chromium ou qualquer requisito essencial, me informe exatamente o que falta e os comandos para corrigir.
-```
-
 ### macOS
-
-No Terminal:
 
 ```bash
 brew install node git
 npm install -g @openai/codex
 ```
 
-Feche e abra o terminal novamente. Depois rode:
-
-```bash
-codex plugin marketplace add wkavenss/playwright-mcp-e2e-automation
-codex plugin add playwright-mcp-e2e-automation --marketplace playwright-mcp-e2e-automation
-```
-
-Depois abra ou instale o Codex App:
-
-```bash
-codex app
-```
-
-Se o Codex App ainda não estiver instalado, siga o fluxo de instalação aberto pelo comando.
-
-No Codex App, abra ou crie a pasta do projeto. No chat, digite `@play`, selecione o plugin **Playwright MCP E2E** na lista e envie:
-
-```text
-Verifique se meu ambiente está pronto para criar automações Playwright. Se faltar Node, Git, Playwright, Chromium ou qualquer requisito essencial, me informe exatamente o que falta e os comandos para corrigir.
-```
-
 ### Linux
-
-No terminal:
 
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
@@ -83,30 +35,65 @@ sudo apt-get install -y nodejs git
 npm install -g @openai/codex
 ```
 
-Feche e abra o terminal novamente. Depois rode:
+## Instalar O Plugin
 
 ```bash
 codex plugin marketplace add wkavenss/playwright-mcp-e2e-automation
 codex plugin add playwright-mcp-e2e-automation --marketplace playwright-mcp-e2e-automation
 ```
 
-Acesse ou crie a pasta do projeto pelo terminal e abra o Codex CLI:
+## Preparar O Projeto
+
+Na pasta do projeto:
 
 ```bash
-mkdir -p meu-projeto-playwright
-cd meu-projeto-playwright
+cd meu-projeto
+```
+
+Se ainda não existir `package.json`:
+
+```bash
+npm init -y
+```
+
+Instale Playwright Test, dotenv e Chromium:
+
+```bash
+npm install -D @playwright/test dotenv
+npx playwright install chromium
+```
+
+No Linux, se faltar dependência do sistema:
+
+```bash
+npx playwright install --with-deps chromium
+```
+
+Preparar o projeto antes de chamar o plugin reduz paradas, diagnósticos e consumo de tokens. Se algo faltar, o plugin ainda pode apontar os comandos necessários.
+
+## Playwright MCP
+
+Não instale o Playwright MCP manualmente.
+
+O plugin já inclui a configuração para executar o MCP via `npx` quando precisar observar a tela:
+
+```bash
+npx -y @playwright/mcp@latest
+```
+
+Esse pacote não precisa entrar no `package.json` do projeto.
+
+## Usar No Codex
+
+Abra o Codex na pasta do projeto:
+
+```bash
 codex
 ```
 
-Dentro do Codex CLI, digite `@play`, selecione o plugin **Playwright MCP E2E** na lista e envie:
+Ou abra a pasta pelo Codex App.
 
-```text
-Verifique se meu ambiente está pronto para criar automações Playwright. Se faltar Node, Git, Playwright, Chromium ou qualquer requisito essencial, me informe exatamente o que falta e os comandos para corrigir.
-```
-
-## Criar Uma Automação
-
-Quando o ambiente estiver pronto, use o Codex App no Windows/macOS ou o Codex CLI no Linux. Digite `@play`, selecione o plugin **Playwright MCP E2E** na lista e envie os dados mínimos:
+No chat, selecione `@play` e envie:
 
 ```text
 URL base: ...
@@ -118,14 +105,14 @@ Passo a passo:
 3. ...
 ```
 
-Com esses dados, o plugin deve navegar, entender o fluxo e gerar código Playwright com Page Objects. Mesmo que o usuário não peça explicitamente para gerar código, a criação do código Playwright é o comportamento padrão.
+Com esses dados, o plugin gera código Playwright E2E com Page Objects, `.env`, validação em Chromium headed e evidências mínimas por padrão.
 
-## O Que O Plugin Faz
+## Como O Plugin Trabalha
 
-- Cria automações Playwright E2E com JavaScript.
-- Usa Playwright MCP para descobrir e validar telas quando disponível.
+- Usa Playwright CLI para executar e validar testes.
+- Usa Playwright MCP somente para descobrir tela, seletor, campo ou comportamento que precisa de observação real.
 - Mantém credenciais em `.env` e cria `.env.example` seguro.
-- Usa Page Objects por padrão.
-- Executa em Chromium headed por padrão.
-- Mantém evidências mínimas por padrão, sem README, trace, screenshot ou vídeo, salvo pedido explícito.
+- Trata campos com estrela/asterisco azul na label como obrigatórios.
+- Não força envio de formulário vazio para descobrir obrigatoriedade.
+- Mantém `trace`, `screenshot` e `video` desligados por padrão.
 - Audita boas práticas com scripts locais.

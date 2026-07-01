@@ -26,10 +26,11 @@ Reaproveitar o mapa quando voltar para a mesma tela na mesma execucao.
 ## Formularios
 
 - Mapear somente os controles usados pelo passo a passo atual. Expandir para outros labels, inputs, selects, radios, checkboxes, datas, buscas, uploads e editores ricos apenas se o fluxo exigir.
-- Tratar estrela azul com legenda como obrigatoriedade.
-- Considerar tambem atributo HTML, asterisco, legenda visual, mensagem de validacao e regra de tela.
+- Tratar estrela/asterisco azul na label como obrigatoriedade.
+- Quando a estrela/asterisco azul estiver presente, nao usar submissao vazia para descobrir obrigatoriedade.
+- Considerar atributos HTML, legenda visual, mensagem de validacao e regra de tela apenas quando o marcador visual de obrigatoriedade nao existir ou quando houver falha funcional real.
 - Para cada campo usado: registrar label, tipo, obrigatoriedade, valor usado, seletor escolhido e validacao esperada.
-- Submeter formulario incompleto para observar validacoes somente quando os obrigatorios nao estiverem claros pela tela.
+- Nao submeter formulario incompleto apenas para observar validacoes de campos obrigatorios.
 - Diferenciar acoes intermediarias de finais: salvar, avancar, enviar, confirmar, cancelar ou excluir.
 - Antes de acao final, verificar permissao explicita, ambiente seguro, dados de teste, reversibilidade e ausencia de impacto real.
 
