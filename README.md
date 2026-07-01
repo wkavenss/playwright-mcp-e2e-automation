@@ -6,7 +6,6 @@ O padrão é simples:
 
 - Playwright CLI roda e valida os testes.
 - Playwright MCP entra somente quando o plugin precisa observar a tela real.
-- Campos com estrela/asterisco azul na label são tratados como obrigatórios.
 
 ## Requisitos Da Máquina
 
@@ -112,7 +111,5 @@ Com esses dados, o plugin gera código Playwright E2E com Page Objects, `.env`, 
 - Usa Playwright CLI para executar e validar testes.
 - Usa Playwright MCP somente para descobrir tela, seletor, campo ou comportamento que precisa de observação real.
 - Mantém credenciais em `.env` e cria `.env.example` seguro.
-- Trata campos com estrela/asterisco azul na label como obrigatórios.
-- Não força envio de formulário vazio para descobrir obrigatoriedade.
 - Mantém `trace`, `screenshot` e `video` desligados por padrão.
 - Audita boas práticas com scripts locais.
