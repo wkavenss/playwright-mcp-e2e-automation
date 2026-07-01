@@ -27,6 +27,11 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Preferir locators semanticos e assertions com espera automatica.
 - Evitar `waitForTimeout`; corrigir a condicao de sincronizacao.
 - Preservar `.env`, `.gitignore`, Page Objects e convencoes existentes.
+- Nao corrigir falha copiando erro cru, stack trace, timeout, texto de `body` inteiro ou mensagem transitoria para comentario, fixture, constante ou assert.
+- Nao hardcodar nomes reais de pessoas, usuarios, servidores/funcionarios, documentos, matriculas, emails ou telefones observados na tela.
+- Nao reexecutar submissao que cria/altera dado persistente sem antes verificar se a tentativa anterior ja criou registro. Reutilizar ou limpar somente quando for seguro e autorizado.
+- Manter o cenario afetado em uma unica sessao de navegador quando as telas dependem do mesmo estado; nao quebrar uma correcao em um teste por tela.
+- Preservar reprodutibilidade por CLI: nao corrigir usando sessao local ja autenticada, perfil persistente, `storageState` manual, caminhos absolutos, `test.only/skip` ou massa escondida fora do projeto.
 - Fazer uma tentativa objetiva de correcao. Se a causa exigir investigacao ampla ou dados ausentes, parar e pedir somente o que falta.
 - Gerar trace, screenshot ou video apenas quando solicitado ou indispensavel para diagnosticar a falha.
 

@@ -31,11 +31,15 @@ Com `evidencias: minimo`, registrar somente erro principal e proximo passo. Com 
 - correcao aplicada, quando houver;
 - proximo passo recomendado.
 
+Nao copiar stack trace, erro bruto do terminal, timeout completo, payload, HTML, texto de `body` inteiro ou mensagem transitoria para codigo, comentario, fixture, assert ou README. No codigo, manter apenas assertions funcionais estaveis. No resumo ao usuario, sanitizar nomes reais, usuarios, documentos, matriculas, emails, telefones e identificadores pessoais.
+
 ## Bloqueios
 
 Se houver captcha, MFA, bloqueio de automacao, indisponibilidade, permissao insuficiente ou regra ambigua, nao inventar alternativa insegura. Estruturar a automacao ate o ponto possivel e registrar a informacao necessaria para prosseguir.
 
 Em producao ou ambiente real, nao executar criacao, alteracao, submissao, aprovacao, exclusao ou acao irreversivel sem autorizacao explicita e dados seguros.
+
+Se a falha aconteceu depois de uma acao que pode ter criado dado persistente, nao repetir a submissao cegamente. Primeiro verificar se o registro foi criado, reutilizar o dado rastreavel quando possivel ou limpar somente com acao segura e autorizada.
 
 ## Resumo Completo
 

@@ -13,6 +13,8 @@ Para cada tela relevante, levantar apenas o necessario para agir com seguranca. 
 
 Reaproveitar o mapa quando voltar para a mesma tela na mesma execucao.
 
+Manter a mesma sessao/pagina durante a exploracao do fluxo sempre que possivel. Nao fechar e reabrir navegador a cada tela para "descobrir" o proximo passo; isso perde estado, aumenta custo e pode gerar registros parciais ou duplicados.
+
 ## Navegacao
 
 - Confirmar pagina inicial, caminho de usuario, telas intermediarias e estado final pela interface real.
@@ -22,6 +24,7 @@ Reaproveitar o mapa quando voltar para a mesma tela na mesma execucao.
 - Validar mudanca de tela por cabecalho, texto principal, formulario, tabela, rota ou estado visual confiavel.
 - Em menus com hover, usar a interacao apropriada antes do clique.
 - Se o caminho nao aparecer, verificar sessao, permissao, configuracao, massa e indisponibilidade antes de declarar bloqueio.
+- Evitar reiniciar login/navegador para cada etapa. Reautenticar somente quando houver sessao expirada, troca real de perfil ou bloqueio tecnico.
 
 ## Formularios
 
@@ -33,6 +36,7 @@ Reaproveitar o mapa quando voltar para a mesma tela na mesma execucao.
 - Nao submeter formulario incompleto apenas para observar validacoes de campos obrigatorios.
 - Diferenciar acoes intermediarias de finais: salvar, avancar, enviar, confirmar, cancelar ou excluir.
 - Antes de acao final, verificar permissao explicita, ambiente seguro, dados de teste, reversibilidade e ausencia de impacto real.
+- Antes de acao que persiste dado, confirmar que os campos obrigatorios conhecidos, massa neutra e validacao final ja estao definidos. Nao usar repetidas submisssoes como mecanismo de descoberta.
 
 ## Mensagens E Registros
 
@@ -40,3 +44,4 @@ Reaproveitar o mapa quando voltar para a mesma tela na mesma execucao.
 - Registrar mensagem exata em falhas funcionais, permissoes, sessao expirada, regra de negocio ou indisponibilidade.
 - Em listagens, localizar a linha pelo texto unico do registro e validar que pertence a execucao atual.
 - Se houver paginacao, filtro ou busca, usar o mecanismo da tela para encontrar o registro.
+- Ao registrar falhas, sanitizar nomes reais, usuarios, documentos, matriculas, emails, telefones e identificadores pessoais. Nao levar esses valores para codigo ou documentacao versionada.

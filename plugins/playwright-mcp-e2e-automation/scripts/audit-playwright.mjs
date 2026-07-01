@@ -9,6 +9,11 @@ const jsonOutput = process.argv.includes("--json");
 const changedOnly = process.argv.includes("--changed");
 const ignoredDirs = new Set([".git", "node_modules", "playwright-report", "test-results", "blob-report"]);
 const codeExtensions = new Set([".js", ".cjs", ".mjs", ".ts", ".tsx"]);
+const commonSurnames = new Set([
+  "almeida", "alves", "araujo", "barbosa", "batista", "carvalho", "costa", "dias",
+  "ferreira", "gomes", "lima", "martins", "nascimento", "oliveira", "pereira",
+  "ribeiro", "rocha", "rodrigues", "santos", "silva", "sousa", "souza",
+]);
 const findings = [];
 
 function add(severity, rule, file, line, message) {
@@ -69,6 +74,52 @@ function hasNearby(content, index, pattern, radius = 180) {
   return pattern.test(content.slice(start, end));
 }
 
+function isAutomationFile(relativePath) {
+  return /(?:^|[/\\])(?:tests?|e2e|specs?|pages?|page-objects?|fixtures|data|utils)(?:[/\\])|playwright\.config\./i.test(relativePath);
+}
+
+function normalizeText(text) {
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+function stringLiterals(content) {
+  return [
+    /"((?:\\.|[^"\\\r\n]){4,160})"/g,
+    /'((?:\\.|[^'\\\r\n]){4,160})'/g,
+    /`((?:\\.|[^`\\\r\n]){4,160})`/g,
+  ].flatMap((regex) => {
+    regex.lastIndex = 0;
+    return [...content.matchAll(regex)].map((match) => ({ value: match[1], index: match.index }));
+  });
+}
+
+function words(value) {
+  return normalizeText(value)
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+function hasLikelyPersonName(value) {
+  const candidates = [
+    ...value.matchAll(/\b[A-Z][A-Za-z]{2,}(?:\s+(?:de|da|do|dos|das|e))?\s+[A-Z][A-Za-z]{2,}(?:\s+[A-Z][A-Za-z]{2,}){0,4}\b/g),
+    ...value.matchAll(/\b[A-Z]{3,}(?:\s+(?:DE|DA|DO|DOS|DAS|E))?\s+[A-Z]{3,}(?:\s+[A-Z]{3,}){0,4}\b/g),
+  ];
+  return candidates.some((match) => {
+    const tokens = words(match[0]).filter((token) => !["de", "da", "do", "dos", "das", "e"].includes(token));
+    return tokens.length >= 2 && tokens.some((token) => commonSurnames.has(token));
+  });
+}
+
+function hasSensitiveLiteral(value) {
+  return /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/.test(value)
+    || /\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/.test(value)
+    || /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(value)
+    || /\b(?:\(?\d{2}\)?\s*)?\d{4,5}-?\d{4}\b/.test(value)
+    || hasLikelyPersonName(value);
+}
+
 const files = changedOnly ? changedFiles() : walk(root);
 const codeFiles = files.filter((file) => codeExtensions.has(path.extname(file)));
 const specFiles = codeFiles.filter((file) => /(?:\.spec|\.test)\.[cm]?[jt]sx?$/.test(file));
@@ -85,6 +136,7 @@ if (specFiles.length && !pageObjectFiles.length) {
 for (const file of codeFiles) {
   const content = fs.readFileSync(file, "utf8");
   const rel = relative(file);
+  const automationFile = isAutomationFile(rel);
   const wait = firstMatch(content, /\bwaitForTimeout\s*\(/g);
   if (wait) add("warning", "fixed-timeout", rel, lineNumber(content, wait.index), "Evite waitForTimeout; espere uma condicao observavel.");
 
@@ -137,6 +189,48 @@ for (const file of codeFiles) {
   if (secret && !secret[0].includes("process.env")) {
     add("error", "hardcoded-credential", rel, lineNumber(content, secret.index), "Possivel credencial fixa; use process.env.");
   }
+
+  if (automationFile) {
+    const consoleCall = firstMatch(content, /\bconsole\.(?:log|debug|info|warn|error)\s*\(/g);
+    if (consoleCall) {
+      add("warning", "debug-log", rel, lineNumber(content, consoleCall.index), "Remova logs permanentes; deixe diagnostico no resumo ou em evidencia solicitada.");
+    }
+
+    const debuggerStatement = firstMatch(content, /\bdebugger\s*;/g);
+    if (debuggerStatement) {
+      add("warning", "debugger-statement", rel, lineNumber(content, debuggerStatement.index), "Remova debugger antes de finalizar a automacao.");
+    }
+
+    const debugComment = firstMatch(content, /(?:\/\/|\/\*)[^\n]*(?:TODO|FIXME|DEBUG|temporario|erro|falhou|stack|copiado|codegen)/gi);
+    if (debugComment) {
+      add("warning", "debug-comment", rel, lineNumber(content, debugComment.index), "Evite comentarios de debug, TODO/FIXME ou erro copiado no codigo final.");
+    }
+
+    const rawErrorLiteral = firstMatch(content, /["'`][^"'`\n]*(?:TimeoutError|strict mode violation|locator\(|waiting for|Error:|Target page|Execution context was destroyed|Cannot read properties|net::ERR|stack trace)[^"'`\n]*["'`]/gi);
+    if (rawErrorLiteral) {
+      add("warning", "raw-error-literal", rel, lineNumber(content, rawErrorLiteral.index), "Nao copie erro bruto/stack trace para string, assert, comentario ou fixture.");
+    }
+
+    const sensitiveLiteral = stringLiterals(content).find((literal) => hasSensitiveLiteral(literal.value));
+    if (sensitiveLiteral) {
+      add("warning", "possible-sensitive-literal", rel, lineNumber(content, sensitiveLiteral.index), "Possivel dado pessoal/institucional hardcoded; use massa neutra, process.env ou fixture local ignorada.");
+    }
+
+    const absolutePathLiteral = stringLiterals(content).find((literal) => /(?:\/Users\/|\/home\/|C:\\Users\\|[A-Za-z]:\\)/.test(literal.value));
+    if (absolutePathLiteral) {
+      add("warning", "local-absolute-path", rel, lineNumber(content, absolutePathLiteral.index), "Evite caminho absoluto local; use caminho relativo ao projeto ou variavel de ambiente.");
+    }
+
+    const hardcodedGotoUrl = firstMatch(content, /\bgoto\s*\(\s*["'`]https?:\/\//g);
+    if (hardcodedGotoUrl) {
+      add("warning", "hardcoded-base-url", rel, lineNumber(content, hardcodedGotoUrl.index), "Evite URL base hardcoded em goto; use baseURL/BASE_URL via process.env.");
+    }
+
+    const persistentBrowserState = firstMatch(content, /\b(?:launchPersistentContext|userDataDir)\b|\bstorageState\s*:\s*["'`][^"'`]+["'`]/g);
+    if (persistentBrowserState) {
+      add("warning", "persistent-browser-state", rel, lineNumber(content, persistentBrowserState.index), "Evite depender de perfil/storageState manual; o fluxo deve autenticar ou gerar estado reprodutivel.");
+    }
+  }
 }
 
 for (const file of specFiles) {
@@ -154,6 +248,27 @@ for (const file of specFiles) {
   const genericName = firstMatch(content, /\btest\s*\(\s*["'`](?:teste\s*\d+|validar cadastro|fluxo completo|automacao tela|automação tela)["'`]/gi);
   if (genericName) {
     add("warning", "generic-test-name", relative(file), lineNumber(content, genericName.index), "Use nome de teste no padrao: deve [comportamento] quando [condicao].");
+  }
+
+  const focusedTest = firstMatch(content, /\b(?:test|describe)\.only\s*\(/g);
+  if (focusedTest) {
+    add("warning", "focused-test", relative(file), lineNumber(content, focusedTest.index), "Remova .only; a spec deve ser reprodutivel pelo comando padrao.");
+  }
+
+  const skippedTest = firstMatch(content, /\btest\.skip\s*\(/g);
+  if (skippedTest) {
+    add("warning", "skipped-test", relative(file), lineNumber(content, skippedTest.index), "Nao deixe test.skip permanente no codigo final.");
+  }
+
+  const manualBrowserLifecycle = firstMatch(content, /\b(?:chromium|firefox|webkit)\s*\.\s*launch\s*\(|\bbrowser\s*\.\s*(?:newPage|newContext|close)\s*\(|\bpage\s*\.\s*close\s*\(/g);
+  if (manualBrowserLifecycle) {
+    add("warning", "manual-browser-lifecycle", relative(file), lineNumber(content, manualBrowserLifecycle.index), "Evite abrir/fechar navegador manualmente na spec; use a fixture page e mantenha o fluxo na mesma sessao.");
+  }
+
+  const testNames = matches(content, /\btest\s*\(\s*["'`]([^"'`]{3,120})["'`]/g);
+  const fragmentedNames = testNames.filter((match) => /(?:tela|passo|etapa|screen|pagina|page)\s*\d?/i.test(match[1] || ""));
+  if (testNames.length >= 2 && fragmentedNames.length >= 2) {
+    add("warning", "fragmented-flow-tests", relative(file), lineNumber(content, fragmentedNames[0].index), "Fluxo parece dividido por telas/passos; prefira um unico test com test.step para manter sessao e evitar dados duplicados.");
   }
 }
 

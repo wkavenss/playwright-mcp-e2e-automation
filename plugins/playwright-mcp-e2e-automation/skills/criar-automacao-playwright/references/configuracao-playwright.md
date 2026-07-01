@@ -55,6 +55,8 @@ Se o projeto ja usar outro mecanismo, preservar o padrao. Quando o usuario forne
 - usar `process.env` no codigo;
 - nao repetir segredos em README, logs, traces, screenshots ou resposta final.
 
+Aplicar a mesma regra para dados pessoais ou institucionais observados na tela: nomes reais de pessoas, usuarios, servidores/funcionarios, emails, telefones, documentos, matriculas, protocolos sensiveis e identificadores pessoais nao devem aparecer hardcoded em specs, Page Objects, fixtures versionadas, asserts, comentarios ou logs. Quando forem indispensaveis para um ambiente especifico, usar `.env` local ou fixture local ignorada pelo Git, com nomes de variaveis genericos.
+
 ## Evidencias
 
 Por padrao, configurar Playwright com evidencias minimas:
@@ -77,6 +79,7 @@ Com `evidencias: minimo`, nao criar nem atualizar README por causa de evidencias
 
 - Gerar dados unicos com prefixos rastreaveis como `AUTOMACAO_E2E`, `TESTE_QA` ou `PLAYWRIGHT_MCP` mais timestamp.
 - Evitar dados reais sensiveis.
+- Nao reaproveitar nomes, usuarios ou identificadores reais vistos na tela como massa fixa.
 - Usar massa externa informada pelo usuario quando o fluxo exigir.
 - Validar formato aceito pela tela para datas, valores, documentos e identificadores.
 - Usar textos neutros e rastreaveis para campos longos.
@@ -85,3 +88,23 @@ Com `evidencias: minimo`, nao criar nem atualizar README por causa de evidencias
 - Mover geradores e helpers reaproveitaveis para `tests/utils`.
 - Campos com estrela/asterisco azul na label sao obrigatorios e devem ser preenchidos quando fizerem parte do fluxo.
 - Inferir dados obrigatorios secundarios somente quando neutros e sem impacto na regra testada; pedir ao usuario dados que alterem comportamento, perfil, status, tipo, modalidade, permissao ou resultado esperado.
+
+## Sessao E Dados Persistidos
+
+- Modelar cada fluxo de negocio como uma unica spec/teste, usando a fixture `page` do Playwright Test e mantendo a mesma pagina/contexto durante login, navegacao, preenchimento, avancos e validacao.
+- Nao abrir/fechar navegador manualmente a cada tela e nao dividir as telas de um mesmo cadastro em testes independentes.
+- Antes de executar uma acao que cria ou altera dado persistente, mapear os campos obrigatorios conhecidos, gerar `runId` unico e definir uma validacao final.
+- Reduzir repeticoes de execucao quando houver criacao de registro. Se uma tentativa parcial gerar dado, reaproveitar esse registro ou limpar somente quando a tela oferecer acao segura e autorizada.
+
+## Reprodutibilidade
+
+- A spec deve rodar do zero pelo CLI em outra maquina com Node, Playwright, Chromium, projeto versionado e `.env` preenchido.
+- Sempre partir de `BASE_URL`/`baseURL`, autenticar pelo fluxo automatizado e usar credenciais via `process.env`.
+- Nao depender de sessao aberta no MCP, navegador ja logado, perfil local do Chrome, `launchPersistentContext`, `storageState` gravado manualmente, cache local, caminhos absolutos ou arquivos fora do projeto.
+- Dados criados pela automacao devem usar `runId` ou prefixo rastreavel. Dados preexistentes inevitaveis devem vir de `.env` ou fixture local ignorada, com nome generico.
+- Nao deixar `test.only`, `test.skip`, flags temporarias ou ordem manual de execucao no codigo final.
+- Se a reprodutibilidade exigir perfil, permissao ou massa especifica, registrar no resumo o requisito funcional sem expor valores sensiveis.
+
+## Higiene De Codigo Gerado
+
+Antes de finalizar, remover sobras de gravacao ou diagnostico: `console.log`, `debugger`, codigo comentado, `TODO/FIXME`, constantes sem uso, imports sobrando, seletores temporarios, leitura ampla de `body` e mensagens de erro cruas copiadas do terminal. Erros e bloqueios ficam no resumo ao usuario, nao como comentario, fixture, assert ou constante permanente.

@@ -105,6 +105,7 @@ Passo a passo:
 ```
 
 Com esses dados, o plugin gera código Playwright E2E com Page Objects, `.env`, validação em Chromium headed e evidências mínimas por padrão.
+O código gerado deve ser reprodutível por CLI em outro ambiente com o mesmo perfil funcional e `.env` preenchido.
 
 ## Como O Plugin Trabalha
 

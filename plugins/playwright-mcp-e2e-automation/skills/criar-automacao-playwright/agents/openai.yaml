@@ -1,4 +1,4 @@
 interface:
   display_name: "Criar automacao Playwright"
-  short_description: "Cria codigo E2E com Page Objects e MCP"
-  default_prompt: "Use $criar-automacao-playwright para criar codigo Playwright E2E com Page Objects; ao receber URL, credenciais e passo a passo, sempre gere a automacao."
+  short_description: "Cria codigo E2E limpo e reprodutivel"
+  default_prompt: "Use $criar-automacao-playwright para criar codigo Playwright E2E com Page Objects; ao receber URL, credenciais e passo a passo, sempre gere a automacao, mantenha uma sessao continua e reprodutivel, e nao grave dados reais ou erros crus no codigo."

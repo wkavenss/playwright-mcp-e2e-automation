@@ -18,6 +18,8 @@ Nunca usar indice global, "primeiro botao da pagina", classe gerada ou seletor d
 
 Mapear seletores sob demanda: identificar o seletor no momento em que o passo precisa dele, gravar no Page Object e seguir. Nao criar inventario de todos os campos/botoes antes de implementar o fluxo.
 
+Nao usar nomes reais de pessoas, usuarios, servidores/funcionarios, emails, documentos, matriculas ou telefones observados na tela como seletor, `hasText`, assert ou fixture versionada. Em tabelas/listagens, preferir registro criado pela propria automacao com `runId`, texto neutro fornecido pelo usuario ou variavel local nao versionada. Quando um dado real for inevitavel para localizar um registro preexistente, encapsular em parametro generico e nao repetir o valor em comentarios ou logs.
+
 ## JSF E Sistemas Legados
 
 Nao usar IDs gerados como `j_id`, `j_id_jsp`, `j_idt` ou `javax.faces` como seletor principal. Esses valores mudam entre builds, sessoes ou telas e deixam a automacao fragil.
@@ -77,6 +79,7 @@ Usar ID completo gerado somente como ultimo recurso e deixar comentario curto no
 - Preferir `alt`, `title`, `aria-label` ou texto acessivel quando existir.
 - Para links e botoes, tentar `getByRole` com nome acessivel antes de procurar `img[title]` interno.
 - Se a acao nao tiver nome acessivel, usar seletor relativo ao container correto e justificar no codigo.
+- Se a linha for de pessoa ou usuario real, nao gravar o nome literal no codigo; receber o valor por variavel local ou usar registro de teste rastreavel.
 
 ## Estrutura De Codigo
 
@@ -116,6 +119,10 @@ test('deve cadastrar projeto quando dados obrigatorios forem validos', async ({ 
 ```
 
 Page Objects devem representar acoes funcionais, como `realizarLogin`, `acessarFuncionalidade`, `preencherDadosObrigatorios`, `avancarEtapa`, `confirmarOperacao`, `validarMensagemSucesso` e `validarRegistroNaListagem`.
+
+Um fluxo de negocio atravessando varias telas deve ficar em um unico `test`, com `test.step` para as etapas internas. Nao criar um `test` por tela quando as telas dependem da mesma sessao, do mesmo cadastro ou do mesmo estado transacional.
+
+O teste deve ser reprodutivel por outra pessoa com o mesmo perfil funcional: iniciar pela URL/configuracao do projeto, autenticar com variaveis de ambiente, criar ou localizar massa controlada, e validar o efeito funcional sem depender de estado de execucoes anteriores.
 
 Evitar metodos como `clickButton1`, `fillInput2`, `goNext` ou seletores complexos direto no spec. A spec nao deve usar `page.locator`, `getByRole`, `getByLabel` ou seletores CSS/XPath diretamente, salvo em asserts muito simples e justificados pelo padrao local.
 
