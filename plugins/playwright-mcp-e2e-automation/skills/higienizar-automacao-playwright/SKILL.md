@@ -12,13 +12,13 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 ## Fluxo
 
 1. Identificar a raiz do projeto e os arquivos afetados: specs, Page Objects, dados, fixtures e utils.
-2. Executar `node ../../scripts/quality-gate.mjs <raiz-do-projeto> --changed` a partir desta skill. Se o usuario pedir a suite inteira, omitir `--changed`.
-3. Ler somente os arquivos citados pelo gate ou claramente relacionados ao fluxo.
+2. Executar `node ../../scripts/quality-gate.mjs <raiz-do-projeto> --changed` a partir desta skill. Se o usuario pedir a suite inteira, omitir `--changed`; usar `--verbose` somente quando o resumo por regra nao explicar a correcao.
+3. Ler somente o primeiro exemplo de cada regra do gate e os arquivos claramente relacionados ao fluxo. Quando houver achados repetidos, corrigir por tipo de problema e usar busca pontual para cobrir as demais ocorrencias.
 4. Corrigir apenas achados objetivos e proximos do escopo.
 5. Nao abrir MCP, salvo quando codigo e logs nao explicarem seletor, tela ou estado real indispensavel.
 6. Executar novamente o quality gate no mesmo escopo.
 7. Quando houver comando claro e barato, executar o menor teste CLI afetado.
-8. Responder curto: arquivos alterados, achados tratados, comando executado, resultado e pendencias.
+8. Responder curto: arquivos alterados, tipos de achado tratados, comando executado, resultado e pendencias. Nao colar a saida completa do quality gate.
 
 ## Corrigir
 

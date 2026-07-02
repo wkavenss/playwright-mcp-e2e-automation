@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(process.argv[2] || process.cwd());
 const changedOnly = process.argv.includes("--changed");
 const jsonOutput = process.argv.includes("--json");
+const verboseOutput = process.argv.includes("--verbose");
 const ignoredDirs = new Set([".git", "node_modules", "playwright-report", "test-results", "blob-report"]);
 const nodeCheckExtensions = new Set([".js", ".cjs", ".mjs"]);
 const tsExtensions = new Set([".ts", ".tsx"]);
@@ -104,6 +105,46 @@ function checkJson(files) {
     });
 }
 
+function groupFindings(items) {
+  const groups = new Map();
+  for (const item of items) {
+    const severity = item.severity || "warning";
+    const rule = item.rule || "unknown";
+    const key = `${severity}\0${rule}`;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.count += 1;
+      existing.files.add(item.file);
+      continue;
+    }
+    groups.set(key, {
+      severity,
+      rule,
+      count: 1,
+      files: new Set([item.file]),
+      first: {
+        file: item.file,
+        line: item.line,
+        message: item.message,
+      },
+    });
+  }
+  const severityOrder = { error: 0, warning: 1 };
+  return [...groups.values()]
+    .map((group) => ({
+      severity: group.severity,
+      rule: group.rule,
+      count: group.count,
+      files: group.files.size,
+      first: group.first,
+    }))
+    .sort((a, b) => (
+      (severityOrder[a.severity] ?? 2) - (severityOrder[b.severity] ?? 2)
+      || b.count - a.count
+      || a.rule.localeCompare(b.rule)
+    ));
+}
+
 const files = changedOnly ? changedFiles() : walk(root);
 const audit = runAudit();
 const syntax = checkNodeSyntax(files);
@@ -112,6 +153,7 @@ const skippedTs = files.filter((file) => tsExtensions.has(path.extname(file))).m
 const syntaxFailures = syntax.filter((item) => !item.ok);
 const jsonFailures = json.filter((item) => !item.ok);
 const findings = audit.summary.findings || [];
+const groupedFindings = groupFindings(findings);
 const topFindings = findings.slice(0, 15).map((item) => ({
   severity: item.severity,
   rule: item.rule,
@@ -121,18 +163,23 @@ const topFindings = findings.slice(0, 15).map((item) => ({
 }));
 const failed = !audit.ok || (audit.summary.errors || 0) > 0 || syntaxFailures.length > 0 || jsonFailures.length > 0;
 
+const auditSummary = {
+  ok: audit.ok,
+  errors: audit.summary.errors || 0,
+  warnings: audit.summary.warnings || 0,
+  scannedFiles: audit.summary.scannedFiles || 0,
+  stderr: audit.stderr,
+  groupedFindings,
+};
+if (verboseOutput) {
+  auditSummary.topFindings = topFindings;
+}
+
 const summary = {
   root,
   mode: changedOnly ? "changed" : "full",
   ok: !failed,
-  audit: {
-    ok: audit.ok,
-    errors: audit.summary.errors || 0,
-    warnings: audit.summary.warnings || 0,
-    scannedFiles: audit.summary.scannedFiles || 0,
-    stderr: audit.stderr,
-    topFindings,
-  },
+  audit: auditSummary,
   syntax: {
     checked: syntax.length,
     failed: syntaxFailures,
@@ -157,8 +204,21 @@ if (jsonOutput) {
   if (summary.audit.stderr) {
     console.log(`Auditor: ${summary.audit.stderr}`);
   }
-  for (const item of topFindings) {
-    console.log(`${String(item.severity).toUpperCase()} ${item.rule} ${item.file}:${item.line} - ${item.message}`);
+  if (summary.audit.groupedFindings.length) {
+    console.log("Achados por regra:");
+  }
+  for (const item of summary.audit.groupedFindings.slice(0, 15)) {
+    const first = item.first || {};
+    console.log(`${String(item.severity).toUpperCase()} ${item.rule}: ${item.count} ocorrencia(s), ${item.files} arquivo(s), primeiro em ${first.file}:${first.line} - ${first.message}`);
+  }
+  if (summary.audit.groupedFindings.length > 15) {
+    console.log(`... ${summary.audit.groupedFindings.length - 15} regra(s) omitida(s); use --verbose para detalhar.`);
+  }
+  if (verboseOutput && topFindings.length) {
+    console.log("Detalhes:");
+    for (const item of topFindings) {
+      console.log(`${String(item.severity).toUpperCase()} ${item.rule} ${item.file}:${item.line} - ${item.message}`);
+    }
   }
   for (const item of syntaxFailures) {
     console.log(`ERROR node-check ${item.file} - ${item.message}`);
