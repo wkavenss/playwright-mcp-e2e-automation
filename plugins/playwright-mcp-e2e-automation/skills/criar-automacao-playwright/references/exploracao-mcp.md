@@ -15,6 +15,8 @@ Reaproveitar o mapa quando voltar para a mesma tela na mesma execucao.
 
 Manter a mesma sessao/pagina durante a exploracao do fluxo sempre que possivel. Nao fechar e reabrir navegador a cada tela para "descobrir" o proximo passo; isso perde estado, aumenta custo e pode gerar registros parciais ou duplicados.
 
+Nao validar seletores em scripts Playwright temporarios enquanto a tela ainda estiver sendo mapeada. Primeiro acumular o mapa minimo na sessao MCP continua; depois gerar codigo e validar o fluxo por CLI no menor escopo util.
+
 Nao capturar nem colar DOM completo, HTML completo, screenshots ou listas integrais de elementos quando um resumo de tela, labels relevantes e seletores candidatos bastarem. Registrar somente o mapa minimo necessario ao passo atual.
 
 ## Navegacao

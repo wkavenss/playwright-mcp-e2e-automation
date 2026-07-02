@@ -42,6 +42,7 @@ Tratar datas, periodos, anos, semestres, prazos, vencimentos, codigos com timest
 - So nao gerar codigo se faltar dado minimo, houver bloqueio de escrita/tecnico ou o usuario disser explicitamente que nao quer codigo.
 - Execucao no navegador: assumir Chromium `headed` quando nao informado.
 - Sessao do fluxo: uma automacao de negocio deve rodar em uma unica spec/teste e uma unica pagina/contexto, sem fechar e reabrir navegador a cada tela.
+- Descoberta visual: quando MCP for necessario para mapear telas ou seletores de um mesmo fluxo, manter a mesma sessao/pagina e avancar pelo fluxo real; nao abrir probes CLI ou navegadores temporarios por tela, campo ou seletor.
 - Reprodutibilidade: a spec deve poder ser executada por outra pessoa com o mesmo perfil funcional declarado por `getAuthProfile(...)`, dependencias instaladas e `.env` preenchido, sem depender da sessao local do autor.
 - Trabalho: sempre rapido, com baixo consumo de tokens.
 - Evidencias: assumir `minimo` quando nao informado.
@@ -92,6 +93,7 @@ Usar sempre o caminho mais curto que preserve boas praticas e economize contexto
 - Playwright CLI para executar e validar;
 - Playwright MCP somente quando cache, CLI, codigo e passo a passo nao explicarem a tela real;
 - uma sessao continua de navegador por fluxo, sem reiniciar a cada tela;
+- descoberta MCP continua quando a tela ainda esta sendo mapeada, sem scripts/probes descartaveis por etapa;
 - reprodutibilidade por CLI a partir de `.env`, perfil funcional explicito, massa controlada e projeto versionado;
 - Page Objects minimos para telas ou areas tocadas;
 - seletores mapeados sob demanda;
@@ -129,23 +131,25 @@ Mesmo em `minimo`, o terminal pode emitir saida. Nao copiar logs longos; resumir
 7. Definir o comando CLI mais curto para validar o fluxo, preservando scripts locais; preferir `test:e2e:headed`, `test:headed` ou `npx playwright test --headed --reporter=line`.
 8. Classificar cada parte do roteiro como `cache`, `cli`, `mcp` ou `remover`; nao chamar MCP para item coberto por cache confiavel ou CLI deterministica.
 9. Usar Playwright MCP somente quando precisar observar a tela real para confirmar caminho, seletor, campo com estrela/asterisco azul, menu, modal, autocomplete, tabela ou estado nao explicado pelo cache/CLI.
-10. Mapear sob demanda apenas campos/acoes do proximo passo e uma validacao funcional. Nao submeter formulario vazio para descobrir obrigatoriedade.
-11. Planejar o teste como fluxo continuo: uma spec/teste deve autenticar, navegar, preencher, avancar telas e validar o resultado sem reiniciar navegador entre etapas.
-12. Antes de acao que cria/altera dado persistente, confirmar que campos obrigatorios, seletores e validacao final ja estao mapeados o suficiente para evitar cadastros parciais.
-13. Sanitizar dados observados: substituir nomes reais, usuarios, identificadores pessoais, datas fixas envelheciveis e mensagens de erro cruas por massa neutra, geradores dinamicos, variaveis de ambiente ou fixtures locais.
-14. Implementar ou atualizar spec, Page Objects, dados, fixtures e utilitarios na menor superficie possivel.
-15. Garantir reprodutibilidade: a spec deve partir de `BASE_URL`, autenticar com perfil funcional explicito via `getAuthProfile(profileName)`, gerar/receber massa controlada, calcular dados variaveis em runtime e nao depender de estado manual da maquina atual.
-16. Configurar `.env`, `.env.example`, `.gitignore`, scripts e Playwright apenas quando necessario.
-17. Executar validacao final pelo CLI em Chromium headed, salvo pedido contrario.
-18. Se o CLI falhar e o log nao explicar a causa, usar MCP apenas na tela necessaria, corrigir uma falha objetiva e executar o CLI novamente. Nao reiniciar o navegador por tela nem transformar cada tela em uma execucao separada.
-19. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto> --changed` a partir desta skill. Auditar somente arquivos modificados e corrigir erros dentro do escopo solicitado.
-20. Responder com resumo compacto.
+10. Durante descoberta MCP, manter a mesma pagina do fluxo e acumular o mapa passo a passo. Nao fechar/reabrir navegador nem rodar scripts Playwright temporarios para validar cada tela ou seletor isolado.
+11. Mapear sob demanda apenas campos/acoes do proximo passo e uma validacao funcional. Nao submeter formulario vazio para descobrir obrigatoriedade.
+12. Planejar o teste como fluxo continuo: uma spec/teste deve autenticar, navegar, preencher, avancar telas e validar o resultado sem reiniciar navegador entre etapas.
+13. Antes de acao que cria/altera dado persistente, confirmar que campos obrigatorios, seletores e validacao final ja estao mapeados o suficiente para evitar cadastros parciais.
+14. Sanitizar dados observados: substituir nomes reais, usuarios, identificadores pessoais, datas fixas envelheciveis e mensagens de erro cruas por massa neutra, geradores dinamicos, variaveis de ambiente ou fixtures locais.
+15. Implementar ou atualizar spec, Page Objects, dados, fixtures e utilitarios na menor superficie possivel.
+16. Garantir reprodutibilidade: a spec deve partir de `BASE_URL`, autenticar com perfil funcional explicito via `getAuthProfile(profileName)`, gerar/receber massa controlada, calcular dados variaveis em runtime e nao depender de estado manual da maquina atual.
+17. Configurar `.env`, `.env.example`, `.gitignore`, scripts e Playwright apenas quando necessario.
+18. Executar validacao final pelo CLI em Chromium headed, salvo pedido contrario.
+19. Se o CLI falhar e o log nao explicar a causa, usar MCP apenas na tela necessaria, corrigir uma falha objetiva e executar o CLI novamente. Nao reiniciar o navegador por tela nem transformar cada tela em uma execucao separada.
+20. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto> --changed` a partir desta skill. Auditar somente arquivos modificados e corrigir erros dentro do escopo solicitado.
+21. Responder com resumo compacto.
 
 ## Regras Essenciais
 
 - Usar Playwright CLI como caminho padrao para executar e validar automacoes.
 - Usar Playwright MCP apenas quando for necessario observar a tela real para descobrir ou confirmar estado, seletor, campo, navegacao ou falha.
 - Usar cache local sanitizado antes do MCP, mas nunca deixar cache substituir confirmacao real quando houver incerteza.
+- Durante mapeamento visual, manter uma unica sessao MCP/pagina por fluxo. CLI entra para ambiente, scaffold, auditoria, validacao do codigo ou repair; nao para abrir navegador novo a cada tela ainda nao codificada.
 - Nao ler, colar ou resumir DOM completo, HTML completo, screenshot, trace ou arquivos inteiros quando um trecho, locator ou resumo de tela bastar.
 - Manter o fluxo em uma unica sessao de navegador sempre que tecnicamente possivel. Nao fechar/reabrir navegador entre telas, nao criar uma spec/teste por tela e nao usar `chromium.launch` manual dentro de specs Playwright Test salvo exigencia explicita do projeto.
 - Evitar lixo funcional: nao repetir submissao ou acao final apenas para descobrir a proxima tela; preferir observar antes, executar uma vez com massa rastreavel e validar o registro criado. Se uma execucao parcial criar dado, registrar no resumo e reutilizar ou limpar somente com seguranca.
