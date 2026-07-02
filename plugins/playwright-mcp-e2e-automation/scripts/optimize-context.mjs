@@ -10,9 +10,11 @@ const initCache = args.includes("--init-cache");
 const readStdin = args.includes("--stdin");
 const inputIndex = args.indexOf("--input");
 const modeIndex = args.indexOf("--mode");
-const mode = modeIndex >= 0 ? args[modeIndex + 1] : "padrao";
+const requestedMode = modeIndex >= 0 ? args[modeIndex + 1] : "padrao";
 const cacheDir = path.join(root, ".playwright-e2e", "cache");
 const cacheFiles = ["screens.json", "flows.json", "auth.json"];
+const ignoredDirs = new Set([".git", "node_modules", "playwright-report", "test-results", "blob-report"]);
+const codeExtensions = new Set([".js", ".cjs", ".mjs", ".ts", ".tsx"]);
 const commonSurnames = new Set([
   "almeida", "alves", "araujo", "barbosa", "batista", "carvalho", "costa", "dias",
   "ferreira", "gomes", "lima", "martins", "nascimento", "oliveira", "pereira",
@@ -29,6 +31,33 @@ function words(value) {
     .trim()
     .split(/\s+/)
     .filter(Boolean);
+}
+
+function relative(file) {
+  return path.relative(root, file) || ".";
+}
+
+function walk(directory) {
+  if (!fs.existsSync(directory)) return [];
+  return fs.readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.isDirectory() && ignoredDirs.has(entry.name)) return [];
+    const absolute = path.join(directory, entry.name);
+    return entry.isDirectory() ? walk(absolute) : [absolute];
+  });
+}
+
+function existingFile(relativePath) {
+  const target = path.join(root, relativePath);
+  return fs.existsSync(target) && fs.statSync(target).isFile() ? target : null;
+}
+
+function existingDirectory(relativePath) {
+  const target = path.join(root, relativePath);
+  return fs.existsSync(target) && fs.statSync(target).isDirectory();
+}
+
+function unique(items) {
+  return [...new Set(items.filter(Boolean))];
 }
 
 function hasLikelyPersonName(value) {
@@ -87,6 +116,28 @@ function readJsonIfExists(file) {
   }
 }
 
+function readPackageJson() {
+  const file = path.join(root, "package.json");
+  const data = readJsonIfExists(file);
+  return data.exists && !data.error ? data.value : null;
+}
+
+function packageHasPlaywright(packageJson) {
+  if (!packageJson) return false;
+  return ["dependencies", "devDependencies", "optionalDependencies"].some((section) => {
+    const dependencies = packageJson[section] || {};
+    return Boolean(dependencies["@playwright/test"] || dependencies.playwright);
+  });
+}
+
+function recommendedCommand(packageJson, specFiles) {
+  const scripts = packageJson?.scripts || {};
+  const preferredScript = ["test:e2e:headed", "test:headed", "test:e2e", "test"].find((name) => scripts[name]);
+  const specArg = specFiles.length === 1 ? ` ${specFiles[0]}` : "";
+  if (preferredScript) return `npm run ${preferredScript}${specArg ? ` --${specArg}` : ""}`;
+  return `npx playwright test${specArg} --headed --reporter=line`;
+}
+
 function ensureCache() {
   fs.mkdirSync(cacheDir, { recursive: true });
   for (const file of cacheFiles) {
@@ -143,8 +194,126 @@ function classifyStep(step) {
   return "cache";
 }
 
+function detectProjectShape(packageJson) {
+  const configFiles = [
+    "playwright.config.js",
+    "playwright.config.cjs",
+    "playwright.config.mjs",
+    "playwright.config.ts",
+  ].map(existingFile);
+  const specFiles = unique([
+    ...walk(path.join(root, "tests/e2e")),
+    ...walk(path.join(root, "test/e2e")),
+    ...walk(path.join(root, "e2e")),
+  ])
+    .filter((file) => /(?:\.spec|\.test)\.[cm]?[jt]sx?$/.test(file))
+    .map(relative)
+    .sort();
+  const pageObjectFiles = unique([
+    ...walk(path.join(root, "tests/pages")),
+    ...walk(path.join(root, "tests/page-objects")),
+    ...walk(path.join(root, "test/pages")),
+    ...walk(path.join(root, "page-objects")),
+  ])
+    .filter((file) => codeExtensions.has(path.extname(file)))
+    .map(relative)
+    .sort();
+  const hasE2eDirectory = ["tests/e2e", "test/e2e", "e2e", "playwright"].some(existingDirectory);
+  const hasPlaywrightDependency = packageHasPlaywright(packageJson);
+  const configFile = configFiles.find(Boolean);
+  const hasPlaywrightConfig = Boolean(configFile);
+  return {
+    hasPackageJson: Boolean(packageJson),
+    hasPlaywrightDependency,
+    hasPlaywrightConfig,
+    playwrightConfigFile: configFile ? relative(configFile) : null,
+    hasE2eDirectory,
+    hasPageObjects: pageObjectFiles.length > 0,
+    hasAuthProfiles: Boolean(existingFile("tests/utils/authProfiles.js")),
+    hasTestData: Boolean(existingFile("tests/utils/testData.js")),
+    hasEnvExample: Boolean(existingFile(".env.example")),
+    hasCacheDir: fs.existsSync(cacheDir),
+    isPlaywrightProject: hasPlaywrightDependency || hasPlaywrightConfig || hasE2eDirectory || pageObjectFiles.length > 0 || fs.existsSync(cacheDir),
+    specCount: specFiles.length,
+    pageObjectCount: pageObjectFiles.length,
+    firstSpecFiles: specFiles.slice(0, 3),
+    firstPageObjectFiles: pageObjectFiles.slice(0, 3),
+  };
+}
+
+function detectCacheStatus(caches, cacheIgnored) {
+  const existing = caches.filter((cache) => cache.exists);
+  const invalid = caches.filter((cache) => cache.error);
+  const sensitive = caches.filter((cache) => cache.sensitive.length);
+  const status = !existing.length
+    ? "ausente"
+    : (invalid.length || sensitive.length || !cacheIgnored ? "risco" : "ok");
+  return {
+    status,
+    files: existing.length,
+    ignoredByGit: cacheIgnored,
+    invalidJson: invalid.length,
+    sensitiveFindings: sensitive.reduce((total, cache) => total + cache.sensitive.length, 0),
+  };
+}
+
+function likelyFilesToRead(shape) {
+  return unique([
+    shape.hasPackageJson ? "package.json" : null,
+    shape.playwrightConfigFile,
+    shape.hasAuthProfiles ? "tests/utils/authProfiles.js" : null,
+    shape.hasTestData ? "tests/utils/testData.js" : null,
+    ...shape.firstSpecFiles,
+    ...shape.firstPageObjectFiles,
+    ...cacheFiles
+      .map((name) => path.join(".playwright-e2e/cache", name))
+      .filter((file) => fs.existsSync(path.join(root, file))),
+  ]).slice(0, 10);
+}
+
+function buildRiskFlags({ shape, caches, cacheStatus, normalizedInput, rawInput }) {
+  const riskFlags = [];
+  if (cacheStatus.files && !cacheStatus.ignoredByGit) riskFlags.push("cache-not-ignored");
+  if (cacheStatus.invalidJson) riskFlags.push("cache-invalid-json");
+  if (cacheStatus.sensitiveFindings) riskFlags.push("cache-sensitive-data");
+  if (shape.isPlaywrightProject && !shape.hasPlaywrightConfig) riskFlags.push("missing-playwright-config");
+  if (shape.isPlaywrightProject && !shape.hasPlaywrightDependency) riskFlags.push("missing-playwright-dependency");
+  if (shape.specCount > 0 && !shape.hasPageObjects) riskFlags.push("specs-without-page-objects");
+  if (shape.specCount > 0 && !shape.hasAuthProfiles) riskFlags.push("missing-auth-profiles");
+  if (shape.specCount > 0 && !shape.hasTestData) riskFlags.push("missing-test-data-helper");
+  if (normalizedInput && (!normalizedInput.hasBaseUrl || !normalizedInput.hasUsername || !normalizedInput.hasPassword || !normalizedInput.stepCount)) {
+    riskFlags.push("missing-minimum-contract");
+  }
+  if (normalizedInput?.steps?.some((step) => step.suggestedChannel === "mcp")) {
+    riskFlags.push("mcp-may-be-needed");
+  }
+  if (scanSensitive(rawInput).length) riskFlags.push("input-has-sensitive-data");
+  if (caches.some((cache) => cache.error || cache.sensitive.length)) riskFlags.push("ignore-or-sanitize-cache");
+  return unique(riskFlags);
+}
+
+function chooseRecommendedMode(mode, riskFlags) {
+  if (mode && mode !== "padrao") return mode;
+  if (riskFlags.includes("mcp-may-be-needed")) return "padrao";
+  if (riskFlags.length === 1 && riskFlags[0] === "input-has-sensitive-data") return "cli-only";
+  if (!riskFlags.length) return "cli-only";
+  return "padrao";
+}
+
+function chooseNextAction({ shape, cacheStatus, riskFlags }) {
+  if (riskFlags.includes("missing-minimum-contract")) return "pedir-contrato-minimo";
+  if (!shape.isPlaywrightProject || riskFlags.includes("missing-playwright-config")) return "preparar-projeto-ou-rodar-scaffold";
+  if (cacheStatus.status === "risco") return "sanitizar-ou-ignorar-cache-antes-do-mcp";
+  if (riskFlags.includes("missing-playwright-dependency")) return "instalar-ou-confirmar-dependencias-playwright";
+  if (riskFlags.includes("mcp-may-be-needed")) return "usar-mcp-so-no-proximo-passo-incerto";
+  return "usar-cli-cache-e-gerar-incremental";
+}
+
 if (initCache) ensureCache();
 
+const rawInput = readInput();
+const normalizedInput = parsePrompt(rawInput);
+const packageJson = readPackageJson();
 const caches = cacheFiles.map((name) => {
   const file = path.join(cacheDir, name);
   const data = readJsonIfExists(file);
@@ -157,14 +326,27 @@ const caches = cacheFiles.map((name) => {
     sensitive,
   };
 });
+const projectShape = detectProjectShape(packageJson);
+const cacheIgnored = gitignoreAllowsCache();
+const cacheStatus = detectCacheStatus(caches, cacheIgnored);
+const riskFlags = buildRiskFlags({ shape: projectShape, caches, cacheStatus, normalizedInput, rawInput });
+const recommendedMode = chooseRecommendedMode(requestedMode, riskFlags);
+const command = recommendedCommand(packageJson, projectShape.firstSpecFiles);
 
 const summary = {
   root,
-  mode,
+  mode: requestedMode,
+  recommendedMode,
+  recommendedCommand: command,
   cacheDir: path.relative(root, cacheDir),
-  cacheIgnored: gitignoreAllowsCache(),
+  cacheIgnored,
+  cacheStatus,
   caches,
-  normalizedInput: parsePrompt(readInput()),
+  projectShape,
+  likelyFilesToRead: likelyFilesToRead(projectShape),
+  riskFlags,
+  nextAction: chooseNextAction({ shape: projectShape, cacheStatus, riskFlags }),
+  normalizedInput,
   rules: {
     defaultChannel: "cli/cache before mcp",
     mcpOnlyWhen: ["tela-nao-mapeada", "seletor-ambiguo", "estado-real-incerto", "falha-nao-explicada-pelo-cli"],
@@ -172,21 +354,18 @@ const summary = {
   },
 };
 
-const hasCacheFiles = caches.some((cache) => cache.exists);
 const hasErrors = caches.some((cache) => cache.error || cache.sensitive.length)
-  || (hasCacheFiles && !summary.cacheIgnored);
+  || (cacheStatus.files > 0 && !cacheIgnored);
 
 if (jsonOutput) {
   console.log(JSON.stringify(summary, null, 2));
 } else {
-  console.log(`Modo: ${mode}`);
-  console.log(`Cache: ${summary.cacheDir}`);
-  console.log(`Cache ignorado pelo Git: ${summary.cacheIgnored ? "sim" : "nao"}`);
-  for (const cache of caches) {
-    const status = cache.exists ? (cache.validJson ? "ok" : "json-invalido") : "ausente";
-    const sensitive = cache.sensitive.length ? `, sensivel=${cache.sensitive.length}` : "";
-    console.log(`${cache.name}: ${status}${sensitive}`);
-  }
+  console.log(`Modo: ${requestedMode} -> ${recommendedMode}`);
+  console.log(`Projeto Playwright: ${projectShape.isPlaywrightProject ? "sim" : "nao"}`);
+  console.log(`Comando sugerido: ${summary.recommendedCommand}`);
+  console.log(`Cache: ${summary.cacheStatus.status} (${summary.cacheDir})`);
+  console.log(`Riscos: ${riskFlags.length ? riskFlags.join(", ") : "nenhum"}`);
+  console.log(`Proximo passo: ${summary.nextAction}`);
 }
 
 process.exitCode = hasErrors ? 1 : 0;

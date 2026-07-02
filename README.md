@@ -123,8 +123,10 @@ Para limpar e endurecer uma automação existente sem recriar o fluxo, use `$hig
 - Usa Playwright CLI para executar e validar testes.
 - Usa Playwright MCP somente para descobrir tela, seletor, campo ou comportamento que precisa de observação real.
 - Usa `.playwright-e2e/cache/` somente para mapas sanitizados de telas, rotas, labels, seletores e validações.
+- Usa scripts locais para reduzir leitura repetida sem remover validações.
 - Mantém credenciais em `.env`, separadas por perfil funcional, e cria `.env.example` seguro.
 - Gera datas e outros dados variáveis dinamicamente para manter specs reutilizáveis.
 - Usa um quality gate local para reduzir lixo de código sem reexplorar telas.
 - Mantém `trace`, `screenshot` e `video` desligados por padrão.
+- Mantém saída curta no modo normal; diagnósticos detalhados ficam para `debug` ou falhas não explicadas.
 - Audita boas práticas com scripts locais.

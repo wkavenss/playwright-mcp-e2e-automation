@@ -17,8 +17,10 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 4. Usar Playwright MCP apenas na tela necessaria para confirmar o estado real e o seletor seguinte.
 5. Alterar a menor superficie possivel, mantendo seletores e interacoes nos Page Objects.
 6. Executar novamente apenas o cenario afetado em Chromium headed, salvo pedido contrario.
-7. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto> --changed` a partir desta skill e corrigir apenas erros relacionados a mudanca.
-8. Resumir causa, arquivos alterados e resultado sem copiar logs longos.
+7. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto> --changed` a partir desta skill e usar o resumo agrupado por regra.
+8. Ler somente o primeiro exemplo de cada regra relevante; se houver repeticoes, cobrir as demais por busca pontual com `rg`, sem abrir todos os arquivos.
+9. Usar `--verbose` apenas quando o agrupamento nao explicar a correcao.
+10. Resumir causa, arquivos alterados e resultado sem copiar logs longos.
 
 ## Regras
 

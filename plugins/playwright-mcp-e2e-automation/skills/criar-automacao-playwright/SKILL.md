@@ -5,231 +5,82 @@ description: Criar uma nova automacao Playwright E2E ou ampliar um fluxo existen
 
 # Criar Automacao Playwright
 
-Criar ou atualizar automacoes E2E com Playwright Test, JavaScript, Playwright CLI e Playwright MCP sob demanda. Sempre implementar codigo Playwright, sem perguntar se o usuario quer gerar codigo. Se o usuario informar URL, usuario, senha e passo a passo, interpretar que o trabalho e navegar quando necessario, entender o fluxo e entregar codigo Playwright. Por padrao, executar e validar com Playwright CLI em Chromium headed. O codigo final deve ser limpo, sanitizado e sem literais sensiveis observados na tela.
+Criar ou ampliar automacoes E2E com Playwright Test, JavaScript, Page Objects, `.env`, Playwright CLI-first e Playwright MCP sob demanda. Ao receber URL, usuario, senha e passo a passo, sempre entregar codigo Playwright no workspace; nao encerrar apenas com navegacao, diagnostico ou relato de telas.
 
-Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra skill do plugin durante a criacao.
-
-O plugin inclui configuracao de Playwright MCP em `.mcp.json`; usar esse servidor apenas quando for necessario observar a tela real. Em primeira execucao, o MCP pode exigir rede para baixar `@playwright/mcp@latest` via `npx`.
-
-Antes de navegar, reduzir o pedido do usuario a um roteiro compacto e classificar cada parte como CLI, MCP, cache local ou remocao. Economizar tokens por menos contexto repetido, cache sanitizado, logs curtos, leitura seletiva e execucao incremental; nunca economizar usando seletor fragil, dado real hardcoded, assert generica ou teste superficial.
+Conduzir a solicitacao somente com esta skill. Nao carregar outra skill do plugin durante a criacao.
 
 ## Contrato Minimo
 
-Antes de agir, exigir apenas:
+Exigir apenas URL base, usuario, senha e passo a passo. Se faltar algo, responder em uma linha: `Faltam: ...`.
 
-- URL base;
-- usuario;
-- senha;
-- passo a passo.
+Quando houver credenciais no chat, gravar valores reais somente em `.env`, garantir `.env` no `.gitignore`, criar `.env.example` seguro e usar `getAuthProfile(profileName)` com variaveis por perfil. Nunca repetir segredos em codigo, README, logs, traces, screenshots ou resposta final.
 
-Se faltar algo, interromper e responder em uma linha: `Faltam: ...`. Nao criar projeto, instalar dependencias, explorar tela nem executar teste ate receber esses dados.
+## Guardrails De Qualidade
 
-Dados opcionais: ambiente, objetivo, caminho, acao final, massa, validacoes, evidencias, modo, perfil funcional e restricoes.
+Economizar tokens por roteiro compacto, leitura seletiva, cache sanitizado, scripts deterministicos, CLI no menor escopo e MCP sob demanda. Nunca economizar por teste mais fraco, seletor fragil, assert superficial, dado hardcoded, menos isolamento ou menos reprodutibilidade.
 
-Quando houver credenciais no chat, gravar em `.env`, proteger no `.gitignore`, criar `.env.example` seguro e usar perfil funcional explicito por spec. Nunca repetir segredos no codigo, README, logs ou resposta final.
-
-Credenciais devem ser modeladas por perfil, nao como par global da suite. Para cada spec, escolher um nome funcional curto e estavel, criar/usar `tests/utils/authProfiles.js` com `getAuthProfile(profileName)`, e chamar login com `auth.username`/`auth.password`. O helper deve mapear `getAuthProfile('stricto')` para `E2E_STRICTO_USERNAME`/`E2E_STRICTO_PASSWORD` e `getAuthProfile('coord-graduacao')` para `E2E_COORD_GRADUACAO_USERNAME`/`E2E_COORD_GRADUACAO_PASSWORD`. Nao criar novas specs com `process.env.E2E_USERNAME` ou `process.env.E2E_PASSWORD`; esse par global mascara usuario errado quando a suite tem multiplos perfis.
-
-Tratar tambem como sensiveis nomes reais de pessoas, usuarios, servidores/funcionarios, emails, telefones, documentos, matriculas, identificadores pessoais e valores especificos observados na interface. Nao hardcodar esses dados em specs, Page Objects, fixtures, asserts, comentarios, nomes de teste ou logs. Usar massa neutra gerada, dados fornecidos explicitamente pelo usuario para teste, `.env` local ou fixture local nao versionada; se o dado real for indispensavel para localizar um registro existente, pedir confirmacao e encapsular em variavel com nome generico.
-
-Tratar datas, periodos, anos, semestres, prazos, vencimentos, codigos com timestamp e qualquer valor que envelheca como dados variaveis. Nao hardcodar datas de inicio/fim, ano-periodo, semestre ou prazo capturados da tela ou inventados para a execucao atual. Gerar esses valores em runtime com helper relativo a data da execucao, `runId` ou parametro local ignorado quando a regra de negocio exigir valor fixo.
-
-## Padroes
-
-- Implementar codigo Playwright: obrigatorio sempre, sem perguntar ao usuario.
-- Mesmo que o usuario apenas descreva o fluxo, gerar a automacao Playwright quando houver contrato minimo.
-- Nao encerrar com apenas navegacao, diagnostico, relato de tela ou instrucoes manuais.
-- So nao gerar codigo se faltar dado minimo, houver bloqueio de escrita/tecnico ou o usuario disser explicitamente que nao quer codigo.
-- Execucao no navegador: assumir Chromium `headed` quando nao informado.
-- Sessao do fluxo: uma automacao de negocio deve rodar em uma unica spec/teste e uma unica pagina/contexto, sem fechar e reabrir navegador a cada tela.
-- Descoberta visual: quando MCP for necessario para mapear telas ou seletores de um mesmo fluxo, manter a mesma sessao/pagina e avancar pelo fluxo real; nao abrir probes CLI ou navegadores temporarios por tela, campo ou seletor.
-- Reprodutibilidade: a spec deve poder ser executada por outra pessoa com o mesmo perfil funcional declarado por `getAuthProfile(...)`, dependencias instaladas e `.env` preenchido, sem depender da sessao local do autor.
-- Trabalho: sempre rapido, com baixo consumo de tokens.
-- Evidencias: assumir `minimo` quando nao informado.
-- Campos obrigatorios: campos com estrela/asterisco azul na label sao obrigatorios.
-- Nao submeter ou avancar formulario com campos vazios apenas para descobrir obrigatoriedade.
-- Dados sensiveis: nao gravar no codigo nomes reais, usuarios, servidores/funcionarios, emails, telefones, documentos, matriculas ou identificadores vistos na tela.
-- Dados variaveis: datas, periodos, anos, semestres e prazos devem ser gerados dinamicamente ou parametrizados; nao usar literais que fiquem desatualizados.
-- Erros e diagnosticos: nao transformar erro lancado, stack trace, log cru, timeout, mensagem transitoria ou tentativa falha em comentario, constante, fixture, assert ou documentacao no codigo.
-- Higiene: remover sobras de exploracao, `console.log`, codigo comentado, `TODO/FIXME`, seletores temporarios, constantes nao usadas, snapshots de `body` e codigo linear de codegen antes de finalizar.
-- Dados no sistema: evitar reexecucoes que criem registros parciais, duplicados ou lixo funcional. Planejar o fluxo antes da acao final, usar `runId` rastreavel e reutilizar/limpar dados criados somente quando for seguro.
-- Estado externo: nao depender de navegador ja logado, perfil local, `storageState` manual, cache do MCP, arquivos absolutos da maquina, massa criada em execucao anterior ou dados escondidos fora do projeto.
-- Cache local: consultar `.playwright-e2e/cache/` antes de usar MCP, mas tratar cache como sugestao. Confirmar via MCP quando houver falha, incerteza de tela, seletor ambiguo ou mudanca visual/estrutural.
-- Modos: usar `padrao` quando nao informado; aceitar `discovery`, `repair`, `cli-only`, `debug` e `full` somente quando fizer sentido para o pedido.
-- Projeto existente: preservar estrutura e padroes locais.
-- Projeto novo: criar somente estrutura minima necessaria.
-- Page Objects: usar por padrao para toda implementacao Playwright; a spec deve orquestrar o fluxo e nao concentrar seletores/interacoes.
-- Estrutura: usar `tests/e2e`, `tests/pages`, `tests/fixtures`, `tests/data` e `tests/utils` somente quando fizer sentido; nao criar arquivos vazios desnecessarios.
-
-## Saida Obrigatoria
-
-A entrega principal sempre e codigo Playwright no workspace: spec, Page Objects e suporte minimo de `.env`/config quando necessario. Playwright MCP e apenas observacao pontual para descoberta ou diagnostico; nunca encerrar entregando somente navegacao, diagnostico ou relato de telas.
-
-Se nao conseguir criar ou alterar arquivos, declarar bloqueio de escrita. Nao substituir a automacao por execucao manual no navegador.
-
-## Escopo Rigido
-
-Seguir somente a URL, credenciais e passo a passo informados pelo usuario. Nao abrir casos de uso vizinhos, menus parecidos, telas alternativas ou funcionalidades nao citadas. Se o caminho informado nao aparecer, parar no ponto exato, relatar o item ausente e manter o codigo estruturado ate onde foi possivel.
-
-Quando o usuario pedir para preencher campos com dados aleatorios, gerar massa de teste rastreavel e preencher apenas os campos exigidos pela tela ou necessarios para concluir o passo solicitado.
-
-Quando a massa incluir datas ou intervalos, calcular a data inicial em runtime e derivar a data final a partir dela. Manter internamente `Date`/ISO ou estrategia equivalente e formatar no padrao da tela apenas no momento do preenchimento. Se houver calendario institucional, periodo letivo fechado ou data oficial que altere a regra, pedir o dado ou parametrizar em `.env`/fixture local ignorada em vez de inventar.
-
-## Inferencia Controlada
-
-O usuario normalmente informa apenas os dados principais do fluxo. Mapear pela tela os campos com estrela/asterisco azul e preencher valores neutros, rastreaveis e validos quando eles nao alterarem a regra testada. Nao reutilizar nomes, usuarios ou identificadores reais vistos na tela como massa de teste. Usar Playwright MCP somente quando a tela real precisar ser observada para confirmar campo, seletor, estado ou comportamento.
-
-Pedir informacao somente quando o dado obrigatorio impactar diretamente objetivo, resultado esperado, perfil, status, tipo, modalidade, permissao, periodo ou regra de negocio. Nao inventar regras nem escolher automaticamente uma opcao que mude o comportamento do cenario.
-
-Registrar no resumo, de forma curta, quais dados obrigatorios foram inferidos.
-
-## Execucao Rapida
-
-Usar sempre o caminho mais curto que preserve boas praticas e economize contexto:
-
-- roteiro compacto do fluxo antes de navegar;
-- caminho principal informado pelo usuario;
-- cache sanitizado para telas, rotas, labels, acoes, seletores e validacoes ja conhecidos;
-- Playwright CLI para executar e validar;
-- Playwright MCP somente quando cache, CLI, codigo e passo a passo nao explicarem a tela real;
-- uma sessao continua de navegador por fluxo, sem reiniciar a cada tela;
-- descoberta MCP continua quando a tela ainda esta sendo mapeada, sem scripts/probes descartaveis por etapa;
-- reprodutibilidade por CLI a partir de `.env`, perfil funcional explicito, massa controlada e projeto versionado;
-- Page Objects minimos para telas ou areas tocadas;
-- seletores mapeados sob demanda;
-- uma validacao funcional forte;
-- uma tentativa objetiva de correcao por falha;
-- resumo curto.
-
-Nao explorar menus, telas ou campos fora do passo a passo, salvo para desbloquear o fluxo ou entender uma falha.
-
-## Modos Economicos
-
-- `padrao`: gerar/alterar de forma incremental, usar cache primeiro, MCP sob demanda e resposta curta.
-- `discovery`: mapear somente telas, campos, acoes, seletores e validacoes necessarios; nao gerar teste salvo pedido explicito.
-- `repair`: corrigir falha existente sem recriar fluxo, usando CLI primeiro e MCP apenas se o log nao explicar tela/seletor/estado.
-- `cli-only`: usar apenas CLI e cache quando nao houver incerteza visual; abortar para MCP se surgir seletor/tela/estado desconhecido.
-- `debug`: permitir diagnostico mais detalhado, sem segredos, dados pessoais, DOM completo ou logs extensos desnecessarios.
-- `full`: recriar estrutura ou fluxo inteiro somente quando o usuario pedir explicitamente.
-
-## Evidencias
-
-- `minimo` (padrao): sem README, trace, screenshot, video ou diagnostico detalhado. Usar `trace: 'off'`, `screenshot: 'off'` e `video: 'off'`.
-- `falha`: gerar artefatos somente em falha ou quando forem indispensaveis para explicar bloqueio.
-- `completo`: gerar README, traces, screenshots/videos quando util e diagnostico detalhado; usar somente quando o usuario pedir.
-
-Mesmo em `minimo`, o terminal pode emitir saida. Nao copiar logs longos; resumir resultado, erro principal e proximo passo.
+- Codigo: specs contam o fluxo; Page Objects concentram seletores e interacoes; metodos devem ter nomes funcionais.
+- Execucao: usar Playwright CLI para ambiente, scaffold, validacao, auditoria e repair; usar Chromium headed por padrao.
+- MCP: abrir somente para incerteza visual real: tela desconhecida, seletor ambiguo, menu, modal, autocomplete, tabela complexa ou falha que cache/codigo/log do CLI nao expliquem.
+- Sessao: manter uma sessao unica/continua de navegador por fluxo; nao fechar/reabrir browser por tela e nao dividir um fluxo transacional em um teste por tela.
+- dados sensiveis: nao hardcodar nomes reais, usuarios, servidores/funcionarios, emails, telefones, documentos, matriculas, identificadores pessoais, erros crus ou valores especificos vistos na tela.
+- Datas: gerar datas dinamicas, periodos, anos, semestres, prazos e vencimentos em runtime ou parametrizar localmente quando a regra exigir valor oficial.
+- Reprodutibilidade: a spec deve rodar por CLI em outra maquina com Node, Playwright, Chromium, projeto versionado e `.env` preenchido, sem depender de sessao MCP, perfil local, `storageState` manual ou caminho absoluto.
+- Cache: consultar `.playwright-e2e/cache/` antes do MCP, mas tratar cache sanitizado como sugestao; confirmar via MCP quando houver falha, mudanca visual, seletor ambiguo, permissao diferente ou cache inseguro.
+- seletores estaveis: priorizar `getByRole`, `getByLabel`, `getByPlaceholder`, texto escopado, `getByTestId`, ID estavel centralizado ou CSS semantico relativo; XPath so em ultimo caso.
+- Fragilidade proibida: evitar indice, posicao visual, classe gerada, ID JSF gerado, `.nth()` e `.first()` sem filtro estavel.
+- Obrigatoriedade: campos com estrela/asterisco azul na label sao obrigatorios; nao submeter formulario vazio apenas para descobrir obrigatoriedade.
+- Validacao funcional: validar mensagem, registro persistido, estado final, download, protocolo ou bloqueio esperado; nao trocar por mera visibilidade quando houver efeito observavel.
+- Higiene: remover `console.log`, `debugger`, `TODO/FIXME`, codigo comentado, sobras de codegen, erro bruto, leitura ampla de `body`, dados reais e imports/constantes sem uso.
+- Evidencias: usar `minimo` por padrao (`trace`, `screenshot` e `video` desligados); liberar diagnostico detalhado apenas quando solicitado ou quando falha real exigir.
 
 ## Fluxo Principal
 
-1. Validar contrato minimo.
-2. Definir modo economico (`padrao` se nao informado) e nivel de evidencias.
-3. Normalizar o passo a passo em roteiro compacto: objetivo, perfil, passos, dados, telas esperadas, acoes, validacoes e restricoes. Nao repetir o texto bruto do usuario em prompts/logs.
-4. Executar `node ../../scripts/check-environment.mjs <raiz-do-projeto>`; se `node` nao existir, informar o bootstrap (`winget install OpenJS.NodeJS.LTS`, `brew install node` ou NodeSource/apt). Se faltar outro requisito, interromper e devolver os comandos exibidos pelo script.
-5. Executar `node ../../scripts/optimize-context.mjs <raiz-do-projeto> --mode <modo> --json` quando houver Node, para consultar cache, validar higiene do cache e obter resumo compacto.
-6. Detectar se ja existe Playwright no repositorio antes de instalar ou criar arquivos. Se nao existir, executar diretamente `../../scripts/scaffold-playwright.mjs <raiz-do-projeto>` a partir desta skill.
-7. Definir o comando CLI mais curto para validar o fluxo, preservando scripts locais; preferir `test:e2e:headed`, `test:headed` ou `npx playwright test --headed --reporter=line`.
-8. Classificar cada parte do roteiro como `cache`, `cli`, `mcp` ou `remover`; nao chamar MCP para item coberto por cache confiavel ou CLI deterministica.
-9. Usar Playwright MCP somente quando precisar observar a tela real para confirmar caminho, seletor, campo com estrela/asterisco azul, menu, modal, autocomplete, tabela ou estado nao explicado pelo cache/CLI.
-10. Durante descoberta MCP, manter a mesma pagina do fluxo e acumular o mapa passo a passo. Nao fechar/reabrir navegador nem rodar scripts Playwright temporarios para validar cada tela ou seletor isolado.
-11. Mapear sob demanda apenas campos/acoes do proximo passo e uma validacao funcional. Nao submeter formulario vazio para descobrir obrigatoriedade.
-12. Planejar o teste como fluxo continuo: uma spec/teste deve autenticar, navegar, preencher, avancar telas e validar o resultado sem reiniciar navegador entre etapas.
-13. Antes de acao que cria/altera dado persistente, confirmar que campos obrigatorios, seletores e validacao final ja estao mapeados o suficiente para evitar cadastros parciais.
-14. Sanitizar dados observados: substituir nomes reais, usuarios, identificadores pessoais, datas fixas envelheciveis e mensagens de erro cruas por massa neutra, geradores dinamicos, variaveis de ambiente ou fixtures locais.
-15. Implementar ou atualizar spec, Page Objects, dados, fixtures e utilitarios na menor superficie possivel.
-16. Garantir reprodutibilidade: a spec deve partir de `BASE_URL`, autenticar com perfil funcional explicito via `getAuthProfile(profileName)`, gerar/receber massa controlada, calcular dados variaveis em runtime e nao depender de estado manual da maquina atual.
-17. Configurar `.env`, `.env.example`, `.gitignore`, scripts e Playwright apenas quando necessario.
-18. Executar validacao final pelo CLI em Chromium headed, salvo pedido contrario.
-19. Se o CLI falhar e o log nao explicar a causa, usar MCP apenas na tela necessaria, corrigir uma falha objetiva e executar o CLI novamente. Nao reiniciar o navegador por tela nem transformar cada tela em uma execucao separada.
-20. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto> --changed` a partir desta skill. Auditar somente arquivos modificados e corrigir erros dentro do escopo solicitado.
-21. Responder com resumo compacto.
+1. Validar contrato minimo, modo (`padrao` se ausente) e evidencias (`minimo` se ausente).
+2. Normalizar o pedido em roteiro compacto: objetivo, perfil, passos, dados, telas, acoes, validacoes e restricoes.
+3. Executar `node ../../scripts/check-environment.mjs <raiz-do-projeto>`; se faltar requisito, parar e devolver os comandos objetivos do script.
+4. Executar `node ../../scripts/optimize-context.mjs <raiz-do-projeto> --mode <modo> --json`; usar `projectShape`, `cacheStatus`, `recommendedCommand`, `likelyFilesToRead`, `riskFlags` e `nextAction` para ler menos sem ignorar riscos.
+5. Se o projeto nao tiver Playwright equivalente, executar `../../scripts/scaffold-playwright.mjs <raiz-do-projeto>`; o scaffolder e deterministico e nao deve sobrescrever arquivos existentes.
+6. Classificar cada passo como `cache`, `cli`, `mcp` ou `remover`. Nao chamar MCP para item coberto por cache confiavel, codigo existente ou CLI deterministica.
+7. Quando MCP for necessario, mapear somente o proximo passo e uma validacao funcional, mantendo a mesma pagina/sessao do fluxo.
+8. Antes de acao persistente, confirmar campos obrigatorios, massa dinamica/rastreavel e validacao final para evitar registros parciais ou lixo funcional.
+9. Implementar a menor superficie: spec, Page Objects, utilitarios, dados e configuracao estritamente necessarios.
+10. Validar pelo menor comando CLI util, preferindo scripts locais ou `npx playwright test --headed --reporter=line`.
+11. Se o CLI falhar e o log nao explicar, usar MCP apenas na tela necessaria, corrigir uma falha objetiva e repetir o menor CLI.
+12. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto> --changed`; usar o resumo agrupado, ler so o primeiro exemplo de cada regra e tratar repeticoes com busca pontual (`rg`). Usar `--verbose` apenas quando o agrupamento nao explicar a correcao.
+13. Antes da resposta final, conferir reprodutibilidade, dados dinamicos, ausencia de segredos/lixo de codigo e validacao funcional.
 
-## Regras Essenciais
+## Modos
 
-- Usar Playwright CLI como caminho padrao para executar e validar automacoes.
-- Usar Playwright MCP apenas quando for necessario observar a tela real para descobrir ou confirmar estado, seletor, campo, navegacao ou falha.
-- Usar cache local sanitizado antes do MCP, mas nunca deixar cache substituir confirmacao real quando houver incerteza.
-- Durante mapeamento visual, manter uma unica sessao MCP/pagina por fluxo. CLI entra para ambiente, scaffold, auditoria, validacao do codigo ou repair; nao para abrir navegador novo a cada tela ainda nao codificada.
-- Nao ler, colar ou resumir DOM completo, HTML completo, screenshot, trace ou arquivos inteiros quando um trecho, locator ou resumo de tela bastar.
-- Manter o fluxo em uma unica sessao de navegador sempre que tecnicamente possivel. Nao fechar/reabrir navegador entre telas, nao criar uma spec/teste por tela e nao usar `chromium.launch` manual dentro de specs Playwright Test salvo exigencia explicita do projeto.
-- Evitar lixo funcional: nao repetir submissao ou acao final apenas para descobrir a proxima tela; preferir observar antes, executar uma vez com massa rastreavel e validar o registro criado. Se uma execucao parcial criar dado, registrar no resumo e reutilizar ou limpar somente com seguranca.
-- Construir a spec para ser reprodutivel por qualquer usuario com o mesmo perfil funcional: login pelo fluxo automatizado, URL e credenciais por `.env` usando `getAuthProfile(profileName)`, massa gerada ou parametrizada, assertions funcionais e sem dependencia de sessao local.
-- Nao usar `test.only`, `test.skip`, perfil persistente de navegador, `launchPersistentContext`, `storageState` manual, caminho absoluto local ou dado secreto fora de `.env` para fazer o teste passar.
-- Quando um registro preexistente for indispensavel, parametrizar por `.env`/fixture local ignorada e documentar no resumo qual tipo de dado e necessario, sem revelar o valor.
-- Nao deixar data, periodo, ano, semestre, prazo ou vencimento fixo no codigo final, salvo regra explicitamente fixa. Para intervalos, calcular fim a partir do inicio; para ano/periodo, derivar da data atual ou de parametro local seguro.
-- Nao instalar ferramentas de sistema automaticamente; se o check de ambiente falhar, orientar com comandos objetivos.
-- Nao assumir nomes de menus, botoes, campos, mensagens ou fluxos sem observar a interface.
-- Campos com estrela/asterisco azul na label sao obrigatorios.
-- Nao submeter ou avancar formulario com campos vazios apenas para descobrir obrigatoriedade.
-- Priorizar: `getByRole`, `getByLabel`, `getByPlaceholder`, `getByText` escopado, `getByTestId`, CSS semantico relativo e XPath so em ultimo caso.
-- Nao usar seletor por indice, posicao, ordem visual, classe gerada, `.nth()` ou `.first()` sem filtro estavel.
-- Nao usar IDs JSF gerados (`j_id`, `j_id_jsp`, `j_idt`, `javax.faces` ou similares) como seletor principal.
-- Em telas JSF/legadas, substituir IDs gerados por label, role, texto visual, linha/container do formulario ou sufixo estavel do ID.
-- Em JSF/RichFaces legado, nao converter tudo cegamente para `getByRole/getByLabel`; centralizar IDs estaveis em `byId(id)` quando forem o contrato mais confiavel.
-- Evitar `waitForLoadState` generico, `.first()` sem filtro, `force: true` amplo e leitura do `body` inteiro; esperar efeitos observaveis e escopar ao conteudo principal.
-- Em sufixos `id$` e textareas/editors JSF ocultos, validar unicidade; se usar setter nativo, disparar `input` e `change` e confirmar `toHaveValue`.
-- Em autocomplete e `select`, filtrar/normalizar pelo texto esperado e usar o valor real do input apos selecionar.
-- Nao mapear todos os campos/botoes; escolher o menor conjunto para executar o passo atual e validar o resultado.
-- Em tabelas, localizar a linha por texto unico e so entao a acao dentro da linha.
-- Nao usar nome real de pessoa, usuario, servidor/funcionario, documento, matricula, email ou telefone como texto hardcoded para localizar linha, preencher campo ou validar resultado. Preferir registro criado pela automacao, dado neutro fornecido pelo usuario ou variavel local.
-- Manter seletores e interacoes dentro de Page Objects; specs devem conter passos funcionais, dados e assertions de alto nivel.
-- Validar resultado funcional: mensagem, registro, detalhe persistido, estado final, download, protocolo ou bloqueio esperado.
-- Evitar `waitForTimeout`; preferir waits automaticos e assertions do Playwright.
-- Antes da resposta final, usar `quality-gate.mjs --changed` para obter um resumo compacto de auditoria, sintaxe e JSON.
-- Pedir autorizacao para rede, instalacao, navegador, credenciais, escrita sensivel, ambiente externo ou sandbox.
-- Nao gerar README, traces, screenshots, videos ou diagnostico detalhado por padrao; usar o nivel de evidencias solicitado.
-- Nao automatizar captcha, burlar MFA, commitar segredos, usar dados reais sensiveis ou executar acao destrutiva em ambiente real sem confirmacao explicita.
-- Em falha, classificar causa principal antes de responder: seletor, navegacao, autenticacao, massa, permissao, regra funcional, ambiente, captcha/MFA ou sincronizacao.
-- `npx playwright codegen` pode ser usado apenas como apoio inicial quando fizer sentido; codigo gerado por gravacao linear nao e entrega final e deve ser refatorado para Page Objects.
-
-## Codigo E Boas Praticas
-
-Codigo Playwright so fica pronto com Page Objects para telas ou areas tocadas. Excecao: projeto existente com arquitetura diferente; preservar o padrao local e justificar.
-
-Evitar seletores, cliques e fills na spec. A spec conta a historia; Page Objects expõem metodos como `realizarLogin`, `preencherDadosObrigatorios`, `submeterFluxo` e `validarResultado`.
-
-Em fluxos simples, criar Page Objects minimos e evoluir somente em falha ou duplicacao real.
-
-A spec deve conter cenario, passos principais, validacoes e chamadas para Page Objects/helpers. Usar `test.step` em fluxos medios ou longos. Nomear testes no padrao `deve [comportamento esperado] quando [condicao]`.
-
-Evitar codigo com aparencia de gravacao linear de cliques. Manter funcoes pequenas, nomes claros, pouca duplicacao e comentarios apenas para decisoes importantes, seletores frageis ou suposicoes relevantes.
-
-Antes de finalizar, revisar Page Objects para remover IDs gerados, helpers genericos baseados em `id` cru e preenchimento via `document.getElementById`/`element.value` quando houver alternativa observavel. Em JSF/RichFaces legado, manter IDs estaveis centralizados em `byId(id)` quando isso for mais confiavel que acessibilidade inexistente.
-
-Antes da resposta final, fazer uma passada de higiene nos arquivos alterados: remover `console.log`, comentarios de debug, codigo comentado, `TODO/FIXME`, mensagens de erro cruas, dados reais hardcoded e imports/constantes/helpers que sobraram da exploracao. Se uma falha precisa ser explicada, resumir no retorno ao usuario; nao deixar a falha documentada no codigo.
-
-Antes de finalizar, conferir que outra pessoa conseguiria executar o fluxo pelo mesmo comando CLI apos preencher `.env`: sem depender da janela aberta pelo MCP, sem perfil local do navegador, sem `test.only/skip`, sem caminho absoluto da maquina, sem dados manuais invisiveis e sem datas/periodos que envelhecem.
+- `padrao`: roteiro compacto, cache primeiro, MCP sob demanda, CLI para validar e resposta curta.
+- `discovery`: mapear somente tela, seletor e validacao necessarios; nao gerar teste salvo pedido explicito.
+- `repair`: corrigir falha com CLI primeiro e MCP apenas quando houver incerteza real.
+- `cli-only`: usar CLI/cache quando nao existe duvida visual; interromper para MCP se surgir incerteza.
+- `debug`: detalhar diagnostico sem segredos, DOM completo ou logs extensos.
+- `full`: recriar estrutura ou fluxo inteiro somente quando o usuario pedir explicitamente.
 
 ## Referencias Sob Demanda
 
-Carregar estes arquivos apenas quando necessario:
+Carregar referencias somente quando o resumo, o risco ou a falha exigir:
 
-- `references/otimizacao-tokens.md`: carregar ao criar, ampliar ou reparar fluxo quando houver risco de consumo alto, cache, modos, MCP sob demanda ou seletores/dados reutilizaveis.
-- `references/exploracao-mcp.md`: carregar quando a tela for complexa ou quando a exploracao inicial nao bastar.
-- `references/seletores-page-objects.md`: carregar somente ao refatorar muitos Page Objects, lidar com tabelas/listagens complexas ou apos falha por seletor fragil.
-- `references/configuracao-playwright.md`: carregar para projeto novo, instalacao/configuracao, scripts, `.env`, evidencias e templates.
-- `references/diagnostico-e-evidencias.md`: carregar em falhas, bloqueios, ambientes instaveis ou quando precisar de diagnostico detalhado.
+- `references/otimizacao-tokens.md`: risco de consumo alto, cache, modos, MCP sob demanda ou reuso de seletores/dados.
+- `references/configuracao-playwright.md`: projeto novo, instalacao/configuracao, `.env`, scripts, evidencias ou templates.
+- `references/seletores-page-objects.md`: seletor fragil, Page Objects grandes, JSF/legado, tabelas/listagens, autocomplete ou falha por locator.
+- `references/exploracao-mcp.md`: tela complexa ou exploracao visual inicial insuficiente.
+- `references/diagnostico-e-evidencias.md`: falhas, bloqueios, ambiente instavel ou diagnostico detalhado.
 
-Nao carregar referencias se o fluxo puder ser implementado com o nucleo acima.
+## Saida
 
-## Saida E Documentacao
-
-Com `evidencias: minimo`, responder curto e nao criar/atualizar README. Com `evidencias: falha`, documentar somente limitacoes necessarias. Com `evidencias: completo`, usar `references/configuracao-playwright.md` e `references/diagnostico-e-evidencias.md` para README e evidencias completas.
-
-Resumo final padrao:
+No modo normal, responder curto e nao colar logs completos, DOM, stack trace, saida completa do gate ou diagnostico longo.
 
 ```text
 Codigo Playwright implementado: Sim
 Arquivos criados/alterados:
 Fluxo automatizado:
 Validacoes:
-Dados principais:
 Dados obrigatorios inferidos:
 Reprodutibilidade:
-Como executar:
-Execucao realizada:
-Modo de execucao:
-Evidencias:
+Comandos executados:
 Resultado:
 Pendencias/Bloqueios:
 ```

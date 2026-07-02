@@ -27,7 +27,7 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 ## Padrao Gerado
 
 - JavaScript e Playwright Test.
-- `tests/e2e` para specs, `tests/pages` para Page Objects, `tests/utils/authProfiles.js` para perfis de autenticacao e `tests/utils/testData.js` para massa dinamica.
+- `tests/e2e` para specs, `tests/pages/BasePage.js` para helper minimo de Page Objects, `tests/utils/authProfiles.js` para perfis de autenticacao e `tests/utils/testData.js` para massa dinamica.
 - Chromium headed por padrao.
 - `workers: 1` por padrao, com override por `E2E_WORKERS`, para evitar conflito de sessao quando perfis locais usam a mesma conta.
 - `trace`, `screenshot` e `video` desligados por padrao.

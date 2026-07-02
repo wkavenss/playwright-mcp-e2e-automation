@@ -13,10 +13,11 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 
 1. Identificar specs, Page Objects, fixtures, dados, configuracao e scripts de execucao.
 2. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto>` a partir desta skill para realizar auditoria, sintaxe e JSON em modo leitura.
-3. Ler apenas os arquivos necessarios para confirmar ou descartar os achados.
-4. Avaliar resultado funcional, isolamento, massa, sincronizacao, seletores, cache local, segredos, dados sensiveis hardcoded, higiene de codigo e manutencao.
-5. Quando util e seguro, executar o menor teste relevante; nao navegar por funcionalidades nao solicitadas.
-6. Apresentar achados primeiro, por severidade, com arquivo e linha. Depois registrar duvidas e risco residual.
+3. Usar o resumo agrupado por regra; ler somente o primeiro exemplo de cada regra e abrir detalhes completos apenas com `--verbose` quando o agrupamento nao bastar.
+4. Confirmar ou descartar repeticoes com busca pontual (`rg`), sem leitura ampla de arquivos.
+5. Avaliar resultado funcional, isolamento, massa, sincronizacao, seletores, cache local, segredos, dados sensiveis hardcoded, higiene de codigo e manutencao.
+6. Quando util e seguro, executar o menor teste relevante; nao navegar por funcionalidades nao solicitadas.
+7. Apresentar achados primeiro, por severidade, com arquivo e linha. Depois registrar duvidas e risco residual.
 
 ## Criterios
 

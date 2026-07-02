@@ -123,6 +123,21 @@ module.exports = { getAuthProfile, profileToEnvPrefix };
 `,
 );
 writeIfMissing(
+  "tests/pages/BasePage.js",
+  `class BasePage {
+  constructor(page) {
+    this.page = page;
+  }
+
+  byId(id) {
+    return this.page.locator(\`[id="\${id}"]\`);
+  }
+}
+
+module.exports = { BasePage };
+`,
+);
+writeIfMissing(
   "tests/utils/testData.js",
   `function pad(value) {
   return String(value).padStart(2, '0');

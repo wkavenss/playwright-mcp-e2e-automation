@@ -1,6 +1,6 @@
 {
   "name": "playwright-mcp-e2e-automation",
-  "version": "0.5.3",
+  "version": "0.6.0",
   "description": "Playwright CLI and MCP E2E toolkit for token-efficient, reusable web automation.",
   "author": {
     "name": "wkavenss"
@@ -10,7 +10,7 @@
   "interface": {
     "displayName": "Playwright MCP E2E",
     "shortDescription": "Automacoes E2E com Playwright CLI e MCP",
-    "longDescription": "Crie, corrija, revise, higienize ou prepare automacoes Playwright. Na criacao, forneca URL, credenciais e passo a passo; o plugin sempre gera codigo com Page Objects, usa perfis de autenticacao por spec, usa Playwright CLI para executar e validar, consulta cache local sanitizado, aciona MCP somente para observar a tela real quando necessario, mantem o fluxo em sessao continua, gera dados variaveis em runtime, evita dados reais hardcoded, roda quality gate local, preserva reprodutibilidade por CLI e usa evidencias minimas.",
+    "longDescription": "Crie, corrija, revise, higienize ou prepare automacoes Playwright. Na criacao, forneca URL, credenciais e passo a passo; o plugin sempre gera codigo com Page Objects, usa perfis de autenticacao por spec, usa scripts deterministicos para reduzir contexto, usa Playwright CLI para executar e validar, consulta cache local sanitizado, aciona MCP somente para observar a tela real quando necessario, mantem o fluxo em sessao continua, gera dados variaveis em runtime, evita dados reais hardcoded, roda quality gate local, preserva reprodutibilidade por CLI e usa evidencias minimas.",
     "developerName": "wkavenss",
     "category": "Developer tools",
     "capabilities": [
