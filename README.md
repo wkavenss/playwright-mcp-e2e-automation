@@ -6,7 +6,6 @@ O padrão é simples:
 
 - Playwright CLI roda e valida os testes.
 - Playwright MCP entra somente quando o plugin precisa observar a tela real.
-- Cache local ignorado pelo Git reduz redescoberta de telas e seletores.
 
 ## Requisitos Da Máquina
 
