@@ -7,7 +7,7 @@ O padrão é simples:
 - Playwright CLI roda e valida os testes.
 - Playwright MCP entra somente quando o plugin precisa observar a tela real.
 
-## Requisitos Da Máquina
+## Requisitos da Máquina
 
 Instale Node.js, npm/npx, Git e Codex.
 
@@ -34,14 +34,14 @@ sudo apt-get install -y nodejs git
 npm install -g @openai/codex
 ```
 
-## Instalar O Plugin
+## Instalar o Plugin
 
 ```bash
 codex plugin marketplace add wkavenss/playwright-mcp-e2e-automation
 codex plugin add playwright-mcp-e2e-automation --marketplace playwright-mcp-e2e-automation
 ```
 
-## Preparar O Projeto
+## Preparar o Projeto
 
 Na pasta do projeto:
 
@@ -82,7 +82,7 @@ npx -y @playwright/mcp@latest
 
 Esse pacote não precisa entrar no `package.json` do projeto.
 
-## Usar No Codex
+## Usar no Codex
 
 Abra o Codex na pasta do projeto:
 
@@ -109,7 +109,7 @@ O código gerado deve ser reprodutível por CLI em outro ambiente com o mesmo pe
 
 Para limpar e endurecer uma automação existente sem recriar o fluxo, use `$higienizar-automacao-playwright`.
 
-## Modos De Uso
+## Modos de Uso
 
 - `padrao`: geração incremental, cache primeiro, MCP sob demanda.
 - `discovery`: mapeia somente telas e seletores necessários.
@@ -118,7 +118,7 @@ Para limpar e endurecer uma automação existente sem recriar o fluxo, use `$hig
 - `debug`: diagnóstico detalhado, sem expor dados sensíveis.
 - `full`: recria estrutura ou fluxo inteiro somente quando solicitado.
 
-## Como O Plugin Trabalha
+## Como o Plugin Trabalha
 
 - Usa Playwright CLI para executar e validar testes.
 - Usa Playwright MCP somente para descobrir tela, seletor, campo ou comportamento que precisa de observação real.
