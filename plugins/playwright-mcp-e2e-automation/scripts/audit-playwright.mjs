@@ -206,6 +206,25 @@ function isCacheIgnored() {
     .some((line) => line === ".playwright-e2e/cache/" || line === ".playwright-e2e/" || line === ".playwright-e2e/cache");
 }
 
+function hasPlaywrightDependency() {
+  const packagePath = path.join(root, "package.json");
+  if (!fs.existsSync(packagePath)) return false;
+  try {
+    const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+    return ["dependencies", "devDependencies", "optionalDependencies"].some((section) => {
+      const dependencies = packageJson[section] || {};
+      return Boolean(dependencies["@playwright/test"] || dependencies.playwright);
+    });
+  } catch {
+    return false;
+  }
+}
+
+function hasDirectory(relativePath) {
+  const target = path.join(root, relativePath);
+  return fs.existsSync(target) && fs.statSync(target).isDirectory();
+}
+
 const files = changedOnly ? changedFiles() : walk(root);
 const codeFiles = files.filter((file) => codeExtensions.has(path.extname(file)));
 const specFiles = codeFiles.filter((file) => /(?:\.spec|\.test)\.[cm]?[jt]sx?$/.test(file));
@@ -479,6 +498,12 @@ if (fs.existsSync(envExamplePath)) {
 }
 
 const cacheDir = path.join(root, ".playwright-e2e", "cache");
+const hasPlaywrightProjectShape = specFiles.length > 0
+  || pageObjectFiles.length > 0
+  || fs.existsSync(cacheDir)
+  || hasPlaywrightDependency()
+  || ["tests/e2e", "test/e2e", "e2e", "playwright"].some(hasDirectory);
+
 if (fs.existsSync(cacheDir)) {
   if (!isCacheIgnored()) {
     add("error", "cache-not-ignored", ".gitignore", 1, ".playwright-e2e/cache/ existe, mas nao esta ignorado.");
@@ -508,7 +533,9 @@ const configFile = files.find((file) => /playwright\.config\.[cm]?[jt]s$/.test(f
     .map((file) => path.join(root, file))
     .find((file) => fs.existsSync(file));
 if (!configFile) {
-  add("warning", "missing-config", ".", 1, "playwright.config nao encontrado.");
+  if (hasPlaywrightProjectShape) {
+    add("warning", "missing-config", ".", 1, "playwright.config nao encontrado.");
+  }
 } else {
   const config = fs.readFileSync(configFile, "utf8");
   const rel = relative(configFile);
