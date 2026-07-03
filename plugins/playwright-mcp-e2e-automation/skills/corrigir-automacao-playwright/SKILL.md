@@ -14,18 +14,19 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 1. Localizar o teste afetado, Page Objects relacionados e comando de execucao.
 2. Consultar cache local sanitizado e executar somente o menor cenario que reproduza a falha.
 3. Classificar a causa: seletor, navegacao, sincronizacao, autenticacao, massa, permissao, regra funcional, ambiente ou captcha/MFA.
-4. Usar Playwright MCP apenas na tela necessaria para confirmar o estado real e o seletor seguinte.
-5. Alterar a menor superficie possivel, mantendo seletores e interacoes nos Page Objects.
-6. Executar novamente apenas o cenario afetado em Chromium headed, salvo pedido contrario.
-7. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto> --changed` a partir desta skill e usar o resumo agrupado por regra.
-8. Ler somente o primeiro exemplo de cada regra relevante; se houver repeticoes, cobrir as demais por busca pontual com `rg`, sem abrir todos os arquivos.
-9. Usar `--verbose` apenas quando o agrupamento nao explicar a correcao.
-10. Resumir causa, arquivos alterados e resultado sem copiar logs longos.
+4. Se a primeira falha for locator/strict/hidden/attached/timeout/menu JSF, executar `../../scripts/parse-error-context.mjs <raiz-do-projeto> --input <error-context.md|log> --json`; se couber probe, validar locators com `../../scripts/repair-probe.mjs <raiz-do-projeto> --manifest <probes.json> --json` ou na pagina MCP preservada antes de repetir a spec inteira.
+5. Usar Playwright MCP apenas na tela necessaria para confirmar estado real e seletor; em JSF/RichFaces, manter a mesma sessao/pagina e nao usar varios `node -e` independentes por tela/seletor.
+6. Alterar a menor superficie possivel, mantendo seletores e interacoes nos Page Objects.
+7. Executar novamente apenas o cenario afetado em Chromium headed, salvo pedido contrario, e somente depois de uma correcao objetiva.
+8. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto> --changed` a partir desta skill; se nao houver Git, usar `--files <arquivos>` ou `--manifest .playwright-e2e/changed-files.json`.
+9. Ler somente o primeiro exemplo de cada regra relevante; se houver repeticoes, cobrir as demais por busca pontual com `rg`, sem abrir todos os arquivos. Usar `--verbose` apenas quando o agrupamento nao explicar a correcao.
+10. Resumir causa, criterios preservados, arquivos alterados e resultado sem copiar logs longos.
 
 ## Regras
 
 - Nao refazer o projeto, explorar funcionalidades vizinhas nem reescrever testes saudaveis.
 - Nao substituir uma validacao funcional por mera verificacao de visibilidade.
+- Nao trocar criterio informado pelo usuario por outro mais fraco sem confirmacao explicita; se a alternativa preservar so parte do criterio, parar e pedir confirmacao.
 - Preferir locators semanticos e assertions com espera automatica.
 - Evitar `waitForTimeout`; corrigir a condicao de sincronizacao.
 - Preservar `.env`, `.gitignore`, Page Objects e convencoes existentes.

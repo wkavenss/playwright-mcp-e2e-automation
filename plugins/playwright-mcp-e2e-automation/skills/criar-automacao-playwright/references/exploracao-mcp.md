@@ -17,6 +17,8 @@ Manter a mesma sessao/pagina durante a exploracao do fluxo sempre que possivel. 
 
 Nao validar seletores em scripts Playwright temporarios enquanto a tela ainda estiver sendo mapeada. Primeiro acumular o mapa minimo na sessao MCP continua; depois gerar codigo e validar o fluxo por CLI no menor escopo util.
 
+Em JSF/RichFaces, se precisar confirmar varios locators no mesmo estado, avancar uma vez ate a tela e executar todos os probes ali, na mesma pagina/sessao ou em um unico manifest de `repair-probe`. Nao abrir um `node -e` por locator.
+
 Nao capturar nem colar DOM completo, HTML completo, screenshots ou listas integrais de elementos quando um resumo de tela, labels relevantes e seletores candidatos bastarem. Registrar somente o mapa minimo necessario ao passo atual.
 
 ## Navegacao

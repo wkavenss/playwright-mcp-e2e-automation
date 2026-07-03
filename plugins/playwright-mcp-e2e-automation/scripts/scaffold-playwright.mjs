@@ -204,7 +204,70 @@ module.exports = {
 };
 `,
 );
-ensureLines(".gitignore", [".env", ".playwright-e2e/cache/", "test-results/", "playwright-report/"]);
+writeIfMissing(
+  "tests/utils/legacyForm.js",
+  `const { expect } = require('@playwright/test');
+
+function escapeRegExp(value) {
+  return String(value).replace(/[.*+?^\${}()|[\\]\\\\]/g, '\\\\$&');
+}
+
+function exactText(value) {
+  return new RegExp(\`^\\\\s*\${escapeRegExp(value)}\\\\s*$\`, 'i');
+}
+
+async function fieldContainerByLabel(form, fieldLabel) {
+  const labelText = exactText(fieldLabel);
+  const candidates = form.locator('tr, li, fieldset, section, div', { hasText: labelText });
+  await expect(candidates, \`Campo "\${fieldLabel}" deve ter container unico\`).toHaveCount(1);
+  return candidates;
+}
+
+async function controlByFieldLabel(form, fieldLabel, optionLabel, type) {
+  const field = await fieldContainerByLabel(form, fieldLabel);
+  const optionText = exactText(optionLabel);
+  const accessible = field.getByLabel(optionText);
+  if (await accessible.count() === 1) return accessible;
+
+  const optionContainer = field.locator('label, td, th, span, div', { hasText: optionText });
+  await expect(optionContainer, \`Opcao "\${optionLabel}" do campo "\${fieldLabel}" deve ser unica\`).toHaveCount(1);
+
+  const nested = optionContainer.locator(\`input[type="\${type}"]\`);
+  if (await nested.count() === 1) return nested;
+
+  const forId = await optionContainer.getAttribute('for');
+  if (forId) {
+    const byFor = field.locator(\`input[type="\${type}"][id="\${forId}"]\`);
+    await expect(byFor, \`Controle "\${optionLabel}" deve apontar para id unico\`).toHaveCount(1);
+    return byFor;
+  }
+
+  throw new Error(\`Nao foi possivel localizar \${type} "\${optionLabel}" no campo "\${fieldLabel}" sem indice cego.\`);
+}
+
+async function radioByFieldLabel(form, fieldLabel, optionLabel) {
+  return controlByFieldLabel(form, fieldLabel, optionLabel, 'radio');
+}
+
+async function checkboxByFieldLabel(form, fieldLabel, optionLabel) {
+  return controlByFieldLabel(form, fieldLabel, optionLabel, 'checkbox');
+}
+
+module.exports = {
+  checkboxByFieldLabel,
+  fieldContainerByLabel,
+  radioByFieldLabel,
+};
+`,
+);
+ensureLines(".gitignore", [
+  ".env",
+  ".playwright-e2e/cache/",
+  ".playwright-e2e/changed-files.json",
+  ".playwright-e2e/error-context.md",
+  "test-results/",
+  "playwright-report/",
+]);
 writeIfMissing("tests/e2e/.gitkeep", "");
 writeIfMissing("tests/pages/.gitkeep", "");
 

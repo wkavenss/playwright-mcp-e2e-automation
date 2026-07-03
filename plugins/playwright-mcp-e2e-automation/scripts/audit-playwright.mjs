@@ -4,9 +4,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 
-const root = path.resolve(process.argv[2] || process.cwd());
-const jsonOutput = process.argv.includes("--json");
-const changedOnly = process.argv.includes("--changed");
+const rawArgs = process.argv.slice(2);
+const rootArg = rawArgs[0] && !rawArgs[0].startsWith("--") ? rawArgs[0] : process.cwd();
+const root = path.resolve(rootArg);
+const args = rawArgs[0] && !rawArgs[0].startsWith("--") ? rawArgs.slice(1) : rawArgs;
+const jsonOutput = args.includes("--json");
+const changedOnly = args.includes("--changed");
 const ignoredDirs = new Set([".git", "node_modules", "playwright-report", "test-results", "blob-report"]);
 const codeExtensions = new Set([".js", ".cjs", ".mjs", ".ts", ".tsx"]);
 const commonSurnames = new Set([
@@ -35,19 +38,74 @@ function gitPaths(args) {
     .filter(Boolean);
 }
 
-function changedFiles() {
+function isGitRepository() {
   try {
-    const paths = new Set([
-      ...gitPaths(["diff", "--name-only", "--diff-filter=ACMR", "HEAD"]),
-      ...gitPaths(["ls-files", "--others", "--exclude-standard"]),
-    ]);
-    return [...paths]
-      .map((file) => path.join(root, file))
-      .filter((file) => fs.existsSync(file) && fs.statSync(file).isFile());
+    return execFileSync("git", ["-C", root, "rev-parse", "--is-inside-work-tree"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim() === "true";
   } catch {
-    const candidates = ["tests", "test", "e2e", "playwright"].flatMap((directory) => walk(path.join(root, directory)));
-    return [...new Set(candidates)];
+    return false;
   }
+}
+
+function flagValues(flag) {
+  const index = args.indexOf(flag);
+  if (index < 0) return [];
+  const values = [];
+  for (let cursor = index + 1; cursor < args.length; cursor += 1) {
+    if (args[cursor].startsWith("--")) break;
+    values.push(args[cursor]);
+  }
+  return values;
+}
+
+function scopedFile(file) {
+  const absolute = path.resolve(root, file);
+  if (!absolute.startsWith(root + path.sep) && absolute !== root) return null;
+  return fs.existsSync(absolute) && fs.statSync(absolute).isFile() ? absolute : null;
+}
+
+function manifestFiles(file) {
+  if (!file) return [];
+  const absolute = path.resolve(root, file);
+  if (!fs.existsSync(absolute)) {
+    add("error", "invalid-scope-manifest", ".", 1, `Manifesto nao encontrado: ${path.relative(root, absolute) || file}.`);
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(fs.readFileSync(absolute, "utf8"));
+    const values = Array.isArray(parsed) ? parsed : parsed.files;
+    if (!Array.isArray(values)) {
+      add("error", "invalid-scope-manifest", relative(absolute), 1, "Manifesto deve ser JSON array ou objeto com files.");
+      return [];
+    }
+    return values.map(scopedFile).filter(Boolean);
+  } catch (error) {
+    add("error", "invalid-scope-manifest", relative(absolute), 1, `Manifesto invalido: ${error.message}.`);
+    return [];
+  }
+}
+
+function explicitScopeFiles() {
+  return [...new Set([
+    ...flagValues("--files").map(scopedFile).filter(Boolean),
+    ...manifestFiles(flagValues("--manifest")[0]),
+  ])];
+}
+
+function changedFiles() {
+  if (!isGitRepository()) {
+    add("error", "changed-scope-required", ".", 1, "Use --files ou --manifest com --changed fora de um repositorio Git.");
+    return [];
+  }
+  const paths = new Set([
+    ...gitPaths(["diff", "--name-only", "--diff-filter=ACMR", "HEAD"]),
+    ...gitPaths(["ls-files", "--others", "--exclude-standard"]),
+  ]);
+  return [...paths]
+    .map((file) => path.join(root, file))
+    .filter((file) => fs.existsSync(file) && fs.statSync(file).isFile());
 }
 
 function relative(file) {
@@ -72,6 +130,24 @@ function hasNearby(content, index, pattern, radius = 180) {
   const start = Math.max(0, index - radius);
   const end = Math.min(content.length, index + radius);
   return pattern.test(content.slice(start, end));
+}
+
+function hasAllowedWaitComment(content, index) {
+  const start = Math.max(0, index - 180);
+  const before = content.slice(start, index);
+  return /playwright-e2e-allow-wait:\s*requisito-explicito-do-usuario\b/i.test(before);
+}
+
+function evaluateBlocks(content) {
+  const blocks = [];
+  const regex = /\b(?:evaluate|evaluateHandle)\s*\(/g;
+  for (const match of matches(content, regex)) {
+    blocks.push({
+      index: match.index,
+      text: content.slice(match.index, Math.min(content.length, match.index + 900)),
+    });
+  }
+  return blocks;
 }
 
 function isAutomationFile(relativePath) {
@@ -225,7 +301,9 @@ function hasDirectory(relativePath) {
   return fs.existsSync(target) && fs.statSync(target).isDirectory();
 }
 
-const files = changedOnly ? changedFiles() : walk(root);
+const scopedFiles = explicitScopeFiles();
+const hasExplicitScope = flagValues("--files").length > 0 || Boolean(flagValues("--manifest")[0]);
+const files = scopedFiles.length ? scopedFiles : (hasExplicitScope ? [] : (changedOnly ? changedFiles() : walk(root)));
 const codeFiles = files.filter((file) => codeExtensions.has(path.extname(file)));
 const specFiles = codeFiles.filter((file) => /(?:\.spec|\.test)\.[cm]?[jt]sx?$/.test(file));
 const changedPageObjectFiles = codeFiles.filter((file) => /(?:^|[/\\])(?:pages?|page-objects?)(?:[/\\])/i.test(file));
@@ -243,7 +321,9 @@ for (const file of codeFiles) {
   const rel = relative(file);
   const automationFile = isAutomationFile(rel);
   const wait = firstMatch(content, /\bwaitForTimeout\s*\(/g);
-  if (wait) add("warning", "fixed-timeout", rel, lineNumber(content, wait.index), "Evite waitForTimeout; espere uma condicao observavel.");
+  if (wait && !hasAllowedWaitComment(content, wait.index)) {
+    add("warning", "fixed-timeout", rel, lineNumber(content, wait.index), "Evite waitForTimeout; espere uma condicao observavel ou anote requisito explicito do usuario.");
+  }
 
   const loadState = firstMatch(content, /\bwaitForLoadState\s*\(\s*["'`](?:domcontentloaded|load|networkidle)["'`]/g);
   if (loadState) {
@@ -287,7 +367,7 @@ for (const file of codeFiles) {
 
   const generatedJsfId = firstMatch(content, /(?:j_id(?:_jsp)?_?\d+|j_idt_?\d+|javax\.faces)/gi);
   if (generatedJsfId) {
-    add("warning", "generated-jsf-id", rel, lineNumber(content, generatedJsfId.index), "Evite ID JSF gerado; prefira label, role, texto contextual ou sufixo estavel escopado.");
+    add("warning", "generated-jsf-id", rel, lineNumber(content, generatedJsfId.index), "Evite ID JSF gerado; ID estavel como form:campo deve ficar centralizado em helper semantico.");
   }
 
   const fullGeneratedJsfSelector = firstMatch(content, /(?:#|id=["'`]|id\\=|\\#)(?:j_id(?:_jsp)?_?\d+|j_idt_?\d+)/gi);
@@ -295,9 +375,23 @@ for (const file of codeFiles) {
     add("warning", "generated-jsf-css-selector", rel, lineNumber(content, fullGeneratedJsfSelector.index), "Seletor CSS com ID JSF gerado e fragil; use locator semantico ou sufixo estavel.");
   }
 
+  const directStableJsfCss = firstMatch(content, /locator\s*\(\s*["'`]#[A-Za-z][\w-]*(?:\\)+:[^"'`]+["'`]\s*\)/g);
+  if (directStableJsfCss) {
+    add("warning", "stable-jsf-id-not-centralized", rel, lineNumber(content, directStableJsfCss.index), "ID JSF estavel deve ficar centralizado em byId/helper, nao espalhado como CSS escapado.");
+  }
+
   const documentGetById = firstMatch(content, /\bdocument\.getElementById\s*\(/g);
   if (documentGetById) {
     add("warning", "dom-get-element-by-id", rel, lineNumber(content, documentGetById.index), "Evite document.getElementById em page.evaluate; prefira locator Playwright observavel.");
+  }
+
+  const evaluateIndex = evaluateBlocks(content).find((block) => (
+    /(?:querySelectorAll|getElementsBy(?:Name|ClassName|TagName)|children|childNodes)\s*\([^)]*\)?\s*\[\s*\d+\s*\]/s.test(block.text)
+    || /(?:children|childNodes)\s*\[\s*\d+\s*\]/s.test(block.text)
+    || /\b[A-Za-z_$][\w$]*(?:Radios|radios|Opcoes|opcoes|Options|options|Contem|contem|Linhas|linhas|Rows|rows)\s*\[\s*\d+\s*\]/s.test(block.text)
+  ));
+  if (evaluateIndex) {
+    add("warning", "evaluate-index-selector", rel, lineNumber(content, evaluateIndex.index), "Indice dentro de evaluate e seletor fragil; filtre por label/opcao/linha e valide unicidade.");
   }
 
   const directValueMutation = firstMatch(content, /\.(?:value|checked)\s*=|dispatchEvent\s*\(/g);
@@ -549,7 +643,7 @@ if (!configFile) {
 
 const summary = {
   root,
-  mode: changedOnly ? "changed" : "full",
+  mode: scopedFiles.length ? "files" : (changedOnly ? "changed" : "full"),
   scannedFiles: codeFiles.length,
   errors: findings.filter((item) => item.severity === "error").length,
   warnings: findings.filter((item) => item.severity === "warning").length,

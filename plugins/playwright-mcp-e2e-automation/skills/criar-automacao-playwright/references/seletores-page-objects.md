@@ -28,11 +28,16 @@ Nao usar IDs gerados como `j_id`, `j_id_jsp`, `j_idt` ou `javax.faces` como sele
 
 Nao converter tudo cegamente para `getByRole/getByLabel`: em JSF/RichFaces legado, muitos elementos nao possuem acessibilidade confiavel. IDs JSF estaveis, como `form:campo`, podem ser o melhor contrato quando centralizados em helper e nomeados por getter funcional.
 
+Elemento JSF `attached` e `hidden` nao e automaticamente erro: menus, submenus e componentes RichFaces podem existir ocultos no DOM ate o acionamento correto. Use `toBeAttached` somente para contrato tecnico de menu/markup e mantenha `toBeVisible` para campos interativos, mensagem final, registro e resultado funcional.
+
+Se `getByText` gerar duplicidade, nao troque o criterio por outro mais fraco. Escopar por formulario, menu, tabela, linha, cabecalho ou criterio composto informado pelo usuario. Se uma alternativa preservar apenas parte do criterio, pedir confirmacao antes de alterar.
+
 Para campos em formularios tabulares ou telas legadas:
 
 - Preferir `getByLabel`, `getByRole` e `getByText` escopado quando houver nome acessivel.
 - Quando a label for apenas visual, localizar a linha ou container pelo texto da label e entao buscar `input`, `textarea` ou `select` dentro dele.
 - Quando so houver ID parcialmente estavel, usar sufixo escopado, como `textarea[id$=":justificativa-objetivos"]`, dentro da secao correta.
+- Para radios/checkboxes em formulario legado, preferir helper por label de campo + label de opcao: `radioByFieldLabel(form, 'Titulo', 'Contem')`. O helper deve validar unicidade e evitar `radios[1]`, `children[2]` ou ID gerado.
 - Para ID JSF estavel inevitavel, preferir helper legivel a escape manual repetido:
 
 ```javascript

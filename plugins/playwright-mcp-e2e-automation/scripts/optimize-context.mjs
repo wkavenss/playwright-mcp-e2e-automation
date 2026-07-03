@@ -180,10 +180,70 @@ function parsePrompt(text) {
     stepCount: steps.length,
     steps: steps.map((step, index) => ({
       id: index + 1,
-      text: step.replace(/(senha|password)\s*:\s*\S+/gi, "$1:<redacted>"),
+      text: sanitizePromptLine(step),
       suggestedChannel: classifyStep(step),
     })),
   };
+}
+
+function sanitizePromptLine(line) {
+  return String(line)
+    .replace(/(senha|password|passwd)\s*[:=]\s*\S+/gi, "$1:<redacted>")
+    .replace(/(usuario|usuário|username|user)\s*[:=]\s*\S+/gi, "$1:<redacted>")
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "<email>")
+    .replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, "<documento>")
+    .replace(/\b(?:\(?\d{2}\)?\s*)?\d{4,5}-?\d{4}\b/g, "<telefone>")
+    .replace(/\b[A-Z][A-Za-z]{2,}(?:\s+(?:de|da|do|dos|das|e))?\s+[A-Z][A-Za-z]{2,}(?:\s+[A-Z][A-Za-z]{2,}){0,4}\b/g, (match) => (
+      hasLikelyPersonName(match) ? "<nome-provavel>" : match
+    ));
+}
+
+function extractQuotedTerms(line) {
+  return [...line.matchAll(/["'`“”‘’]([^"'`“”‘’]{2,80})["'`“”‘’]/g)]
+    .map((match) => match[1].trim())
+    .filter(Boolean);
+}
+
+function extractCriteriaLabels(line) {
+  const labels = [
+    ["titulo", /\bt[ií]tulo\b/i],
+    ["autor", /\bautor(?:a|es|as)?\b/i],
+    ["nome", /\bnome\b/i],
+    ["documento", /\b(?:cpf|cnpj|documento|matr[ií]cula)\b/i],
+    ["data", /\bdata\b/i],
+    ["periodo", /\b(?:per[ií]odo|semestre|ano)\b/i],
+    ["status", /\bstatus\b/i],
+    ["tipo", /\btipo\b/i],
+  ];
+  return labels.filter(([, regex]) => regex.test(line)).map(([label]) => label);
+}
+
+function extractRequiredUserCriteria(text) {
+  if (!text.trim()) return [];
+  const criteriaLines = text.split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => /(buscar|busca|filtro|filtrar|validar|crit[eé]rio|deve|selecionar|localizar|pesquisar|com\b|por\b)/i.test(line))
+    .filter((line) => !/(senha|password|passwd|token|cookie)/i.test(line));
+
+  return criteriaLines.map((line) => {
+    const safeLine = sanitizePromptLine(line);
+    const terms = unique([
+      ...extractCriteriaLabels(line),
+      ...extractQuotedTerms(safeLine).map((term) => sanitizePromptLine(term)),
+    ]).slice(0, 8);
+    return terms.length ? { line: safeLine.slice(0, 180), terms } : null;
+  }).filter(Boolean).slice(0, 10);
+}
+
+function buildCriteriaWarnings(criteria) {
+  const warnings = [];
+  if (criteria.some((item) => item.terms.length > 1)) {
+    warnings.push("preservar-todos-os-criterios-informados");
+  }
+  if (criteria.some((item) => /\bou\b|alternativa|parecido|similar/i.test(item.line))) {
+    warnings.push("confirmar-criterio-alternativo-antes-de-simplificar");
+  }
+  return unique(warnings);
 }
 
 function classifyStep(step) {
@@ -271,7 +331,7 @@ function likelyFilesToRead(shape) {
   ]).slice(0, 10);
 }
 
-function buildRiskFlags({ shape, caches, cacheStatus, normalizedInput, rawInput }) {
+function buildRiskFlags({ shape, caches, cacheStatus, normalizedInput, rawInput, criteriaWarnings }) {
   const riskFlags = [];
   if (cacheStatus.files && !cacheStatus.ignoredByGit) riskFlags.push("cache-not-ignored");
   if (cacheStatus.invalidJson) riskFlags.push("cache-invalid-json");
@@ -288,6 +348,7 @@ function buildRiskFlags({ shape, caches, cacheStatus, normalizedInput, rawInput 
     riskFlags.push("mcp-may-be-needed");
   }
   if (scanSensitive(rawInput).length) riskFlags.push("input-has-sensitive-data");
+  if (criteriaWarnings.length) riskFlags.push("preserve-user-criteria");
   if (caches.some((cache) => cache.error || cache.sensitive.length)) riskFlags.push("ignore-or-sanitize-cache");
   return unique(riskFlags);
 }
@@ -313,6 +374,8 @@ if (initCache) ensureCache();
 
 const rawInput = readInput();
 const normalizedInput = parsePrompt(rawInput);
+const requiredUserCriteria = extractRequiredUserCriteria(rawInput);
+const criteriaWarnings = buildCriteriaWarnings(requiredUserCriteria);
 const packageJson = readPackageJson();
 const caches = cacheFiles.map((name) => {
   const file = path.join(cacheDir, name);
@@ -329,7 +392,7 @@ const caches = cacheFiles.map((name) => {
 const projectShape = detectProjectShape(packageJson);
 const cacheIgnored = gitignoreAllowsCache();
 const cacheStatus = detectCacheStatus(caches, cacheIgnored);
-const riskFlags = buildRiskFlags({ shape: projectShape, caches, cacheStatus, normalizedInput, rawInput });
+const riskFlags = buildRiskFlags({ shape: projectShape, caches, cacheStatus, normalizedInput, rawInput, criteriaWarnings });
 const recommendedMode = chooseRecommendedMode(requestedMode, riskFlags);
 const command = recommendedCommand(packageJson, projectShape.firstSpecFiles);
 
@@ -345,6 +408,8 @@ const summary = {
   projectShape,
   likelyFilesToRead: likelyFilesToRead(projectShape),
   riskFlags,
+  requiredUserCriteria,
+  criteriaWarnings,
   nextAction: chooseNextAction({ shape: projectShape, cacheStatus, riskFlags }),
   normalizedInput,
   rules: {

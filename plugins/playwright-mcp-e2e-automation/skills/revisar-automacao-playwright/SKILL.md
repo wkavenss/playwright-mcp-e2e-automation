@@ -23,7 +23,9 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 
 - Specs devem orquestrar a historia funcional; seletores e interacoes pertencem aos Page Objects.
 - Locators semanticos e escopados devem prevalecer sobre CSS estrutural e XPath.
+- ID JSF gerado, indice escondido em `evaluate`, ID JSF estavel espalhado sem helper e `waitForTimeout` sem anotacao padronizada sao riscos de manutencao.
 - Assertions devem comprovar o efeito funcional, nao somente a presenca de um elemento.
+- Filtro, busca ou assert nao pode perder parte do criterio informado pelo usuario sem confirmacao explicita.
 - `waitForTimeout`, retries excessivos e esperas globais podem mascarar sincronizacao incorreta.
 - Credenciais devem vir de `.env`, que precisa estar ignorado; `.env.example` nao deve conter segredos.
 - Nomes reais de pessoas, usuarios, servidores/funcionarios, documentos, matriculas, emails, telefones e identificadores pessoais nao devem aparecer hardcoded em specs, Page Objects, fixtures, asserts, comentarios ou logs.

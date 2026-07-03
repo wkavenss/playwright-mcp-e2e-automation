@@ -5,15 +5,19 @@ import path from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
-const root = path.resolve(process.argv[2] || process.cwd());
-const changedOnly = process.argv.includes("--changed");
-const jsonOutput = process.argv.includes("--json");
-const verboseOutput = process.argv.includes("--verbose");
+const rawArgs = process.argv.slice(2);
+const rootArg = rawArgs[0] && !rawArgs[0].startsWith("--") ? rawArgs[0] : process.cwd();
+const root = path.resolve(rootArg);
+const args = rawArgs[0] && !rawArgs[0].startsWith("--") ? rawArgs.slice(1) : rawArgs;
+const changedOnly = args.includes("--changed");
+const jsonOutput = args.includes("--json");
+const verboseOutput = args.includes("--verbose");
 const ignoredDirs = new Set([".git", "node_modules", "playwright-report", "test-results", "blob-report"]);
 const nodeCheckExtensions = new Set([".js", ".cjs", ".mjs"]);
 const tsExtensions = new Set([".ts", ".tsx"]);
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const auditScript = path.join(scriptDir, "audit-playwright.mjs");
+let scopeError = "";
 
 function walk(directory) {
   if (!fs.existsSync(directory)) return [];
@@ -30,18 +34,73 @@ function gitPaths(args) {
     .filter(Boolean);
 }
 
-function changedFiles() {
+function isGitRepository() {
   try {
-    const files = new Set([
-      ...gitPaths(["diff", "--name-only", "--diff-filter=ACMR", "HEAD"]),
-      ...gitPaths(["ls-files", "--others", "--exclude-standard"]),
-    ]);
-    return [...files]
-      .map((file) => path.join(root, file))
-      .filter((file) => fs.existsSync(file) && fs.statSync(file).isFile());
+    return execFileSync("git", ["-C", root, "rev-parse", "--is-inside-work-tree"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim() === "true";
   } catch {
-    return walk(root);
+    return false;
   }
+}
+
+function flagValues(flag) {
+  const index = args.indexOf(flag);
+  if (index < 0) return [];
+  const values = [];
+  for (let cursor = index + 1; cursor < args.length; cursor += 1) {
+    if (args[cursor].startsWith("--")) break;
+    values.push(args[cursor]);
+  }
+  return values;
+}
+
+function scopedFile(file) {
+  const absolute = path.resolve(root, file);
+  if (!absolute.startsWith(root + path.sep) && absolute !== root) return null;
+  return fs.existsSync(absolute) && fs.statSync(absolute).isFile() ? absolute : null;
+}
+
+function manifestFiles(file) {
+  if (!file) return [];
+  const absolute = path.resolve(root, file);
+  if (!fs.existsSync(absolute)) {
+    scopeError = `manifesto nao encontrado: ${path.relative(root, absolute) || file}`;
+    return [];
+  }
+  try {
+    const parsed = JSON.parse(fs.readFileSync(absolute, "utf8"));
+    const values = Array.isArray(parsed) ? parsed : parsed.files;
+    if (!Array.isArray(values)) {
+      scopeError = "manifesto deve ser JSON array ou objeto com files.";
+      return [];
+    }
+    return values.map(scopedFile).filter(Boolean);
+  } catch (error) {
+    scopeError = `manifesto invalido: ${error.message}`;
+    return [];
+  }
+}
+
+function explicitScopeFiles() {
+  const files = flagValues("--files").map(scopedFile).filter(Boolean);
+  const manifest = flagValues("--manifest")[0];
+  return [...new Set([...files, ...manifestFiles(manifest)])];
+}
+
+function changedFiles() {
+  if (!isGitRepository()) {
+    scopeError = "use --files ou --manifest com --changed fora de um repositorio Git.";
+    return [];
+  }
+  const files = new Set([
+    ...gitPaths(["diff", "--name-only", "--diff-filter=ACMR", "HEAD"]),
+    ...gitPaths(["ls-files", "--others", "--exclude-standard"]),
+  ]);
+  return [...files]
+    .map((file) => path.join(root, file))
+    .filter((file) => fs.existsSync(file) && fs.statSync(file).isFile());
 }
 
 function relative(file) {
@@ -59,6 +118,8 @@ function compact(text) {
 
 function runAudit() {
   const args = [auditScript, root];
+  if (explicitFiles.length) args.push("--files", ...explicitFiles.map(relative));
+  if (manifestArg) args.push("--manifest", manifestArg);
   if (changedOnly) args.push("--changed");
   args.push("--json");
   const result = spawnSync(process.execPath, args, { encoding: "utf8" });
@@ -145,7 +206,10 @@ function groupFindings(items) {
     ));
 }
 
-const files = changedOnly ? changedFiles() : walk(root);
+const manifestArg = flagValues("--manifest")[0];
+const explicitFiles = explicitScopeFiles();
+const hasExplicitScope = flagValues("--files").length > 0 || Boolean(manifestArg);
+const files = explicitFiles.length ? explicitFiles : (hasExplicitScope ? [] : (changedOnly ? changedFiles() : walk(root)));
 const audit = runAudit();
 const syntax = checkNodeSyntax(files);
 const json = checkJson(files);
@@ -161,14 +225,14 @@ const topFindings = findings.slice(0, 15).map((item) => ({
   line: item.line,
   message: item.message,
 }));
-const failed = !audit.ok || (audit.summary.errors || 0) > 0 || syntaxFailures.length > 0 || jsonFailures.length > 0;
+const failed = Boolean(scopeError) || !audit.ok || (audit.summary.errors || 0) > 0 || syntaxFailures.length > 0 || jsonFailures.length > 0;
 
 const auditSummary = {
   ok: audit.ok,
   errors: audit.summary.errors || 0,
   warnings: audit.summary.warnings || 0,
   scannedFiles: audit.summary.scannedFiles || 0,
-  stderr: audit.stderr,
+  stderr: scopeError || audit.stderr,
   groupedFindings,
 };
 if (verboseOutput) {
@@ -177,7 +241,7 @@ if (verboseOutput) {
 
 const summary = {
   root,
-  mode: changedOnly ? "changed" : "full",
+  mode: explicitFiles.length ? "files" : (changedOnly ? "changed" : "full"),
   ok: !failed,
   audit: auditSummary,
   syntax: {

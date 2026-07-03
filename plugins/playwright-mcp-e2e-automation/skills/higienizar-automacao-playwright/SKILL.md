@@ -29,6 +29,8 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Mover seletores e interacoes diretas da spec para Page Objects quando houver acoplamento claro.
 - Trocar metodos genericos como `clickButton1`, `fillInput2` e `goNext` por nomes funcionais.
 - Reduzir `.nth()`, `.first()` sem filtro, XPath sem justificativa, ID gerado e seletor estrutural fragil.
+- Corrigir indice escondido em `evaluate`, ID JSF gerado, ID JSF estavel espalhado sem helper e `waitForTimeout` sem anotacao padronizada de requisito explicito.
+- Preservar todos os criterios informados pelo usuario; nao simplificar filtro/assert sem confirmacao.
 - Preservar uma unica sessao de navegador por fluxo; nao abrir/fechar browser manualmente em spec Playwright Test.
 - Fortalecer assertions fracas para validar efeito funcional quando houver sinal estavel no codigo.
 

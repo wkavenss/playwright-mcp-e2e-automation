@@ -19,6 +19,12 @@ Classificar a causa principal antes de responder:
 
 Nao resumir como timeout quando houver mensagem funcional, regra de negocio ou bloqueio claro.
 
+## Reparo Rapido
+
+Apos a primeira falha, nao repetir a spec inteira para testar seletor. Primeiro usar `parse-error-context.mjs` para extrair arquivo, linha, locator, tipo e causa provavel. Se a falha for locator, strict mode, hidden/attached, timeout de elemento ou menu JSF, usar `repair-probe.mjs` com timeout curto ou confirmar na pagina MCP preservada.
+
+Probe curto nao valida regra funcional, persistencia, permissao ou massa; ele serve apenas para confirmar locator/estado. Reexecutar o menor cenario completo somente depois de uma correcao objetiva.
+
 ## Registro Minimo
 
 Com `evidencias: minimo`, registrar somente erro principal e proximo passo. Com `evidencias: falha` ou `completo`, para cada falha relevante registrar:
