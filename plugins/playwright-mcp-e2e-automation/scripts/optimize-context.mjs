@@ -12,7 +12,9 @@ const inputIndex = args.indexOf("--input");
 const modeIndex = args.indexOf("--mode");
 const requestedMode = modeIndex >= 0 ? args[modeIndex + 1] : "padrao";
 const cacheDir = path.join(root, ".playwright-e2e", "cache");
+const privateDomainDir = path.join(root, ".playwright-e2e", "private-domain");
 const cacheFiles = ["screens.json", "flows.json", "auth.json"];
+const privateDomainFiles = ["glossary.json", "legacy-patterns.json", "flow-hints.md", "selector-recipes.md"];
 const ignoredDirs = new Set([".git", "node_modules", "playwright-report", "test-results", "blob-report"]);
 const codeExtensions = new Set([".js", ".cjs", ".mjs", ".ts", ".tsx"]);
 const commonSurnames = new Set([
@@ -78,6 +80,8 @@ function sensitiveReasons(value, key = "") {
   const reasons = [];
   if (/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/.test(text)) reasons.push("cpf");
   if (/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/.test(text)) reasons.push("cnpj");
+  if (/\b\d{5,12}\b/.test(text)) reasons.push("identificador-institucional");
+  if (/\b[A-Z]{1,3}\d{5,9}\b/i.test(text)) reasons.push("identificador-documental");
   if (/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(text)) reasons.push("email");
   if (/\b(?:\(?\d{2}\)?\s*)?\d{4,5}-?\d{4}\b/.test(text)) reasons.push("telefone");
   if (hasLikelyPersonName(text)) reasons.push("nome-real-provavel");
@@ -155,6 +159,15 @@ function gitignoreAllowsCache() {
     .some((line) => line === ".playwright-e2e/cache/" || line === ".playwright-e2e/" || line === ".playwright-e2e/cache");
 }
 
+function gitignoreAllowsPrivateDomain() {
+  const gitignorePath = path.join(root, ".gitignore");
+  if (!fs.existsSync(gitignorePath)) return false;
+  return fs.readFileSync(gitignorePath, "utf8")
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .some((line) => line === ".playwright-e2e/private-domain/" || line === ".playwright-e2e/" || line === ".playwright-e2e/private-domain");
+}
+
 function readInput() {
   if (inputIndex >= 0 && args[inputIndex + 1]) {
     const file = path.resolve(root, args[inputIndex + 1]);
@@ -192,6 +205,8 @@ function sanitizePromptLine(line) {
     .replace(/(usuario|usuário|username|user)\s*[:=]\s*\S+/gi, "$1:<redacted>")
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "<email>")
     .replace(/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/g, "<documento>")
+    .replace(/\b[A-Z]{1,3}\d{5,9}\b/gi, "<identificador-documental>")
+    .replace(/\b\d{5,12}\b/g, "<identificador-institucional>")
     .replace(/\b(?:\(?\d{2}\)?\s*)?\d{4,5}-?\d{4}\b/g, "<telefone>")
     .replace(/\b[A-Z][A-Za-z]{2,}(?:\s+(?:de|da|do|dos|das|e))?\s+[A-Z][A-Za-z]{2,}(?:\s+[A-Z][A-Za-z]{2,}){0,4}\b/g, (match) => (
       hasLikelyPersonName(match) ? "<nome-provavel>" : match
@@ -317,6 +332,35 @@ function detectCacheStatus(caches, cacheIgnored) {
   };
 }
 
+function detectPrivateDomainStatus() {
+  const files = privateDomainFiles.map((name) => {
+    const file = path.join(privateDomainDir, name);
+    const exists = fs.existsSync(file) && fs.statSync(file).isFile();
+    let validJson = null;
+    let error = null;
+    let keys = [];
+    if (exists && name.endsWith(".json")) {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+        validJson = true;
+        keys = parsed && typeof parsed === "object" && !Array.isArray(parsed) ? Object.keys(parsed).slice(0, 12) : [];
+      } catch (parseError) {
+        validJson = false;
+        error = parseError.message;
+      }
+    }
+    return { name, exists, validJson, error, keys };
+  });
+  return {
+    exists: fs.existsSync(privateDomainDir),
+    ignoredByGit: gitignoreAllowsPrivateDomain(),
+    foundFiles: files.filter((file) => file.exists).map((file) => file.name),
+    missingFiles: files.filter((file) => !file.exists).map((file) => file.name),
+    invalidJson: files.filter((file) => file.validJson === false).map((file) => ({ name: file.name, error: file.error })),
+    files,
+  };
+}
+
 function likelyFilesToRead(shape) {
   return unique([
     shape.hasPackageJson ? "package.json" : null,
@@ -328,12 +372,18 @@ function likelyFilesToRead(shape) {
     ...cacheFiles
       .map((name) => path.join(".playwright-e2e/cache", name))
       .filter((file) => fs.existsSync(path.join(root, file))),
+    ...privateDomainFiles
+      .map((name) => path.join(".playwright-e2e/private-domain", name))
+      .filter((file) => fs.existsSync(path.join(root, file))),
   ]).slice(0, 10);
 }
 
-function buildRiskFlags({ shape, caches, cacheStatus, normalizedInput, rawInput, criteriaWarnings }) {
+function buildRiskFlags({ shape, caches, cacheStatus, privateDomainStatus, normalizedInput, rawInput, criteriaWarnings }) {
   const riskFlags = [];
   if (cacheStatus.files && !cacheStatus.ignoredByGit) riskFlags.push("cache-not-ignored");
+  if (privateDomainStatus.exists && !privateDomainStatus.ignoredByGit) riskFlags.push("private-domain-not-ignored");
+  if (privateDomainStatus.foundFiles.length) riskFlags.push("private-domain-available");
+  if (privateDomainStatus.invalidJson.length) riskFlags.push("private-domain-invalid-json");
   if (cacheStatus.invalidJson) riskFlags.push("cache-invalid-json");
   if (cacheStatus.sensitiveFindings) riskFlags.push("cache-sensitive-data");
   if (shape.isPlaywrightProject && !shape.hasPlaywrightConfig) riskFlags.push("missing-playwright-config");
@@ -392,7 +442,8 @@ const caches = cacheFiles.map((name) => {
 const projectShape = detectProjectShape(packageJson);
 const cacheIgnored = gitignoreAllowsCache();
 const cacheStatus = detectCacheStatus(caches, cacheIgnored);
-const riskFlags = buildRiskFlags({ shape: projectShape, caches, cacheStatus, normalizedInput, rawInput, criteriaWarnings });
+const privateDomainStatus = detectPrivateDomainStatus();
+const riskFlags = buildRiskFlags({ shape: projectShape, caches, cacheStatus, privateDomainStatus, normalizedInput, rawInput, criteriaWarnings });
 const recommendedMode = chooseRecommendedMode(requestedMode, riskFlags);
 const command = recommendedCommand(packageJson, projectShape.firstSpecFiles);
 
@@ -404,6 +455,7 @@ const summary = {
   cacheDir: path.relative(root, cacheDir),
   cacheIgnored,
   cacheStatus,
+  privateDomainStatus,
   caches,
   projectShape,
   likelyFilesToRead: likelyFilesToRead(projectShape),
@@ -416,11 +468,14 @@ const summary = {
     defaultChannel: "cli/cache before mcp",
     mcpOnlyWhen: ["tela-nao-mapeada", "seletor-ambiguo", "estado-real-incerto", "falha-nao-explicada-pelo-cli"],
     neverCache: ["senha", "cookies", "tokens", "storageState", "nomes-reais", "usuarios", "documentos", "emails", "telefones"],
+    privateDomain: "usar apenas quando existir localmente; nao copiar valores privados para arquivos versionados",
   },
 };
 
 const hasErrors = caches.some((cache) => cache.error || cache.sensitive.length)
-  || (cacheStatus.files > 0 && !cacheIgnored);
+  || (cacheStatus.files > 0 && !cacheIgnored)
+  || privateDomainStatus.invalidJson.length
+  || (privateDomainStatus.exists && !privateDomainStatus.ignoredByGit);
 
 if (jsonOutput) {
   console.log(JSON.stringify(summary, null, 2));

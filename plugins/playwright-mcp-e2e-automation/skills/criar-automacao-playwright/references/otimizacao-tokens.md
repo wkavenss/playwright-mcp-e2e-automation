@@ -10,16 +10,17 @@ Robustez prevalece sobre economia. Reduzir tokens por roteiro compacto, cache sa
 
 1. Normalizar o pedido em roteiro compacto: objetivo, perfil, passos, dados, telas esperadas, acoes, validacoes e restricoes.
 2. Consultar cache local em `.playwright-e2e/cache/` antes de abrir MCP.
-3. Classificar cada item do roteiro:
+3. Se existir `.playwright-e2e/private-domain/`, carregar apenas resumo/receitas relevantes como contexto local privado; nao copiar valores privados para codigo ou resposta.
+4. Classificar cada item do roteiro:
    - `cache`: tela, rota, label, seletor, acao ou validacao ja mapeados e ainda confiaveis.
    - `cli`: instalacao, scaffold, execucao, validacao, auditoria, repair incremental, lint/typecheck ou comando repetivel.
    - `mcp`: tela nao mapeada, seletor ambiguo, menu/modal/autocomplete/tabela dinamica, estado real incerto ou falha que o log nao explica.
    - `remover`: exploracao fora do escopo, log repetitivo, DOM completo, reprocessamento do passo bruto ou leitura desnecessaria.
-4. Descobrir via MCP somente os elementos necessarios para o proximo passo e uma validacao funcional.
-5. Manter a descoberta MCP em uma sessao/pagina continua por fluxo; nao abrir probes Playwright temporarios para cada tela ou seletor ainda nao codificado.
-6. Gerar ou alterar codigo de forma incremental.
-7. Validar por CLI no menor escopo que prove o fluxo.
-8. Em falha, usar MCP apenas se cache, codigo e log do CLI nao explicarem tela, seletor ou estado.
+5. Descobrir via MCP somente os elementos necessarios para o proximo passo e uma validacao funcional.
+6. Manter a descoberta MCP em uma sessao/pagina continua por fluxo; nao abrir probes Playwright temporarios para cada tela ou seletor ainda nao codificado.
+7. Gerar ou alterar codigo de forma incremental.
+8. Validar por CLI no menor escopo que prove o fluxo.
+9. Em falha, usar MCP apenas se cache, codigo e log do CLI nao explicarem tela, seletor ou estado.
 
 ## Seletores Confiaveis
 
@@ -54,6 +55,8 @@ Economia de tokens nao justifica copiar data observada ou valor valido apenas na
 ## Cache Local
 
 Cache permitido: `.playwright-e2e/cache/`, sempre ignorado pelo Git.
+
+Overlay privado permitido: `.playwright-e2e/private-domain/`, sempre ignorado pelo Git, para glossario, padroes e receitas locais. Ele reduz tokens por evitar reexplicar dominio recorrente, mas nao substitui validacao funcional nem pode ser versionado.
 
 Arquivos sugeridos:
 

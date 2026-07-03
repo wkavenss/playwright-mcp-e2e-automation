@@ -17,6 +17,8 @@ const nodeCheckExtensions = new Set([".js", ".cjs", ".mjs"]);
 const tsExtensions = new Set([".ts", ".tsx"]);
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const auditScript = path.join(scriptDir, "audit-playwright.mjs");
+const leakScript = path.join(scriptDir, "scan-public-leaks.mjs");
+const defaultChangedManifest = ".playwright-e2e/changed-files.json";
 let scopeError = "";
 
 function walk(directory) {
@@ -83,9 +85,17 @@ function manifestFiles(file) {
   }
 }
 
+function selectedManifest() {
+  const explicit = flagValues("--manifest")[0];
+  if (explicit) return explicit;
+  if (!changedOnly || flagValues("--files").length) return "";
+  if (isGitRepository()) return "";
+  return fs.existsSync(path.join(root, defaultChangedManifest)) ? defaultChangedManifest : "";
+}
+
 function explicitScopeFiles() {
   const files = flagValues("--files").map(scopedFile).filter(Boolean);
-  const manifest = flagValues("--manifest")[0];
+  const manifest = selectedManifest();
   return [...new Set([...files, ...manifestFiles(manifest)])];
 }
 
@@ -119,7 +129,7 @@ function compact(text) {
 function runAudit() {
   const args = [auditScript, root];
   if (explicitFiles.length) args.push("--files", ...explicitFiles.map(relative));
-  if (manifestArg) args.push("--manifest", manifestArg);
+  if (manifestArg || autoManifestArg) args.push("--manifest", manifestArg || autoManifestArg);
   if (changedOnly) args.push("--changed");
   args.push("--json");
   const result = spawnSync(process.execPath, args, { encoding: "utf8" });
@@ -136,6 +146,29 @@ function runAudit() {
       status: 1,
       summary: { errors: 1, warnings: 0, scannedFiles: 0, findings: [] },
       stderr: compact(result.stderr || result.stdout || "Falha ao ler JSON do auditor."),
+    };
+  }
+}
+
+function runLeakCheck() {
+  if (!fs.existsSync(path.join(root, ".codex-plugin", "plugin.json"))) {
+    return { checked: false, ok: true, findings: [], stderr: "" };
+  }
+  const result = spawnSync(process.execPath, [leakScript, root, "--json"], { encoding: "utf8" });
+  try {
+    const summary = JSON.parse(result.stdout || "{}");
+    return {
+      checked: true,
+      ok: Boolean(summary.ok),
+      findings: summary.findings || [],
+      stderr: compact(result.stderr),
+    };
+  } catch {
+    return {
+      checked: true,
+      ok: false,
+      findings: [],
+      stderr: compact(result.stderr || result.stdout || "Falha ao ler JSON do scanner publico."),
     };
   }
 }
@@ -208,9 +241,11 @@ function groupFindings(items) {
 
 const manifestArg = flagValues("--manifest")[0];
 const explicitFiles = explicitScopeFiles();
-const hasExplicitScope = flagValues("--files").length > 0 || Boolean(manifestArg);
+const autoManifestArg = selectedManifest();
+const hasExplicitScope = flagValues("--files").length > 0 || Boolean(manifestArg || autoManifestArg);
 const files = explicitFiles.length ? explicitFiles : (hasExplicitScope ? [] : (changedOnly ? changedFiles() : walk(root)));
 const audit = runAudit();
+const leaks = runLeakCheck();
 const syntax = checkNodeSyntax(files);
 const json = checkJson(files);
 const skippedTs = files.filter((file) => tsExtensions.has(path.extname(file))).map(relative);
@@ -225,7 +260,7 @@ const topFindings = findings.slice(0, 15).map((item) => ({
   line: item.line,
   message: item.message,
 }));
-const failed = Boolean(scopeError) || !audit.ok || (audit.summary.errors || 0) > 0 || syntaxFailures.length > 0 || jsonFailures.length > 0;
+const failed = Boolean(scopeError) || !audit.ok || !leaks.ok || (audit.summary.errors || 0) > 0 || syntaxFailures.length > 0 || jsonFailures.length > 0;
 
 const auditSummary = {
   ok: audit.ok,
@@ -253,6 +288,11 @@ const summary = {
     checked: json.length,
     failed: jsonFailures,
   },
+  publicLeaks: {
+    checked: leaks.checked,
+    failed: leaks.findings,
+    stderr: leaks.stderr,
+  },
 };
 
 if (jsonOutput) {
@@ -262,6 +302,9 @@ if (jsonOutput) {
   console.log(`Audit: ${summary.audit.errors} erro(s), ${summary.audit.warnings} alerta(s), ${summary.audit.scannedFiles} arquivo(s).`);
   console.log(`Node --check: ${summary.syntax.checked} arquivo(s), ${summary.syntax.failed.length} falha(s).`);
   console.log(`JSON: ${summary.json.checked} arquivo(s), ${summary.json.failed.length} falha(s).`);
+  if (summary.publicLeaks.checked) {
+    console.log(`Vazamento publico: ${summary.publicLeaks.failed.length} achado(s).`);
+  }
   if (summary.syntax.skippedTs.length) {
     console.log(`TS sem node --check: ${summary.syntax.skippedTs.length} arquivo(s).`);
   }
@@ -289,6 +332,9 @@ if (jsonOutput) {
   }
   for (const item of jsonFailures) {
     console.log(`ERROR json ${item.file} - ${item.message}`);
+  }
+  for (const item of summary.publicLeaks.failed) {
+    console.log(`ERROR private-domain-leak ${item.file}:${item.line} - ${item.message}`);
   }
 }
 

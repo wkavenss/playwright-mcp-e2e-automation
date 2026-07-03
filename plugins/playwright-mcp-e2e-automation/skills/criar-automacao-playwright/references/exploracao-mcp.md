@@ -19,6 +19,8 @@ Nao validar seletores em scripts Playwright temporarios enquanto a tela ainda es
 
 Em JSF/RichFaces, se precisar confirmar varios locators no mesmo estado, avancar uma vez ate a tela e executar todos os probes ali, na mesma pagina/sessao ou em um unico manifest de `repair-probe`. Nao abrir um `node -e` por locator.
 
+Quando houver HTML/snapshot local da tela, preferir `legacy-jsf-map.mjs --json --probes` para gerar mapa compacto de controles, links, popups, sinais JSF e manifest de probes. Usar esse mapa como sugestao; confirmar via UI real quando houver ambiguidade ou risco funcional.
+
 Nao capturar nem colar DOM completo, HTML completo, screenshots ou listas integrais de elementos quando um resumo de tela, labels relevantes e seletores candidatos bastarem. Registrar somente o mapa minimo necessario ao passo atual.
 
 ## Navegacao

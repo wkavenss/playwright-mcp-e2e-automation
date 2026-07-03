@@ -12,6 +12,7 @@ const jsonOutput = args.includes("--json");
 const changedOnly = args.includes("--changed");
 const ignoredDirs = new Set([".git", "node_modules", "playwright-report", "test-results", "blob-report"]);
 const codeExtensions = new Set([".js", ".cjs", ".mjs", ".ts", ".tsx"]);
+const defaultChangedManifest = ".playwright-e2e/changed-files.json";
 const commonSurnames = new Set([
   "almeida", "alves", "araujo", "barbosa", "batista", "carvalho", "costa", "dias",
   "ferreira", "gomes", "lima", "martins", "nascimento", "oliveira", "pereira",
@@ -87,10 +88,18 @@ function manifestFiles(file) {
   }
 }
 
+function selectedManifest() {
+  const explicit = flagValues("--manifest")[0];
+  if (explicit) return explicit;
+  if (!changedOnly || flagValues("--files").length) return "";
+  if (isGitRepository()) return "";
+  return fs.existsSync(path.join(root, defaultChangedManifest)) ? defaultChangedManifest : "";
+}
+
 function explicitScopeFiles() {
   return [...new Set([
     ...flagValues("--files").map(scopedFile).filter(Boolean),
-    ...manifestFiles(flagValues("--manifest")[0]),
+    ...manifestFiles(selectedManifest()),
   ])];
 }
 
@@ -135,7 +144,13 @@ function hasNearby(content, index, pattern, radius = 180) {
 function hasAllowedWaitComment(content, index) {
   const start = Math.max(0, index - 180);
   const before = content.slice(start, index);
-  return /playwright-e2e-allow-wait:\s*requisito-explicito-do-usuario\b/i.test(before);
+  return /playwright-e2e-allow-wait:\s*requisito-explicito-do-usuario\b|Requisito explicito do roteiro/i.test(before);
+}
+
+function hasFunctionalWaitGuard(content, index) {
+  const start = Math.max(0, index - 500);
+  const end = Math.min(content.length, index + 500);
+  return /\bexpect\s*\(|\btoHave(?:Text|URL|Value|Count|Attribute|Title)\s*\(|\bvalidar[A-Za-z0-9_]*\s*\(|\bwaitForEvent\s*\(\s*["'`]download/.test(content.slice(start, end));
 }
 
 function evaluateBlocks(content) {
@@ -302,7 +317,7 @@ function hasDirectory(relativePath) {
 }
 
 const scopedFiles = explicitScopeFiles();
-const hasExplicitScope = flagValues("--files").length > 0 || Boolean(flagValues("--manifest")[0]);
+const hasExplicitScope = flagValues("--files").length > 0 || Boolean(flagValues("--manifest")[0] || selectedManifest());
 const files = scopedFiles.length ? scopedFiles : (hasExplicitScope ? [] : (changedOnly ? changedFiles() : walk(root)));
 const codeFiles = files.filter((file) => codeExtensions.has(path.extname(file)));
 const specFiles = codeFiles.filter((file) => /(?:\.spec|\.test)\.[cm]?[jt]sx?$/.test(file));
@@ -321,7 +336,7 @@ for (const file of codeFiles) {
   const rel = relative(file);
   const automationFile = isAutomationFile(rel);
   const wait = firstMatch(content, /\bwaitForTimeout\s*\(/g);
-  if (wait && !hasAllowedWaitComment(content, wait.index)) {
+  if (wait && !(hasAllowedWaitComment(content, wait.index) && hasFunctionalWaitGuard(content, wait.index))) {
     add("warning", "fixed-timeout", rel, lineNumber(content, wait.index), "Evite waitForTimeout; espere uma condicao observavel ou anote requisito explicito do usuario.");
   }
 

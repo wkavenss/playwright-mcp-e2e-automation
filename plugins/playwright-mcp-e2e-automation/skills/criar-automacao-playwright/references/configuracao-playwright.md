@@ -56,6 +56,7 @@ Se o projeto ja usar outro mecanismo, preservar o padrao. Quando o usuario forne
 - criar `.env.example` com nomes e valores vazios/ficticios;
 - garantir `.env` no `.gitignore`;
 - garantir `.playwright-e2e/cache/` no `.gitignore`;
+- garantir `.playwright-e2e/private-domain/` no `.gitignore` quando houver overlay privado local;
 - usar `getAuthProfile(profileName)` nas specs e `process.env` somente dentro do helper;
 - nao repetir segredos em README, logs, traces, screenshots ou resposta final.
 
@@ -133,6 +134,12 @@ Com `evidencias: minimo`, nao criar nem atualizar README por causa de evidencias
 - Nao salvar no cache datas concretas que devem ser dinamicas; registrar somente a estrategia, como "inicio = hoje" e "fim = inicio + 30 dias".
 - Tratar cache como sugestao. Confirmar via MCP quando houver falha, tela alterada, seletor ambiguo, permissao diferente ou estado dinamico.
 - Se o cache contiver dado sensivel, descartar o trecho e corrigir o cache antes de continuar.
+
+## Overlay Privado Local
+
+Quando existir `.playwright-e2e/private-domain/`, tratar como camada local opcional com glossario, padroes legados, dicas de fluxo e receitas de seletor do projeto. Arquivos esperados: `glossary.json`, `legacy-patterns.json`, `flow-hints.md` e `selector-recipes.md`.
+
+Esse conteudo deve permanecer ignorado pelo Git. Usar `private-domain-context.mjs` ou `optimize-context.mjs` para obter resumo compacto; nao copiar nomes, caminhos, mensagens, URLs, instituicoes, usuarios, dados reais ou exemplos privados para README, specs, Page Objects, fixtures versionadas, logs ou resposta final.
 
 ## Higiene De Codigo Gerado
 

@@ -32,6 +32,8 @@ Elemento JSF `attached` e `hidden` nao e automaticamente erro: menus, submenus e
 
 Se `getByText` gerar duplicidade, nao troque o criterio por outro mais fraco. Escopar por formulario, menu, tabela, linha, cabecalho ou criterio composto informado pelo usuario. Se uma alternativa preservar apenas parte do criterio, pedir confirmacao antes de alterar.
 
+Quando houver snapshot/HTML de tela legada, usar `legacy-jsf-map.mjs` para extrair controles, links, sinais `jsfcljs`, troca de aba, `_blank`, popup por formulario e links por icone. Gerar um unico manifest de probes por tela em vez de validar um seletor por processo.
+
 Para campos em formularios tabulares ou telas legadas:
 
 - Preferir `getByLabel`, `getByRole` e `getByText` escopado quando houver nome acessivel.

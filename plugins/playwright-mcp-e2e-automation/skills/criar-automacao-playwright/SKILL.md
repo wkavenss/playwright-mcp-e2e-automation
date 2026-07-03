@@ -27,6 +27,7 @@ Economizar tokens por roteiro compacto, leitura seletiva, cache sanitizado, scri
 - Datas: gerar datas dinamicas, periodos, anos, semestres, prazos e vencimentos em runtime ou parametrizar localmente quando a regra exigir valor oficial.
 - Reprodutibilidade: a spec deve rodar por CLI em outra maquina com Node, Playwright, Chromium, projeto versionado e `.env` preenchido, sem depender de sessao MCP, perfil local, `storageState` manual ou caminho absoluto.
 - Cache: consultar `.playwright-e2e/cache/` antes do MCP, mas tratar cache sanitizado como sugestao; confirmar via MCP quando houver falha, mudanca visual, seletor ambiguo, permissao diferente ou cache inseguro.
+- Contexto privado: se `.playwright-e2e/private-domain/` existir, usar somente como overlay local ignorado pelo Git; nunca copiar nomes, valores, caminhos, mensagens ou exemplos privados para arquivos publicos/versionados.
 - seletores estaveis: priorizar `getByRole`, `getByLabel`, `getByPlaceholder`, texto escopado, `getByTestId`, ID estavel centralizado ou CSS semantico relativo; XPath so em ultimo caso.
 - Fragilidade proibida: evitar indice, posicao visual, classe gerada, ID JSF gerado, `.nth()` e `.first()` sem filtro estavel.
 - Obrigatoriedade: campos com estrela/asterisco azul na label sao obrigatorios; nao submeter formulario vazio apenas para descobrir obrigatoriedade.
@@ -40,16 +41,16 @@ Economizar tokens por roteiro compacto, leitura seletiva, cache sanitizado, scri
 1. Validar contrato minimo, modo (`padrao` se ausente) e evidencias (`minimo` se ausente).
 2. Normalizar o pedido em roteiro compacto: objetivo, perfil, passos, dados, telas, acoes, validacoes e restricoes.
 3. Executar `node ../../scripts/check-environment.mjs <raiz-do-projeto>`; se faltar requisito, parar e devolver os comandos objetivos do script.
-4. Executar `node ../../scripts/optimize-context.mjs <raiz-do-projeto> --mode <modo> --json --stdin` com roteiro sanitizado; usar `projectShape`, `cacheStatus`, `recommendedCommand`, `likelyFilesToRead`, `riskFlags`, `requiredUserCriteria`, `criteriaWarnings` e `nextAction` para ler menos sem ignorar riscos.
+4. Executar `node ../../scripts/optimize-context.mjs <raiz-do-projeto> --mode <modo> --json --stdin` com roteiro sanitizado; usar `projectShape`, `cacheStatus`, `privateDomainStatus`, `recommendedCommand`, `likelyFilesToRead`, `riskFlags`, `requiredUserCriteria`, `criteriaWarnings` e `nextAction` para ler menos sem ignorar riscos.
 5. Se o projeto nao tiver Playwright equivalente, executar `../../scripts/scaffold-playwright.mjs <raiz-do-projeto>`; o scaffolder e deterministico e nao deve sobrescrever arquivos existentes.
 6. Classificar cada passo como `cache`, `cli`, `mcp` ou `remover`. Nao chamar MCP para item coberto por cache confiavel, codigo existente ou CLI deterministica.
-7. Quando MCP for necessario, mapear somente o proximo passo e uma validacao funcional, mantendo a mesma pagina/sessao do fluxo; em JSF/RichFaces, avancar uma vez ate o estado e executar probes/confirmacoes ali, sem reiniciar por locator.
+7. Quando MCP for necessario, mapear somente o proximo passo e uma validacao funcional, mantendo a mesma pagina/sessao do fluxo; em JSF/RichFaces, usar `legacy-jsf-map.mjs`/manifest unico quando houver HTML/snapshot e executar probes/confirmacoes no mesmo estado, sem reiniciar por locator.
 8. Antes de acao persistente, confirmar campos obrigatorios, massa dinamica/rastreavel e validacao final para evitar registros parciais ou lixo funcional.
 9. Implementar a menor superficie: spec, Page Objects, utilitarios, dados e configuracao estritamente necessarios.
 10. Validar pelo menor comando CLI util, preferindo scripts locais ou `npx playwright test --headed --reporter=line`.
 11. Se o CLI falhar por locator/strict/hidden/attached/timeout/menu JSF, executar `../../scripts/parse-error-context.mjs <raiz-do-projeto> --input <error-context.md|log> --json` e, quando houver alvo, `../../scripts/repair-probe.mjs <raiz-do-projeto> --manifest <probes.json> --json` ou confirmar na pagina MCP preservada antes de repetir a spec inteira. Repetir o menor CLI so depois de correcao objetiva.
 12. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto> --changed`; se nao houver Git, usar `--files <arquivos>` ou `--manifest .playwright-e2e/changed-files.json`. Usar o resumo agrupado, ler so o primeiro exemplo de cada regra e tratar repeticoes com busca pontual (`rg`). Usar `--verbose` apenas quando o agrupamento nao explicar a correcao.
-13. Antes da resposta final, conferir reprodutibilidade, dados dinamicos, ausencia de segredos/lixo de codigo e validacao funcional.
+13. Antes da resposta final, conferir reprodutibilidade, dados dinamicos, ausencia de segredos/lixo de codigo, validacao funcional e, em plugin/release publico, `../../scripts/scan-public-leaks.mjs <plugin>`.
 
 ## Modos
 

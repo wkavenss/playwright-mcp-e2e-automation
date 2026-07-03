@@ -263,6 +263,7 @@ module.exports = {
 ensureLines(".gitignore", [
   ".env",
   ".playwright-e2e/cache/",
+  ".playwright-e2e/private-domain/",
   ".playwright-e2e/changed-files.json",
   ".playwright-e2e/error-context.md",
   "test-results/",

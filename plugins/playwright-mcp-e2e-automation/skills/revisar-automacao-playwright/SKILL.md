@@ -34,6 +34,7 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Fluxos de negocio que atravessam varias telas devem preservar uma unica sessao de navegador dentro do mesmo `test`; dividir cada tela em um teste independente ou abrir/fechar navegador manualmente aumenta fragilidade e pode gerar dados duplicados.
 - A suite deve ser reprodutivel por outra pessoa com o mesmo perfil funcional e `.env` preenchido; dependencias de sessao local, perfil persistente, `storageState` manual, caminhos absolutos, `test.only/skip` ou massa escondida fora do projeto sao defeitos.
 - `.playwright-e2e/cache/` deve estar ignorado e conter somente mapas sanitizados; cache com senha, cookies, tokens, storageState, nomes reais, usuarios, documentos, emails ou telefones e defeito.
+- `.playwright-e2e/private-domain/`, quando existir, deve estar ignorado e nunca deve ter conteudo copiado para arquivos publicos/versionados.
 - Testes devem evitar dependencia de ordem, dados compartilhados imprevisiveis e efeitos destrutivos sem controle.
 - Configuracao padrao do plugin deve usar Chromium headed e evidencias minimas, salvo decisao explicita do projeto.
 

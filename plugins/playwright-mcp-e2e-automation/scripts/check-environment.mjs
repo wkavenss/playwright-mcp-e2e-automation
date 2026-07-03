@@ -6,7 +6,10 @@ import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 
 const root = path.resolve(process.argv[2] || process.cwd());
-const jsonOutput = process.argv.includes("--json");
+const args = process.argv.slice(3);
+const jsonOutput = args.includes("--json");
+const smokeBrowser = args.includes("--smoke-browser");
+const headedSmoke = args.includes("--headed") || args.includes("--headed-smoke");
 
 function commandOk(command) {
   const result = spawnSync(`${command} --version`, {
@@ -43,6 +46,27 @@ function chromiumStatus() {
   }
 }
 
+async function smokeBrowserStatus() {
+  if (!smokeBrowser) {
+    return { requested: false, ok: null, headed: headedSmoke, reason: null, message: null };
+  }
+  try {
+    const requireFromRoot = createRequire(path.join(root, "package.json"));
+    const { chromium } = requireFromRoot("@playwright/test");
+    const browser = await chromium.launch({ headless: !headedSmoke, timeout: 8000 });
+    await browser.close();
+    return { requested: true, ok: true, headed: headedSmoke, reason: null, message: null };
+  } catch (error) {
+    const message = String(error?.message || error);
+    const reason = /executable doesn't exist|browser.*not found|install/i.test(message)
+      ? "browser-missing"
+      : (/operation not permitted|not allowed|sandbox|permission|quarantine/i.test(message)
+        ? "sandbox-or-permission"
+        : (/display|headless|headed|window/i.test(message) ? "headed-not-available" : "launch-failed"));
+    return { requested: true, ok: false, headed: headedSmoke, reason, message: message.split(/\r?\n/).slice(0, 3).join(" ") };
+  }
+}
+
 const checks = {
   node: commandOk("node"),
   npm: commandOk("npm"),
@@ -53,7 +77,9 @@ const checks = {
 };
 
 const chromium = chromiumStatus();
-checks.chromium = chromium.ok;
+const smoke = await smokeBrowserStatus();
+checks.chromiumInstalled = chromium.ok;
+if (smoke.requested) checks.chromiumSmoke = smoke.ok;
 
 const missing = Object.entries(checks)
   .filter(([, ok]) => !ok)
@@ -66,7 +92,8 @@ const labels = {
   git: "Git",
   playwrightTest: "@playwright/test",
   dotenv: "dotenv",
-  chromium: "Chromium do Playwright",
+  chromiumInstalled: "Chromium do Playwright",
+  chromiumSmoke: "Chromium headed executavel neste ambiente",
 };
 
 function installCommandsFor(platform) {
@@ -74,7 +101,7 @@ function installCommandsFor(platform) {
   const needsNode = missing.some((item) => ["node", "npm", "npx"].includes(item));
   const needsGit = missing.includes("git");
   const needsProjectDeps = missing.some((item) => ["playwrightTest", "dotenv"].includes(item));
-  const needsChromium = missing.includes("chromium");
+  const needsChromium = missing.includes("chromiumInstalled");
 
   if (platform === "windows") {
     if (needsNode) commands.push("winget install OpenJS.NodeJS.LTS");
@@ -107,6 +134,7 @@ const result = {
   ok: missing.length === 0,
   checks,
   chromiumExecutablePath: chromium.executablePath,
+  browserSmoke: smoke,
   missing,
   commands: {
     windows: installCommandsFor("windows"),
@@ -131,6 +159,9 @@ if (jsonOutput) {
     console.log("");
   }
   console.log("Depois de instalar Node.js, Git ou Codex CLI, feche e abra o terminal/Codex novamente.");
+  if (smoke.requested && !smoke.ok && smoke.reason === "sandbox-or-permission") {
+    console.log("Smoke do browser falhou por permissao/sandbox. Reabra o Codex/terminal com permissao adequada ou rode o teste headed fora do sandbox.");
+  }
 }
 
 process.exitCode = result.ok ? 0 : 1;

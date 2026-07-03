@@ -21,7 +21,7 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 8. Gerar/usar `tests/utils/authProfiles.js` para que cada spec declare seu perfil funcional com `getAuthProfile(profileName)`.
 9. Gerar/usar `tests/utils/testData.js` para `runId`, textos neutros e datas dinamicas.
 10. Gerar/usar `tests/utils/legacyForm.js` para radio/checkbox por label de campo + label de opcao, com unicidade e sem indice cego.
-11. Manter `.playwright-e2e/cache/` e manifestos locais fora do versionamento para mapas sanitizados.
+11. Manter `.playwright-e2e/cache/`, `.playwright-e2e/private-domain/` e manifestos locais fora do versionamento para mapas/contexto local sanitizados.
 12. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto> --changed`; se nao houver Git, usar `--files <arquivos>` ou `--manifest .playwright-e2e/changed-files.json`.
 13. Informar arquivos criados, dependencias instaladas e comandos disponiveis.
 
@@ -34,6 +34,6 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - `trace`, `screenshot` e `video` desligados por padrao.
 - Scripts `test:e2e` e `test:e2e:headed`.
 - Variaveis `BASE_URL`, `E2E_WORKERS` e credenciais por perfil, como `E2E_EXAMPLE_USERNAME`/`E2E_EXAMPLE_PASSWORD`.
-- `.playwright-e2e/cache/`, `.playwright-e2e/changed-files.json` e `.playwright-e2e/error-context.md` ignorados para dados locais sanitizados.
+- `.playwright-e2e/cache/`, `.playwright-e2e/private-domain/`, `.playwright-e2e/changed-files.json` e `.playwright-e2e/error-context.md` ignorados para dados locais sanitizados.
 
 Nao criar teste de exemplo, README, trace, screenshot ou video. O scaffolder e nao destrutivo e nao sobrescreve arquivos existentes.

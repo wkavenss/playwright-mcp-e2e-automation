@@ -25,6 +25,7 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Remover `console.log`, `debugger`, `TODO/FIXME`, codigo comentado e sobra de codegen.
 - Remover erro bruto, stack trace, timeout ou texto transitorio copiado para string, comentario, fixture ou assert.
 - Substituir nomes reais, usuarios, documentos, emails, telefones e identificadores por `.env`, fixture local ignorada ou massa neutra.
+- Mover contexto privado recorrente para `.playwright-e2e/private-domain/` quando for local ao projeto e garantir que nao seja versionado.
 - Substituir datas, anos, periodos, semestres e prazos fixos por geradores dinamicos ou parametro local quando a regra exigir valor oficial.
 - Mover seletores e interacoes diretas da spec para Page Objects quando houver acoplamento claro.
 - Trocar metodos genericos como `clickButton1`, `fillInput2` e `goNext` por nomes funcionais.
@@ -42,6 +43,7 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Nao inventar massa funcional que altere regra de negocio.
 - Nao instalar dependencias nem baixar navegador sem autorizacao.
 - Nao reformatar ou reescrever arquivos sem relacao com a higiene solicitada.
+- Nao copiar conteudo do overlay privado para README, codigo, fixtures versionadas ou resposta final.
 
 ## Saida
 
