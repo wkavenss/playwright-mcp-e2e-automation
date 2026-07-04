@@ -114,6 +114,3 @@ Passo a passo:
 ```
 
 Com esses dados, o plugin gera código Playwright E2E com Page Objects, `.env`, perfis de autenticação por spec, validação em Chromium headed e evidências mínimas por padrão.
-O código gerado deve ser reprodutível por CLI em outro ambiente com o mesmo perfil funcional e `.env` preenchido.
-
-Para limpar e endurecer uma automação existente sem recriar o fluxo, use `$higienizar-automacao-playwright`.
