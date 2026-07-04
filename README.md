@@ -62,7 +62,7 @@ npm install -D @playwright/test dotenv
 npm exec -- playwright install chromium
 ```
 
-Rode esses comandos nessa ordem e dentro da pasta do projeto. Se você executar `npx playwright install chromium` antes de instalar `@playwright/test`, ou fora da pasta do projeto, o `npx` pode baixar o navegador para outra versão do Playwright.
+Rode esses comandos nessa ordem e dentro da pasta do projeto.
 
 No Windows PowerShell, se aparecer bloqueio de `npm.ps1` ou `npx.ps1` pela Execution Policy, use:
 
