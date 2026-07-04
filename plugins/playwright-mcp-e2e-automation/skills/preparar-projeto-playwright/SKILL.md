@@ -16,7 +16,7 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 3. Detectar o package manager pelo lockfile; nao criar lockfile concorrente.
 4. Executar `../../scripts/scaffold-playwright.mjs <raiz-do-projeto>` a partir desta skill.
 5. Instalar `@playwright/test` e `dotenv` como dependencias de desenvolvimento somente quando ausentes e com autorizacao de rede.
-6. Instalar Chromium somente quando necessario e com autorizacao de rede.
+6. Instalar Chromium somente quando necessario, apos as dependencias do projeto, usando o CLI local (`npm exec -- playwright install chromium`; no Windows PowerShell, usar `npm.cmd exec -- playwright install chromium` se `.ps1` for bloqueado).
 7. Manter `.env` fora do versionamento e deixar `.env.example` sem valores secretos.
 8. Gerar/usar `tests/utils/authProfiles.js` para que cada spec declare seu perfil funcional com `getAuthProfile(profileName)`.
 9. Gerar/usar `tests/utils/testData.js` para `runId`, textos neutros e datas dinamicas.

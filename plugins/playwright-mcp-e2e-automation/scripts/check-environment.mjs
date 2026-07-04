@@ -10,6 +10,7 @@ const args = process.argv.slice(3);
 const jsonOutput = args.includes("--json");
 const smokeBrowser = args.includes("--smoke-browser");
 const headedSmoke = args.includes("--headed") || args.includes("--headed-smoke");
+const rootPackageJson = path.join(root, "package.json");
 
 function commandOk(command) {
   const result = spawnSync(`${command} --version`, {
@@ -20,28 +21,73 @@ function commandOk(command) {
   return result.status === 0;
 }
 
+function oneLine(value) {
+  return String(value || "").split(/\r?\n/).filter(Boolean)[0] || "";
+}
+
 function resolveFromRoot(packageName) {
   try {
-    const requireFromRoot = createRequire(path.join(root, "package.json"));
+    const requireFromRoot = createRequire(rootPackageJson);
     return requireFromRoot.resolve(packageName);
   } catch {
     return null;
   }
 }
 
-function chromiumStatus() {
+function packageInfo(packageName) {
   try {
-    const requireFromRoot = createRequire(path.join(root, "package.json"));
-    const { chromium } = requireFromRoot("@playwright/test");
-    const executablePath = chromium.executablePath();
+    const requireFromRoot = createRequire(rootPackageJson);
+    const packageJsonPath = requireFromRoot.resolve(`${packageName}/package.json`);
+    const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
     return {
-      ok: fs.existsSync(executablePath),
-      executablePath,
+      ok: true,
+      packageJsonPath,
+      version: packageJson.version || null,
+      error: null,
     };
-  } catch {
+  } catch (error) {
+    return {
+      ok: false,
+      packageJsonPath: null,
+      version: null,
+      error: oneLine(error?.message || error),
+    };
+  }
+}
+
+function chromiumStatus(playwrightInfo) {
+  if (!playwrightInfo.ok) {
     return {
       ok: false,
       executablePath: null,
+      reason: "playwright-test-missing",
+      packageJsonPath: null,
+      version: null,
+      message: playwrightInfo.error,
+    };
+  }
+
+  try {
+    const requireFromRoot = createRequire(rootPackageJson);
+    const { chromium } = requireFromRoot("@playwright/test");
+    const executablePath = chromium.executablePath();
+    const installed = fs.existsSync(executablePath);
+    return {
+      ok: installed,
+      executablePath,
+      reason: installed ? null : "chromium-executable-missing",
+      packageJsonPath: playwrightInfo.packageJsonPath,
+      version: playwrightInfo.version,
+      message: null,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      executablePath: null,
+      reason: "chromium-resolution-failed",
+      packageJsonPath: playwrightInfo.packageJsonPath,
+      version: playwrightInfo.version,
+      message: oneLine(error?.message || error),
     };
   }
 }
@@ -51,7 +97,7 @@ async function smokeBrowserStatus() {
     return { requested: false, ok: null, headed: headedSmoke, reason: null, message: null };
   }
   try {
-    const requireFromRoot = createRequire(path.join(root, "package.json"));
+    const requireFromRoot = createRequire(rootPackageJson);
     const { chromium } = requireFromRoot("@playwright/test");
     const browser = await chromium.launch({ headless: !headedSmoke, timeout: 8000 });
     await browser.close();
@@ -63,20 +109,23 @@ async function smokeBrowserStatus() {
       : (/operation not permitted|not allowed|sandbox|permission|quarantine/i.test(message)
         ? "sandbox-or-permission"
         : (/display|headless|headed|window/i.test(message) ? "headed-not-available" : "launch-failed"));
-    return { requested: true, ok: false, headed: headedSmoke, reason, message: message.split(/\r?\n/).slice(0, 3).join(" ") };
+    return { requested: true, ok: false, headed: headedSmoke, reason, message: oneLine(message) };
   }
 }
+
+const playwrightInfo = packageInfo("@playwright/test");
+const dotenvInfo = packageInfo("dotenv");
 
 const checks = {
   node: commandOk("node"),
   npm: commandOk("npm"),
   npx: commandOk("npx"),
   git: commandOk("git"),
-  playwrightTest: Boolean(resolveFromRoot("@playwright/test")),
-  dotenv: Boolean(resolveFromRoot("dotenv")),
+  playwrightTest: playwrightInfo.ok,
+  dotenv: dotenvInfo.ok || Boolean(resolveFromRoot("dotenv")),
 };
 
-const chromium = chromiumStatus();
+const chromium = chromiumStatus(playwrightInfo);
 const smoke = await smokeBrowserStatus();
 checks.chromiumInstalled = chromium.ok;
 if (smoke.requested) checks.chromiumSmoke = smoke.ok;
@@ -92,7 +141,7 @@ const labels = {
   git: "Git",
   playwrightTest: "@playwright/test",
   dotenv: "dotenv",
-  chromiumInstalled: "Chromium do Playwright",
+  chromiumInstalled: "Chromium esperado pelo @playwright/test do projeto",
   chromiumSmoke: "Chromium headed executavel neste ambiente",
 };
 
@@ -102,6 +151,7 @@ function installCommandsFor(platform) {
   const needsGit = missing.includes("git");
   const needsProjectDeps = missing.some((item) => ["playwrightTest", "dotenv"].includes(item));
   const needsChromium = missing.includes("chromiumInstalled");
+  const npmCommand = platform === "windows" ? "npm.cmd" : "npm";
 
   if (platform === "windows") {
     if (needsNode) commands.push("winget install OpenJS.NodeJS.LTS");
@@ -123,19 +173,44 @@ function installCommandsFor(platform) {
     }
   }
 
-  if (needsProjectDeps) commands.push("npm install -D @playwright/test dotenv");
-  if (needsChromium) commands.push("npx playwright install chromium");
+  if (needsProjectDeps) commands.push(`${npmCommand} install -D @playwright/test dotenv`);
+  if (needsChromium) commands.push(`${npmCommand} exec -- playwright install chromium`);
 
   return commands;
+}
+
+const diagnostics = [];
+if (!checks.playwrightTest) {
+  diagnostics.push("Instale @playwright/test no projeto antes de instalar o Chromium; o plugin valida a revisao do Playwright local.");
+} else if (!checks.chromiumInstalled) {
+  const version = chromium.version ? ` ${chromium.version}` : "";
+  const location = chromium.executablePath ? ` em ${chromium.executablePath}` : "";
+  diagnostics.push(`Chromium esperado pelo @playwright/test${version} do projeto nao foi encontrado${location}. Rode o instalador a partir da raiz do projeto.`);
+}
+if (process.platform === "win32" && missing.some((item) => ["npm", "npx", "playwrightTest", "chromiumInstalled"].includes(item))) {
+  diagnostics.push("No PowerShell, se a Execution Policy bloquear npm.ps1 ou npx.ps1, use npm.cmd/npx.cmd ou abra o Prompt de Comando.");
 }
 
 const result = {
   root,
   ok: missing.length === 0,
   checks,
+  playwright: {
+    installed: playwrightInfo.ok,
+    packageJsonPath: playwrightInfo.packageJsonPath,
+    version: playwrightInfo.version,
+    error: playwrightInfo.error,
+  },
+  dotenv: {
+    installed: checks.dotenv,
+    packageJsonPath: dotenvInfo.packageJsonPath,
+    version: dotenvInfo.version,
+  },
+  chromium,
   chromiumExecutablePath: chromium.executablePath,
   browserSmoke: smoke,
   missing,
+  diagnostics,
   commands: {
     windows: installCommandsFor("windows"),
     macos: installCommandsFor("macos"),
@@ -151,6 +226,8 @@ if (jsonOutput) {
   const missingLabels = missing.map((item) => labels[item]).join(", ");
   console.log(`Ambiente incompleto: faltam ${missingLabels}.`);
   console.log("");
+  for (const diagnostic of diagnostics) console.log(`Nota: ${diagnostic}`);
+  if (diagnostics.length) console.log("");
   for (const [platform, commands] of Object.entries(result.commands)) {
     if (!commands.length) continue;
     const title = platform === "macos" ? "macOS" : platform === "linux" ? "Linux" : "Windows";
@@ -158,7 +235,9 @@ if (jsonOutput) {
     for (const command of commands) console.log(command);
     console.log("");
   }
-  console.log("Depois de instalar Node.js, Git ou Codex CLI, feche e abra o terminal/Codex novamente.");
+  if (missing.some((item) => ["node", "npm", "npx", "git"].includes(item))) {
+    console.log("Depois de instalar Node.js ou Git, feche e abra o terminal/Codex novamente.");
+  }
   if (smoke.requested && !smoke.ok && smoke.reason === "sandbox-or-permission") {
     console.log("Smoke do browser falhou por permissao/sandbox. Reabra o Codex/terminal com permissao adequada ou rode o teste headed fora do sandbox.");
   }

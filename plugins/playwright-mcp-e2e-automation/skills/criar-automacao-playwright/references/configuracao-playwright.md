@@ -6,7 +6,14 @@ Use este arquivo para projeto novo, instalacao/configuracao, scripts, `.env`, ev
 
 Antes de instalar ou executar, detectar `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `bun.lockb`, `package.json` e scripts existentes. Preservar o gerenciador e os scripts locais quando ja existirem.
 
-Instalar dependencias e Chromium somente quando necessario e com autorizacao quando houver rede/sandbox.
+Instalar dependencias e Chromium somente quando necessario e com autorizacao quando houver rede/sandbox. Instalar primeiro `@playwright/test` no projeto e depois o Chromium pela CLI local do projeto:
+
+```bash
+npm install -D @playwright/test dotenv
+npm exec -- playwright install chromium
+```
+
+Nao tratar `npx playwright install chromium` executado fora da raiz, ou antes da dependencia local, como prova suficiente: ele pode instalar uma revisao transitoria diferente da esperada pelo `@playwright/test` do projeto. No Windows PowerShell, se a Execution Policy bloquear `npm.ps1`/`npx.ps1`, usar `npm.cmd exec -- playwright install chromium`.
 
 ## Execucao Por CLI
 

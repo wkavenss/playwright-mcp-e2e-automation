@@ -55,17 +55,26 @@ Se ainda não existir `package.json`:
 npm init -y
 ```
 
-Instale Playwright Test, dotenv e Chromium:
+Instale Playwright Test, dotenv e o Chromium esperado pelo Playwright do projeto:
 
 ```bash
 npm install -D @playwright/test dotenv
-npx playwright install chromium
+npm exec -- playwright install chromium
+```
+
+Rode esses comandos nessa ordem e dentro da pasta do projeto. Se você executar `npx playwright install chromium` antes de instalar `@playwright/test`, ou fora da pasta do projeto, o `npx` pode baixar o navegador para outra versão do Playwright.
+
+No Windows PowerShell, se aparecer bloqueio de `npm.ps1` ou `npx.ps1` pela Execution Policy, use:
+
+```powershell
+npm.cmd install -D @playwright/test dotenv
+npm.cmd exec -- playwright install chromium
 ```
 
 No Linux, se faltar dependência do sistema:
 
 ```bash
-npx playwright install --with-deps chromium
+npm exec -- playwright install --with-deps chromium
 ```
 
 Preparar o projeto antes de chamar o plugin reduz paradas, diagnósticos e consumo de tokens. Se algo faltar, o plugin ainda pode apontar os comandos necessários.
