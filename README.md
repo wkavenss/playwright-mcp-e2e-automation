@@ -64,7 +64,7 @@ npm exec -- playwright install chromium
 
 Rode esses comandos nessa ordem e dentro da pasta do projeto.
 
-No Windows PowerShell, se aparecer bloqueio de `npm.ps1` ou `npx.ps1` pela Execution Policy, use:
+No Windows PowerShell, se aparecer bloqueio de `npm.ps1` ou `npx.ps1`, use:
 
 ```powershell
 npm.cmd install -D @playwright/test dotenv
@@ -117,27 +117,3 @@ Com esses dados, o plugin gera código Playwright E2E com Page Objects, `.env`, 
 O código gerado deve ser reprodutível por CLI em outro ambiente com o mesmo perfil funcional e `.env` preenchido.
 
 Para limpar e endurecer uma automação existente sem recriar o fluxo, use `$higienizar-automacao-playwright`.
-
-## Modos de Uso
-
-- `padrao`: geração incremental, cache primeiro, MCP sob demanda.
-- `discovery`: mapeia somente telas e seletores necessários.
-- `repair`: corrige teste falho sem recriar o fluxo.
-- `cli-only`: usa CLI/cache quando não há incerteza visual.
-- `debug`: diagnóstico detalhado, sem expor dados sensíveis.
-- `full`: recria estrutura ou fluxo inteiro somente quando solicitado.
-
-## Como o Plugin Trabalha
-
-- Usa Playwright CLI para executar e validar testes.
-- Usa Playwright MCP somente para descobrir tela, seletor, campo ou comportamento que precisa de observação real.
-- Usa `.playwright-e2e/cache/` somente para mapas sanitizados de telas, rotas, labels, seletores e validações.
-- Usa `.playwright-e2e/private-domain/` opcional para contexto local privado, sempre ignorado pelo Git.
-- Usa scripts locais para reduzir leitura repetida sem remover validações.
-- Em falha de locator, usa diagnóstico/probe curto antes de repetir a spec inteira.
-- Mantém credenciais em `.env`, separadas por perfil funcional, e cria `.env.example` seguro.
-- Gera datas e outros dados variáveis dinamicamente para manter specs reutilizáveis.
-- Usa um quality gate local para reduzir lixo de código sem reexplorar telas.
-- Mantém `trace`, `screenshot` e `video` desligados por padrão.
-- Mantém saída curta no modo normal; diagnósticos detalhados ficam para `debug` ou falhas não explicadas.
-- Audita boas práticas com scripts locais.
