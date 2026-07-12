@@ -111,10 +111,7 @@ URL:
 USUÁRIO:
 SENHA:
 CAMINHO:
-QUANTIDADE:
 ```
-
-`QUANTIDADE` é opcional, usa `1` quando omitida e deve ser um inteiro positivo quando informada. Esse modo percorre o caminho, preenche obrigatórios, cria registros sintéticos e confirma sucesso e persistência sem gerar cenários negativos.
 
 Para criar testes de implantação:
 
