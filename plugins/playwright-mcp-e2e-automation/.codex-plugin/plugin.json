@@ -1,7 +1,7 @@
 {
   "name": "playwright-mcp-e2e-automation",
-  "version": "0.8.1",
-  "description": "Playwright CLI and MCP E2E toolkit with private local domain overlays for legacy web automation.",
+  "version": "1.0.0",
+  "description": "Playwright CLI and MCP toolkit for synthetic data generation and implementation-focused E2E validation in legacy web systems.",
   "author": {
     "name": "wkavenss"
   },
@@ -9,8 +9,8 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Playwright MCP E2E",
-    "shortDescription": "Automacoes E2E com Playwright CLI e MCP",
-    "longDescription": "Crie, corrija, revise, higienize ou prepare automacoes Playwright para sistemas web legados. Na criacao, forneca URL, credenciais e passo a passo; o plugin sempre gera codigo com Page Objects, usa perfis de autenticacao por spec, usa scripts deterministicos para reduzir contexto, usa Playwright CLI para executar e validar, consulta cache local sanitizado, usa overlay privado local quando existir, aciona MCP somente para observar a tela real quando necessario, mantem o fluxo em sessao continua, usa probes curtos para reparar locators antes de rerodar specs, gera dados variaveis em runtime, evita dados reais hardcoded, roda quality gate local, preserva reprodutibilidade por CLI e usa evidencias minimas.",
+    "shortDescription": "Massa e testes de implantacao com Playwright",
+    "longDescription": "Gere massa sintetica ou crie testes de implantacao com contratos separados. O modo de massa percorre o caminho informado, preenche obrigatorios e confirma persistencia sem gerar cenarios negativos. O modo de implantacao analisa tela e codigo-fonte seletivamente, cria testes de sucesso, obrigatoriedade e formato, usa perfis de dados por cliente validados no escopo de cada spec, Page Objects, credenciais por perfil no .env, Chromium headed, CLI-first, cache sanitizado, reparo objetivo de locators e Playwright MCP somente quando a tela real precisa ser observada.",
     "developerName": "wkavenss",
     "category": "Developer tools",
     "capabilities": [
@@ -18,6 +18,6 @@
     ],
     "composerIcon": "./assets/playwright.png",
     "logo": "./assets/playwright.png",
-    "defaultPrompt": "Crie uma automacao E2E com Playwright usando Page Objects; use perfil de autenticacao por spec, CLI para executar e validar, consulte cache local sanitizado e overlay privado local antes do MCP, acione MCP somente quando precisar observar a tela real, mantenha o fluxo em uma sessao continua e reprodutivel, use reparo/probe curto antes de rerodar specs por falha de locator, gere datas/dados variaveis em runtime, rode o quality gate local, nao grave dados reais ou erros crus no codigo, gere codigo ao receber URL, credenciais e passo a passo, e use evidencias minimas."
+    "defaultPrompt": "Informe MODO: Geracao de massa de dados ou MODO: Implantacao. Para massa, forneca URL, usuario, senha, caminho e quantidade opcional. Para implantacao, forneca tambem AGENTS.md do modulo e raiz do codigo-fonte. Se o modo estiver ausente ou contraditorio, pare e solicite uma escolha antes de criar codigo ou executar o navegador."
   }
 }

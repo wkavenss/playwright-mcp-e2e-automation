@@ -288,6 +288,35 @@ function scanCacheValue(value, location = "$", findings = []) {
   return findings;
 }
 
+function scanClientProfileValue(value, location = "$", findings = []) {
+  if (value == null) return findings;
+  if (typeof value === "string" || typeof value === "number") {
+    const text = String(value);
+    const reasons = [];
+    if (/\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/.test(text)) reasons.push("cpf");
+    if (/\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/.test(text)) reasons.push("cnpj");
+    if (/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(text)) reasons.push("email");
+    if (/(bearer\s+|set-cookie|connect\.sid|localStorage|sessionStorage)/i.test(text)) reasons.push("estado-autenticado");
+    if (reasons.length) findings.push({ location, reasons });
+    return findings;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => scanClientProfileValue(item, `${location}[${index}]`, findings));
+    return findings;
+  }
+  if (typeof value === "object") {
+    for (const [key, nested] of Object.entries(value)) {
+      if (["__proto__", "prototype", "constructor"].includes(key)
+        || /(password|senha|passwd|token|cookie|secret|storage|session|username|cpf|cnpj|matricula|email|telefone)/i.test(key)
+        || /^(?:usuario|user|login)$/i.test(key)) {
+        findings.push({ location: `${location}.${key}`, reasons: ["chave-sensivel"] });
+      }
+      scanClientProfileValue(nested, `${location}.${key}`, findings);
+    }
+  }
+  return findings;
+}
+
 function isCacheIgnored() {
   const gitignorePath = path.join(root, ".gitignore");
   if (!fs.existsSync(gitignorePath)) return false;
@@ -462,7 +491,7 @@ for (const file of codeFiles) {
       add("warning", "fixed-temporal-value", rel, lineNumber(content, fixedTemporalValue.index), "Valor temporal fixo em data/ano/periodo; derive em runtime ou use .env/fixture local quando a regra exigir.");
     }
 
-    const absolutePathLiteral = stringLiterals(content).find((literal) => /(?:\/Users\/|\/home\/|C:\\Users\\|[A-Za-z]:\\)/.test(literal.value));
+    const absolutePathLiteral = stringLiterals(content).find((literal) => /(?:\/Users\/|\/home\/|[A-Za-z]:\\Users\\)/.test(literal.value));
     if (absolutePathLiteral) {
       add("warning", "local-absolute-path", rel, lineNumber(content, absolutePathLiteral.index), "Evite caminho absoluto local; use caminho relativo ao projeto ou variavel de ambiente.");
     }
@@ -541,7 +570,28 @@ for (const file of specFiles) {
     add("warning", "manual-browser-lifecycle", relative(file), lineNumber(content, manualBrowserLifecycle.index), "Evite abrir/fechar navegador manualmente na spec; use a fixture page e mantenha o fluxo na mesma sessao.");
   }
 
+  if (/\brequireSpecData\s*\(/.test(content) && !/\btest\.beforeAll\s*\(/.test(content)) {
+    add("error", "client-data-preflight-scope", relative(file), 1, "Valide requireSpecData em test.beforeAll/describe selecionado; nao bloqueie specs nao executadas no carregamento global.");
+  }
+
   const testNames = matches(content, /\btest\s*\(\s*["'`]([^"'`]{3,120})["'`]/g);
+  const testDefinitions = matches(content, /\btest\s*\(/g);
+  const implantationSpec = /\brequireSpecData\s*\(/.test(content)
+    && /(?:obrigatori|formato|invalid|implantacao|implantação)/i.test(content);
+  if (implantationSpec && testDefinitions.length > 1) {
+    add("error", "fragmented-implantation-flow", relative(file), lineNumber(content, testDefinitions[1].index), "Mantenha uma unica definicao test para a operacao de implantacao; registre validacoes por campo no validationReport sem repetir login/fluxo.");
+  }
+  if (implantationSpec && !/\b(?:createValidationReport|ValidationReport)\b/.test(content)) {
+    add("error", "missing-validation-report", relative(file), 1, "Spec de implantacao deve pre-registrar verificacoes e gerar relatorio Markdown com validationReport.");
+  }
+  const repeatedLoginHook = firstMatch(content, /\btest\.beforeEach\s*\([\s\S]{0,1200}?\b(?:login|autenticar|realizarLogin|openCreateForm|acessarFluxo)\s*\(/gi);
+  if (implantationSpec && testDefinitions.length > 1 && repeatedLoginHook) {
+    add("error", "repeated-login-per-validation", relative(file), lineNumber(content, repeatedLoginHook.index), "Nao autentique/reentre no fluxo em beforeEach para validacoes da mesma operacao; use uma unica sessao no teste completo.");
+  }
+  const flowEntries = matches(content, /\b(?:openCreateForm|acessarFluxo|abrirFluxo|entrarNoFluxo)\s*\(/gi);
+  if (implantationSpec && flowEntries.length > 1) {
+    add("error", "reentered-transactional-flow", relative(file), lineNumber(content, flowEntries[1].index), "A spec entra no fluxo mais de uma vez; autentique e navegue uma unica vez, avancando do estado atual.");
+  }
   const fragmentedNames = testNames.filter((match) => /(?:tela|passo|etapa|screen|pagina|page)\s*\d?/i.test(match[1] || ""));
   if (testNames.length >= 2 && fragmentedNames.length >= 2) {
     add("warning", "fragmented-flow-tests", relative(file), lineNumber(content, fragmentedNames[0].index), "Fluxo parece dividido por telas/passos; prefira um unico test com test.step para manter sessao e evitar dados duplicados.");
@@ -606,6 +656,37 @@ if (fs.existsSync(envExamplePath)) {
   });
 }
 
+const clientProfilesDir = path.join(root, "config", "clientes");
+if (fs.existsSync(clientProfilesDir)) {
+  const clientConfigPath = path.join(root, "tests", "utils", "clientConfig.js");
+  if (!fs.existsSync(clientConfigPath)) {
+    add("error", "missing-client-config-loader", "tests/utils/clientConfig.js", 1, "Perfis de cliente exigem carregador unico com preflight por spec.");
+  }
+  const envExample = fs.existsSync(envExamplePath) ? fs.readFileSync(envExamplePath, "utf8") : "";
+  if (!/^E2E_CLIENT_PROFILE=/m.test(envExample)) {
+    add("error", "missing-client-profile-env", ".env.example", 1, "Declare E2E_CLIENT_PROFILE no .env.example.");
+  }
+  const profileFiles = [path.join(root, "config", "defaults.json"), ...walk(clientProfilesDir)]
+    .filter((file) => path.extname(file) === ".json" && fs.existsSync(file));
+  for (const file of profileFiles) {
+    const rel = relative(file);
+    let parsed;
+    try {
+      parsed = JSON.parse(fs.readFileSync(file, "utf8"));
+    } catch {
+      add("error", "invalid-client-profile-json", rel, 1, "Perfil/defaults deve ser JSON valido.");
+      continue;
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      add("error", "invalid-client-profile-root", rel, 1, "Perfil/defaults deve conter objeto JSON.");
+      continue;
+    }
+    if (scanClientProfileValue(parsed, rel).length) {
+      add("error", "sensitive-client-profile-data", rel, 1, "Perfil de cliente contem segredo, dado pessoal ou estado autenticado proibido.");
+    }
+  }
+}
+
 const cacheDir = path.join(root, ".playwright-e2e", "cache");
 const hasPlaywrightProjectShape = specFiles.length > 0
   || pageObjectFiles.length > 0
@@ -649,6 +730,10 @@ if (!configFile) {
   const config = fs.readFileSync(configFile, "utf8");
   const rel = relative(configFile);
   if (!/headless\s*:\s*false/.test(config)) add("warning", "headed-default", rel, 1, "O padrao do plugin e Chromium headed (headless: false).");
+  if (!/viewport\s*:\s*null/.test(config)) add("error", "native-maximized-viewport", rel, 1, "Use viewport: null para que o viewport acompanhe a janela Chromium maximizada.");
+  if (!/--start-maximized/.test(config)) add("error", "maximized-launch", rel, 1, "Inclua --start-maximized em launchOptions para execucao headed.");
+  const hasCdpMaximize = codeFiles.some((file) => /Browser\.setWindowBounds[\s\S]{0,200}?maximized/.test(fs.readFileSync(file, "utf8")));
+  if (!hasCdpMaximize) add("error", "missing-cdp-maximize", rel, 1, "Adicione fixture/helper CDP com Browser.setWindowBounds=maximized para estabilizar a maximização entre sistemas operacionais.");
   for (const artifact of ["trace", "screenshot", "video"]) {
     if (!new RegExp(`${artifact}\\s*:\\s*["']off["']`).test(config)) {
       add("warning", "minimal-evidence", rel, 1, `Defina ${artifact}: 'off' para evidencias minimas por padrao.`);

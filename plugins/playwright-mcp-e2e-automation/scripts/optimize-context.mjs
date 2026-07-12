@@ -180,16 +180,47 @@ function readInput() {
 function parsePrompt(text) {
   if (!text.trim()) return null;
   const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const normalizedText = normalizeText(text);
   const steps = lines
     .filter((line) => /^(\d+[\).:-]|\-|\*)\s+/.test(line))
     .map((line) => line.replace(/^(\d+[\).:-]|\-|\*)\s+/, ""));
-  const url = lines.find((line) => /^url\s*base\s*:/i.test(line));
-  const user = lines.find((line) => /^(usuario|usuário|user)\s*:/i.test(line));
-  const password = lines.find((line) => /^(senha|password)\s*:/i.test(line));
+  const fieldValue = (regex) => {
+    const line = lines.find((candidate) => regex.test(candidate));
+    return line ? line.slice(line.indexOf(":") + 1).trim() : "";
+  };
+  const normalizedFieldValue = (regex) => {
+    const line = lines.find((candidate) => regex.test(normalizeText(candidate)));
+    return line ? line.slice(line.indexOf(":") + 1).trim() : "";
+  };
+  const url = fieldValue(/^url(?:\s*base)?\s*:/i);
+  const user = fieldValue(/^(usuario|usuário|user)\s*:/i);
+  const password = fieldValue(/^(senha|password)\s*:/i);
+  const pathValue = fieldValue(/^(caminho|passo a passo)\s*:/i);
+  const agents = normalizedFieldValue(/agents\.md(?:\s+do\s+modulo)?\s*:/);
+  const source = normalizedFieldValue(/codigo-fonte\s*:/);
+  const hasMassMode = /modo\s*:\s*geracao de massa de dados/.test(normalizedText);
+  const hasImplementationMode = /modo\s*:\s*implantacao/.test(normalizedText);
+  const functionalMode = hasMassMode && hasImplementationMode
+    ? "contraditorio"
+    : (hasMassMode ? "massa" : (hasImplementationMode ? "implantacao" : "ausente"));
+  const quantityLine = lines.find((line) => /^quantidade\s*:/i.test(line));
+  const quantityMatch = quantityLine?.match(/:\s*(\d+)/);
+  const quantity = quantityLine ? (quantityMatch ? Number(quantityMatch[1]) : null) : 1;
+  const quantityValid = Number.isInteger(quantity) && quantity >= 1;
+  const commonComplete = Boolean(url && user && password && pathValue);
   return {
+    functionalMode,
     hasBaseUrl: Boolean(url),
     hasUsername: Boolean(user),
     hasPassword: Boolean(password),
+    hasPath: Boolean(pathValue),
+    hasAgents: Boolean(agents),
+    hasSource: Boolean(source),
+    quantity,
+    quantityValid,
+    contractComplete: functionalMode === "massa"
+      ? commonComplete && quantityValid
+      : (functionalMode === "implantacao" && commonComplete && Boolean(agents) && Boolean(source)),
     stepCount: steps.length,
     steps: steps.map((step, index) => ({
       id: index + 1,
@@ -305,6 +336,8 @@ function detectProjectShape(packageJson) {
     hasE2eDirectory,
     hasPageObjects: pageObjectFiles.length > 0,
     hasAuthProfiles: Boolean(existingFile("tests/utils/authProfiles.js")),
+    hasClientConfig: Boolean(existingFile("tests/utils/clientConfig.js")),
+    hasClientProfiles: existingDirectory("config/clientes"),
     hasTestData: Boolean(existingFile("tests/utils/testData.js")),
     hasEnvExample: Boolean(existingFile(".env.example")),
     hasCacheDir: fs.existsSync(cacheDir),
@@ -366,6 +399,8 @@ function likelyFilesToRead(shape) {
     shape.hasPackageJson ? "package.json" : null,
     shape.playwrightConfigFile,
     shape.hasAuthProfiles ? "tests/utils/authProfiles.js" : null,
+    shape.hasClientConfig ? "tests/utils/clientConfig.js" : null,
+    shape.hasClientProfiles ? "config/defaults.json" : null,
     shape.hasTestData ? "tests/utils/testData.js" : null,
     ...shape.firstSpecFiles,
     ...shape.firstPageObjectFiles,
@@ -391,9 +426,12 @@ function buildRiskFlags({ shape, caches, cacheStatus, privateDomainStatus, norma
   if (shape.specCount > 0 && !shape.hasPageObjects) riskFlags.push("specs-without-page-objects");
   if (shape.specCount > 0 && !shape.hasAuthProfiles) riskFlags.push("missing-auth-profiles");
   if (shape.specCount > 0 && !shape.hasTestData) riskFlags.push("missing-test-data-helper");
-  if (normalizedInput && (!normalizedInput.hasBaseUrl || !normalizedInput.hasUsername || !normalizedInput.hasPassword || !normalizedInput.stepCount)) {
+  if (normalizedInput && !normalizedInput.contractComplete) {
     riskFlags.push("missing-minimum-contract");
   }
+  if (normalizedInput?.functionalMode === "ausente") riskFlags.push("functional-mode-missing");
+  if (normalizedInput?.functionalMode === "contraditorio") riskFlags.push("functional-mode-contradictory");
+  if (shape.hasClientProfiles && !shape.hasClientConfig) riskFlags.push("missing-client-config-loader");
   if (normalizedInput?.steps?.some((step) => step.suggestedChannel === "mcp")) {
     riskFlags.push("mcp-may-be-needed");
   }
@@ -412,6 +450,7 @@ function chooseRecommendedMode(mode, riskFlags) {
 }
 
 function chooseNextAction({ shape, cacheStatus, riskFlags }) {
+  if (riskFlags.includes("functional-mode-missing") || riskFlags.includes("functional-mode-contradictory")) return "pedir-modo-funcional";
   if (riskFlags.includes("missing-minimum-contract")) return "pedir-contrato-minimo";
   if (!shape.isPlaywrightProject || riskFlags.includes("missing-playwright-config")) return "preparar-projeto-ou-rodar-scaffold";
   if (cacheStatus.status === "risco") return "sanitizar-ou-ignorar-cache-antes-do-mcp";

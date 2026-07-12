@@ -32,10 +32,14 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Datas, periodos, anos, semestres, prazos e vencimentos fixos devem ser tratados como risco de reprodutibilidade, salvo regra explicitamente fixa e parametrizada.
 - Erro cru, stack trace, timeout, texto de `body` inteiro, `console.log`, codigo comentado, `TODO/FIXME` e sobras de codegen devem ser tratados como sujeira de automacao.
 - Fluxos de negocio que atravessam varias telas devem preservar uma unica sessao de navegador dentro do mesmo `test`; dividir cada tela em um teste independente ou abrir/fechar navegador manualmente aumenta fragilidade e pode gerar dados duplicados.
+- Validacoes de obrigatoriedade/formato da mesma operacao devem permanecer no mesmo `test`, com relatorio por verificacao; login em `beforeEach` para um teste por campo e defeito de isolamento transacional.
+- Chromium headed deve abrir maximizado, com viewport nativo e fallback CDP quando o projeto seguir o padrao do plugin.
 - A suite deve ser reprodutivel por outra pessoa com o mesmo perfil funcional e `.env` preenchido; dependencias de sessao local, perfil persistente, `storageState` manual, caminhos absolutos, `test.only/skip` ou massa escondida fora do projeto sao defeitos.
 - `.playwright-e2e/cache/` deve estar ignorado e conter somente mapas sanitizados; cache com senha, cookies, tokens, storageState, nomes reais, usuarios, documentos, emails ou telefones e defeito.
 - `.playwright-e2e/private-domain/`, quando existir, deve estar ignorado e nunca deve ter conteudo copiado para arquivos publicos/versionados.
 - Testes devem evitar dependencia de ordem, dados compartilhados imprevisiveis e efeitos destrutivos sem controle.
+- Perfis `config/clientes/*.json` devem conter somente massa institucional nao secreta; cada spec valida apenas suas propriedades em `test.beforeAll` com `requireSpecData`.
+- Propriedades `null` de specs nao selecionadas nao podem bloquear uma execucao parcial.
 - Configuracao padrao do plugin deve usar Chromium headed e evidencias minimas, salvo decisao explicita do projeto.
 
 Se nao houver achados, declarar isso e mencionar testes nao executados ou riscos que permaneceram.

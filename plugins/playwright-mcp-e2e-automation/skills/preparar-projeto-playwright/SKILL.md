@@ -20,20 +20,21 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 7. Manter `.env` fora do versionamento e deixar `.env.example` sem valores secretos.
 8. Gerar/usar `tests/utils/authProfiles.js` para que cada spec declare seu perfil funcional com `getAuthProfile(profileName)`.
 9. Gerar/usar `tests/utils/testData.js` para `runId`, textos neutros e datas dinamicas.
-10. Gerar/usar `tests/utils/legacyForm.js` para radio/checkbox por label de campo + label de opcao, com unicidade e sem indice cego.
-11. Manter `.playwright-e2e/cache/`, `.playwright-e2e/private-domain/` e manifestos locais fora do versionamento para mapas/contexto local sanitizados.
-12. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto> --changed`; se nao houver Git, usar `--files <arquivos>` ou `--manifest .playwright-e2e/changed-files.json`.
-13. Informar arquivos criados, dependencias instaladas e comandos disponiveis.
+10. Gerar/usar `tests/utils/clientConfig.js`, `config/defaults.json` e `config/clientes/referencia.json` para perfis de massa validados por spec.
+11. Gerar/usar `tests/utils/legacyForm.js` para radio/checkbox por label de campo + label de opcao, com unicidade e sem indice cego.
+12. Manter `.playwright-e2e/cache/`, `.playwright-e2e/private-domain/` e manifestos locais fora do versionamento para mapas/contexto local sanitizados.
+13. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto> --changed`; se nao houver Git, usar `--files <arquivos>` ou `--manifest .playwright-e2e/changed-files.json`.
+14. Informar arquivos criados, dependencias instaladas e comandos disponiveis.
 
 ## Padrao Gerado
 
 - JavaScript e Playwright Test.
 - `tests/e2e` para specs, `tests/pages/BasePage.js` para helper minimo de Page Objects, `tests/utils/authProfiles.js` para perfis de autenticacao, `tests/utils/testData.js` para massa dinamica e `tests/utils/legacyForm.js` para formularios legados.
-- Chromium headed por padrao.
+- Chromium headed e maximizado por padrao, com `viewport: null`, `--start-maximized` e fixture CDP.
 - `workers: 1` por padrao, com override por `E2E_WORKERS`, para evitar conflito de sessao quando perfis locais usam a mesma conta.
 - `trace`, `screenshot` e `video` desligados por padrao.
 - Scripts `test:e2e` e `test:e2e:headed`.
-- Variaveis `BASE_URL`, `E2E_WORKERS` e credenciais por perfil, como `E2E_EXAMPLE_USERNAME`/`E2E_EXAMPLE_PASSWORD`.
+- Variaveis `BASE_URL`, `E2E_CLIENT_PROFILE`, `E2E_WORKERS` e credenciais por perfil, como `E2E_EXAMPLE_USERNAME`/`E2E_EXAMPLE_PASSWORD`.
 - `.playwright-e2e/cache/`, `.playwright-e2e/private-domain/`, `.playwright-e2e/changed-files.json` e `.playwright-e2e/error-context.md` ignorados para dados locais sanitizados.
 
 Nao criar teste de exemplo, README, trace, screenshot ou video. O scaffolder e nao destrutivo e nao sobrescreve arquivos existentes.

@@ -1,6 +1,6 @@
 # Playwright MCP E2E Automation
 
-Plugin para Codex que cria, corrige, revisa, higieniza e prepara automações E2E com Playwright, Page Objects, `.env`, Playwright CLI e Playwright MCP.
+Plugin para Codex que gera massa sintética, cria testes de implantação, corrige, revisa, higieniza e prepara automações E2E com Playwright, Page Objects, `.env`, perfis de dados por cliente, Playwright CLI e Playwright MCP.
 
 O padrão é simples:
 
@@ -101,16 +101,35 @@ codex
 
 Ou abra a pasta pelo Codex App.
 
-No chat, selecione `@play` e envie:
+No chat, selecione o plugin e escolha um dos dois modos funcionais.
+
+Para gerar massa:
 
 ```text
-URL base: ...
-Usuário: ...
-Senha: ...
-Passo a passo:
-1. ...
-2. ...
-3. ...
+MODO: Geração de massa de dados
+URL:
+USUÁRIO:
+SENHA:
+CAMINHO:
+QUANTIDADE:
 ```
 
-Com esses dados, o plugin gera código Playwright E2E com Page Objects, `.env`, perfis de autenticação por spec, validação em Chromium headed e evidências mínimas por padrão.
+`QUANTIDADE` é opcional, usa `1` quando omitida e deve ser um inteiro positivo quando informada. Esse modo percorre o caminho, preenche obrigatórios, cria registros sintéticos e confirma sucesso e persistência sem gerar cenários negativos.
+
+Para criar testes de implantação:
+
+```text
+MODO: Implantação
+URL:
+USUÁRIO:
+SENHA:
+CAMINHO:
+
+FONTES DE REFERÊNCIA:
+AGENTS.md do módulo: /caminho/AGENTS.md
+Código-fonte: /caminho/do/sistema
+```
+
+Esse modo analisa tela e código seletivamente e cria uma spec por operação: um login, uma sessão maximizada, validações individuais de obrigatoriedade/formato por tela e uma única conclusão positiva. Cada verificação aparece em relatório Markdown, sem reabrir o fluxo. Se o modo estiver ausente ou contraditório, o plugin pede a escolha antes de criar código ou executar o navegador.
+
+Com esses dados, o plugin gera código Playwright reproduzível com Page Objects, `.env`, perfis por cliente, Chromium headed maximizado e evidências mínimas.

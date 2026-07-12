@@ -8,7 +8,7 @@ import { createRequire } from "node:module";
 const root = path.resolve(process.argv[2] || process.cwd());
 const args = process.argv.slice(3);
 const jsonOutput = args.includes("--json");
-const smokeBrowser = args.includes("--smoke-browser");
+const smokeBrowser = args.includes("--smoke-browser") || args.includes("--headed-smoke");
 const headedSmoke = args.includes("--headed") || args.includes("--headed-smoke");
 const rootPackageJson = path.join(root, "package.json");
 
@@ -96,12 +96,28 @@ async function smokeBrowserStatus() {
   if (!smokeBrowser) {
     return { requested: false, ok: null, headed: headedSmoke, reason: null, message: null };
   }
+  let browser;
   try {
     const requireFromRoot = createRequire(rootPackageJson);
     const { chromium } = requireFromRoot("@playwright/test");
-    const browser = await chromium.launch({ headless: !headedSmoke, timeout: 8000 });
-    await browser.close();
-    return { requested: true, ok: true, headed: headedSmoke, reason: null, message: null };
+    browser = await chromium.launch({
+      headless: !headedSmoke,
+      timeout: 8000,
+      args: headedSmoke ? ["--start-maximized"] : [],
+    });
+    let maximized = false;
+    if (headedSmoke) {
+      const page = await browser.newPage({ viewport: null });
+      const session = await page.context().newCDPSession(page);
+      try {
+        const { windowId } = await session.send("Browser.getWindowForTarget");
+        await session.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "maximized" } });
+        maximized = true;
+      } finally {
+        await session.detach();
+      }
+    }
+    return { requested: true, ok: true, headed: headedSmoke, maximized, reason: null, message: null };
   } catch (error) {
     const message = String(error?.message || error);
     const reason = /executable doesn't exist|browser.*not found|install/i.test(message)
@@ -109,7 +125,9 @@ async function smokeBrowserStatus() {
       : (/operation not permitted|not allowed|sandbox|permission|quarantine/i.test(message)
         ? "sandbox-or-permission"
         : (/display|headless|headed|window/i.test(message) ? "headed-not-available" : "launch-failed"));
-    return { requested: true, ok: false, headed: headedSmoke, reason, message: oneLine(message) };
+    return { requested: true, ok: false, headed: headedSmoke, maximized: false, reason, message: oneLine(message) };
+  } finally {
+    await browser?.close().catch(() => {});
   }
 }
 

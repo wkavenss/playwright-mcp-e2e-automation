@@ -33,6 +33,7 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Corrigir indice escondido em `evaluate`, ID JSF gerado, ID JSF estavel espalhado sem helper e `waitForTimeout` sem anotacao padronizada de requisito explicito.
 - Preservar todos os criterios informados pelo usuario; nao simplificar filtro/assert sem confirmacao.
 - Preservar uma unica sessao de navegador por fluxo; nao abrir/fechar browser manualmente em spec Playwright Test.
+- Mover massa institucional nao secreta especifica do cliente para `config/clientes/<perfil>.json` e validar somente os requisitos da spec selecionada.
 - Fortalecer assertions fracas para validar efeito funcional quando houver sinal estavel no codigo.
 
 ## Nao Fazer

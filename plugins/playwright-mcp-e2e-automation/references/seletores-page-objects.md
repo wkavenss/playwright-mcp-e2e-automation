@@ -131,6 +131,8 @@ Page Objects devem representar acoes funcionais, como `realizarLogin`, `acessarF
 
 Um fluxo de negocio atravessando varias telas deve ficar em um unico `test`, com `test.step` para as etapas internas. Nao criar um `test` por tela quando as telas dependem da mesma sessao, do mesmo cadastro ou do mesmo estado transacional.
 
+Obrigatoriedade e formato da mesma operacao tambem ficam nesse unico `test`. Usar um loop de verificacoes por tela, restaurar o campo apos cada submissao negativa, registrar cada resultado no `validationReport` e avancar apenas uma vez com a base valida.
+
 O teste deve ser reprodutivel por outra pessoa com o mesmo perfil funcional: iniciar pela URL/configuracao do projeto, autenticar com variaveis de ambiente, criar ou localizar massa controlada, e validar o efeito funcional sem depender de estado de execucoes anteriores.
 
 Evitar metodos como `clickButton1`, `fillInput2`, `goNext` ou seletores complexos direto no spec. A spec nao deve usar `page.locator`, `getByRole`, `getByLabel` ou seletores CSS/XPath diretamente, salvo em asserts muito simples e justificados pelo padrao local.

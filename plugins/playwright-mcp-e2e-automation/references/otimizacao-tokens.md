@@ -17,7 +17,7 @@ Robustez prevalece sobre economia. Reduzir tokens por roteiro compacto, cache sa
    - `mcp`: tela nao mapeada, seletor ambiguo, menu/modal/autocomplete/tabela dinamica, estado real incerto ou falha que o log nao explica.
    - `remover`: exploracao fora do escopo, log repetitivo, DOM completo, reprocessamento do passo bruto ou leitura desnecessaria.
 5. Descobrir via MCP somente os elementos necessarios para o proximo passo e uma validacao funcional.
-6. Manter a descoberta MCP em uma sessao/pagina continua por fluxo; nao abrir probes Playwright temporarios para cada tela ou seletor ainda nao codificado.
+6. Manter a descoberta MCP em uma sessao/pagina maximizada e continua por fluxo; nao abrir probes Playwright temporarios para cada tela ou seletor ainda nao codificado.
 7. Gerar ou alterar codigo de forma incremental.
 8. Validar por CLI no menor escopo que prove o fluxo.
 9. Em falha, usar MCP apenas se cache, codigo e log do CLI nao explicarem tela, seletor ou estado.

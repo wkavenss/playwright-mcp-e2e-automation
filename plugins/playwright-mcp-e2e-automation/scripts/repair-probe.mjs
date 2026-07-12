@@ -92,6 +92,16 @@ async function inspectLocator(locator, probe, timeout) {
   };
 }
 
+async function maximizeChromiumPage(page) {
+  const session = await page.context().newCDPSession(page);
+  try {
+    const { windowId } = await session.send("Browser.getWindowForTarget");
+    await session.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "maximized" } });
+  } finally {
+    await session.detach();
+  }
+}
+
 async function run() {
   const manifest = valueOf("--manifest");
   const probes = manifest ? readManifest(manifest) : [singleProbeFromArgs()].filter(Boolean);
@@ -113,8 +123,12 @@ async function run() {
     return { ok: false, errorType: "missing-playwright", message: compact(error.message) };
   }
 
-  const browser = await playwright.chromium.launch({ headless: !headed });
-  const page = await browser.newPage();
+  const browser = await playwright.chromium.launch({
+    headless: !headed,
+    args: headed ? ["--start-maximized"] : [],
+  });
+  const page = await browser.newPage(headed ? { viewport: null } : undefined);
+  if (headed) await maximizeChromiumPage(page);
   const results = [];
   try {
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: Math.max(timeout, 5000) });
@@ -134,6 +148,7 @@ async function run() {
     ok: results.every((item) => item.ok),
     url: page.url(),
     timeout,
+    maximized: headed,
     probes: results,
   };
 }

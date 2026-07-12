@@ -1,0 +1,4 @@
+interface:
+  display_name: "Criar testes de implantacao"
+  short_description: "Cria testes Playwright para implantacao"
+  default_prompt: "Use $criar-testes-implantacao-playwright quando o pedido declarar MODO: Implantacao; gere uma spec por operacao, em sessao unica maximizada, com relatorio por validacao e perfis de massa por cliente."

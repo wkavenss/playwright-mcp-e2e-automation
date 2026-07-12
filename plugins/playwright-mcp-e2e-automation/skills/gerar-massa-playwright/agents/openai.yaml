@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gerar massa Playwright"
+  short_description: "Gera massa sintetica com Playwright"
+  default_prompt: "Use $gerar-massa-playwright quando o pedido declarar MODO: Geracao de massa de dados; percorra o caminho informado, gere a quantidade solicitada e confirme sucesso e persistencia sem criar testes negativos."

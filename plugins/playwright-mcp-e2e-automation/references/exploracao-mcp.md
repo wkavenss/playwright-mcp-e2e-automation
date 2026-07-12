@@ -15,9 +15,11 @@ Reaproveitar o mapa quando voltar para a mesma tela na mesma execucao.
 
 Manter a mesma sessao/pagina durante a exploracao do fluxo sempre que possivel. Nao fechar e reabrir navegador a cada tela para "descobrir" o proximo passo; isso perde estado, aumenta custo e pode gerar registros parciais ou duplicados.
 
+Ao abrir a sessao MCP headed, redimensionar a janela uma unica vez para a area disponivel da tela. Autenticar uma vez e confirmar cada tela conforme ela for alcancada; telas futuras nao podem ser confirmadas no DOM antes da navegacao real.
+
 Nao validar seletores em scripts Playwright temporarios enquanto a tela ainda estiver sendo mapeada. Primeiro acumular o mapa minimo na sessao MCP continua; depois gerar codigo e validar o fluxo por CLI no menor escopo util.
 
-Em JSF/RichFaces, se precisar confirmar varios locators no mesmo estado, avancar uma vez ate a tela e executar todos os probes ali, na mesma pagina/sessao ou em um unico manifest de `repair-probe`. Nao abrir um `node -e` por locator.
+Em JSF/RichFaces, se precisar confirmar varios locators no mesmo estado, avancar uma vez ate a tela e inspecionar todos na pagina MCP preservada. Nao executar `repair-probe`, `node -e` ou novo login para cada tela/locator quando o fluxo puder persistir estado.
 
 Quando houver HTML/snapshot local da tela, preferir `legacy-jsf-map.mjs --json --probes` para gerar mapa compacto de controles, links, popups, sinais JSF e manifest de probes. Usar esse mapa como sugestao; confirmar via UI real quando houver ambiguidade ou risco funcional.
 
