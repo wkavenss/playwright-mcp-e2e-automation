@@ -34,8 +34,11 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Em spec extensa, agrupar grandes fases com `test.step` e comentar apenas linhas-chave: preflight, massa, sessao, restauracao, dependencia, recuperacao e persistencia.
 - Remover comentario que apenas repete a instrucao seguinte, mas preservar explicacoes uteis para leitores iniciantes.
 - Remover helper generico usado uma unica vez quando a logica ficar mais clara diretamente na fase funcional.
+- Remover `BasePage` que apenas guarde `page` ou encapsule `page.locator`; declarar locators diretamente no Page Object.
+- Remover fabrica que apenas chama `new`, metodo/exportacao sem consumidor e utilitario criado preventivamente.
+- Consolidar listas, mapas e `switch` paralelos de campos em uma unica colecao declarativa com propriedades nomeadas e sem callbacks.
 - Reduzir `.nth()`, `.first()` sem filtro, XPath sem justificativa, ID gerado e seletor estrutural fragil.
-- Corrigir indice escondido em `evaluate`, ID JSF gerado, ID JSF estavel espalhado sem helper e `waitForTimeout` sem anotacao padronizada de requisito explicito.
+- Corrigir indice escondido em `evaluate`, ID JSF gerado, ID JSF estavel com escape manual e `waitForTimeout` sem anotacao padronizada. Aceitar `[id="form:campo"]` direto no Page Object.
 - Preservar todos os criterios informados pelo usuario; nao simplificar filtro/assert sem confirmacao.
 - Preservar uma unica sessao de navegador por fluxo; nao abrir/fechar browser manualmente em spec Playwright Test.
 - Mover massa institucional nao secreta especifica do cliente para `config/clientes/<perfil>.json` e validar somente os requisitos da spec selecionada.

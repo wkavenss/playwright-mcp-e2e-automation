@@ -364,6 +364,10 @@ for (const file of codeFiles) {
   const content = fs.readFileSync(file, "utf8");
   const rel = relative(file);
   const automationFile = isAutomationFile(rel);
+  const trivialFactory = firstMatch(content, /function\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{\s*return\s+new\s+[A-Za-z_$][\w$]*\s*\([^;]*\);?\s*\}/gs);
+  if (automationFile && trivialFactory) {
+    add("warning", "trivial-factory", rel, lineNumber(content, trivialFactory.index), "Fabrica que apenas chama new adiciona uma camada sem ganho; instancie a classe diretamente.");
+  }
   const wait = firstMatch(content, /\bwaitForTimeout\s*\(/g);
   if (wait && !(hasAllowedWaitComment(content, wait.index) && hasFunctionalWaitGuard(content, wait.index))) {
     add("warning", "fixed-timeout", rel, lineNumber(content, wait.index), "Evite waitForTimeout; espere uma condicao observavel ou anote requisito explicito do usuario.");
@@ -421,7 +425,7 @@ for (const file of codeFiles) {
 
   const generatedJsfId = firstMatch(content, /(?:j_id(?:_jsp)?_?\d+|j_idt_?\d+|javax\.faces)/gi);
   if (generatedJsfId) {
-    add("warning", "generated-jsf-id", rel, lineNumber(content, generatedJsfId.index), "Evite ID JSF gerado; ID estavel como form:campo deve ficar centralizado em helper semantico.");
+    add("warning", "generated-jsf-id", rel, lineNumber(content, generatedJsfId.index), "Evite ID JSF gerado; prefira locator semantico ou ID estavel declarado diretamente no Page Object.");
   }
 
   const fullGeneratedJsfSelector = firstMatch(content, /(?:#|id=["'`]|id\\=|\\#)(?:j_id(?:_jsp)?_?\d+|j_idt_?\d+)/gi);
@@ -431,7 +435,7 @@ for (const file of codeFiles) {
 
   const directStableJsfCss = firstMatch(content, /locator\s*\(\s*["'`]#[A-Za-z][\w-]*(?:\\)+:[^"'`]+["'`]\s*\)/g);
   if (directStableJsfCss) {
-    add("warning", "stable-jsf-id-not-centralized", rel, lineNumber(content, directStableJsfCss.index), "ID JSF estavel deve ficar centralizado em byId/helper, nao espalhado como CSS escapado.");
+    add("warning", "stable-jsf-id-escaped", rel, lineNumber(content, directStableJsfCss.index), "Evite escape manual de ID JSF; declare o locator como [id=\"form:campo\"] diretamente no Page Object.");
   }
 
   const documentGetById = firstMatch(content, /\bdocument\.getElementById\s*\(/g);
@@ -527,7 +531,7 @@ for (const file of specFiles) {
   const content = fs.readFileSync(file, "utf8");
   const globalCredential = firstMatch(content, /process\.env\.E2E_(?:USERNAME|PASSWORD)\b/g);
   if (globalCredential) {
-    add("error", "global-auth-credential", relative(file), lineNumber(content, globalCredential.index), "Declare perfil funcional por spec com getAuthProfile(profileName); nao use E2E_USERNAME/E2E_PASSWORD globais.");
+    add("error", "global-auth-credential", relative(file), lineNumber(content, globalCredential.index), "Declare perfil funcional por spec com obterCredenciais(nomePerfil); nao use E2E_USERNAME/E2E_PASSWORD globais.");
   }
 
   const directLocator = firstMatch(content, /\bpage\s*\.\s*(?:locator|getByRole|getByLabel|getByText|getByPlaceholder|getByTestId)\s*\(/g);
@@ -555,7 +559,7 @@ for (const file of specFiles) {
   }
 
   const createsData = /(?:cadastr|criar|inclu|registr|salvar|submet|confirmar|gerar|adicionar|novo\s)/i.test(content);
-  const hasRunId = /\brunId\b|createRunId|Date\.now|randomUUID|crypto\.randomUUID|timestamp/i.test(content);
+  const hasRunId = /\b(?:runId|idExecucao)\b|(?:createRunId|criarIdExecucao)|Date\.now|randomUUID|crypto\.randomUUID|timestamp/i.test(content);
   if (createsData && !hasRunId) {
     add("warning", "created-data-without-run-id", relative(file), 1, "Fluxo parece criar dados sem runId/massa rastreavel; use helper de massa para evitar duplicidade e lixo funcional.");
   }
@@ -580,13 +584,14 @@ for (const file of specFiles) {
     add("warning", "manual-browser-lifecycle", relative(file), lineNumber(content, manualBrowserLifecycle.index), "Evite abrir/fechar navegador manualmente na spec; use a fixture page e mantenha o fluxo na mesma sessao.");
   }
 
-  if (/\brequireSpecData\s*\(/.test(content) && !/\btest\.beforeAll\s*\(/.test(content)) {
-    add("error", "client-data-preflight-scope", relative(file), 1, "Valide requireSpecData em test.beforeAll/describe selecionado; nao bloqueie specs nao executadas no carregamento global.");
+  const usaPreflight = /\b(?:requireSpecData|obterDadosDaSpec)\s*\(/.test(content);
+  if (usaPreflight && !/\btest\.beforeAll\s*\(/.test(content)) {
+    add("error", "client-data-preflight-scope", relative(file), 1, "Valide obterDadosDaSpec em test.beforeAll/describe selecionado; nao bloqueie specs nao executadas no carregamento global.");
   }
 
   const testNames = matches(content, /\btest\s*\(\s*["'`]([^"'`]{3,120})["'`]/g);
   const testDefinitions = matches(content, /\btest\s*\(/g);
-  const implantationSpec = /\brequireSpecData\s*\(/.test(content)
+  const implantationSpec = usaPreflight
     && /(?:obrigatori|formato|invalid|implantacao|implantação)/i.test(content);
   const functionalSteps = matches(content, /\btest\.step\s*\(/g);
   if (implantationSpec && !functionalSteps.length) {
@@ -629,6 +634,12 @@ for (const file of specFiles) {
     if (tuples.length) {
       add("warning", "positional-validation-cases", relative(file), lineNumber(content, requiredArray.index + tuples[0].index), "Troque pares posicionais por objetos nomeados, como { campo, rotulo }, para facilitar a leitura.");
     }
+    if (/=>\s*/.test(requiredArray[0])) {
+      add("warning", "callback-field-descriptors", relative(file), lineNumber(content, requiredArray.index), "Descritores de campo devem conter dados nomeados, nao callbacks que escondem limpeza ou restauracao.");
+    }
+    if (/\b(?:restauracoes|restorers|camposTexto|textFields)\s*=\s*\{/.test(content) || /switch\s*\(\s*campo\s*\)/.test(content)) {
+      add("warning", "duplicated-field-sources", relative(file), lineNumber(content, requiredArray.index), "A relacao de campos aparece em estruturas paralelas; derive preenchimento, limpeza e restauracao da mesma colecao declarativa.");
+    }
     const labels = new Map();
     for (const tuple of tuples) {
       const field = tuple[1];
@@ -641,10 +652,10 @@ for (const file of specFiles) {
     }
   }
   if (implantationSpec && testDefinitions.length > 1) {
-    add("error", "fragmented-implantation-flow", relative(file), lineNumber(content, testDefinitions[1].index), "Mantenha uma unica definicao test para a operacao de implantacao; registre validacoes por campo no validationReport sem repetir login/fluxo.");
+    add("error", "fragmented-implantation-flow", relative(file), lineNumber(content, testDefinitions[1].index), "Mantenha uma unica definicao test para a operacao de implantacao; registre validacoes por campo no RelatorioValidacoes sem repetir login/fluxo.");
   }
-  if (implantationSpec && !/\b(?:createValidationReport|ValidationReport)\b/.test(content)) {
-    add("error", "missing-validation-report", relative(file), 1, "Spec de implantacao deve pre-registrar verificacoes e gerar relatorio Markdown com validationReport.");
+  if (implantationSpec && !/\b(?:createValidationReport|ValidationReport|RelatorioValidacoes)\b/.test(content)) {
+    add("error", "missing-validation-report", relative(file), 1, "Spec de implantacao deve pre-registrar verificacoes e gerar relatorio Markdown com RelatorioValidacoes.");
   }
   const repeatedLoginHook = firstMatch(content, /\btest\.beforeEach\s*\([\s\S]{0,1200}?\b(?:login|autenticar|realizarLogin|openCreateForm|abrirFormularioCadastro|acessarFluxo)\s*\(/gi);
   if (implantationSpec && testDefinitions.length > 1 && repeatedLoginHook) {
@@ -680,9 +691,24 @@ for (const file of pageObjectFiles) {
     add("warning", "raw-id-helper", relative(file), lineNumber(content, rawIdHelper.index), "Evite helper generico baseado em id cru; crie getters/metodos semanticos para cada campo relevante.");
   }
 
+  const genericIdHelper = firstMatch(content, /\b(?:byId|localizarPorId|locatorById)\s*\(\s*id\s*\)\s*\{/g);
+  if (genericIdHelper) {
+    add("warning", "generic-id-helper", relative(file), lineNumber(content, genericIdHelper.index), "Declare [id=\"form:campo\"] diretamente no Page Object; nao esconda page.locator em helper de ID.");
+  }
+
+  const trivialBasePage = firstMatch(content, /class\s+BasePage\b[\s\S]{0,800}?module\.exports/gi);
+  if (trivialBasePage && methodCount <= 2) {
+    add("warning", "trivial-base-page", relative(file), lineNumber(content, trivialBasePage.index), "BasePage com apenas page/helper de locator cria heranca sem responsabilidade compartilhada real.");
+  }
+
+  const institutionalLocation = firstMatch(content, /(?:estado|municipio|state|city)[\s\S]{0,160}?selectOption\s*\(\s*\{\s*label\s*:\s*["'`][^"'`]+["'`]/gi);
+  if (institutionalLocation) {
+    add("warning", "institutional-location-hardcoded", relative(file), lineNumber(content, institutionalLocation.index), "Estado ou municipio fixo no Page Object reduz portabilidade; use defaults/perfil da spec.");
+  }
+
   const escapedStableJsfId = firstMatch(content, /locator\s*\(\s*["'`]#[A-Za-z0-9_]+\\\\:/g);
-  if (escapedStableJsfId && !/\bbyId\s*\(\s*id\s*\)/.test(content)) {
-    add("warning", "escaped-jsf-id", relative(file), lineNumber(content, escapedStableJsfId.index), "Centralize IDs JSF estaveis em helper byId(id) em vez de espalhar seletores escapados.");
+  if (escapedStableJsfId) {
+    add("warning", "escaped-jsf-id", relative(file), lineNumber(content, escapedStableJsfId.index), "Troque o ID JSF escapado por locator direto [id=\"form:campo\"] no Page Object.");
   }
 
   const lines = content.split(/\r?\n/);

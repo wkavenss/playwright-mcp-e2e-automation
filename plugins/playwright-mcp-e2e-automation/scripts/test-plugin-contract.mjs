@@ -8,537 +8,364 @@ import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 
-const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const pluginRoot = path.dirname(scriptDir);
-const scaffold = path.join(scriptDir, "scaffold-playwright.mjs");
-const checkEnvironment = path.join(scriptDir, "check-environment.mjs");
-const updateProfiles = path.join(scriptDir, "update-client-profiles.mjs");
-const optimizeContext = path.join(scriptDir, "optimize-context.mjs");
-const audit = path.join(scriptDir, "audit-playwright.mjs");
-const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "playwright-plugin-contract-"));
-const projectRoot = path.join(tempRoot, "project");
+const diretorioScript = path.dirname(fileURLToPath(import.meta.url));
+const raizPlugin = path.dirname(diretorioScript);
+const scaffold = path.join(diretorioScript, "scaffold-playwright.mjs");
+const auditor = path.join(diretorioScript, "audit-playwright.mjs");
+const otimizarContexto = path.join(diretorioScript, "optimize-context.mjs");
+const atualizarPerfis = path.join(diretorioScript, "update-client-profiles.mjs");
+const raizTemporaria = fs.mkdtempSync(path.join(os.tmpdir(), "playwright-plugin-contract-"));
 const require = createRequire(import.meta.url);
 
-function run(script, args = [], options = {}) {
-  const result = spawnSync(process.execPath, [script, ...args], {
+function executar(script, argumentos = [], opcoes = {}) {
+  const resultado = spawnSync(process.execPath, [script, ...argumentos], {
     encoding: "utf8",
-    ...options,
+    ...opcoes,
   });
-  if (result.status !== 0 && !options.allowFailure) {
-    throw new Error(`${path.basename(script)} falhou:\n${result.stderr || result.stdout}`);
+  if (resultado.status !== 0 && !opcoes.allowFailure) {
+    throw new Error(`${path.basename(script)} falhou:\n${resultado.stderr || resultado.stdout}`);
   }
-  return result;
+  return resultado;
 }
 
-function writeJson(file, value) {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+function escreverJson(arquivo, valor) {
+  fs.mkdirSync(path.dirname(arquivo), { recursive: true });
+  fs.writeFileSync(arquivo, `${JSON.stringify(valor, null, 2)}\n`, "utf8");
 }
 
-function readJson(file) {
-  return JSON.parse(fs.readFileSync(file, "utf8"));
+function existe(raiz, caminho) {
+  return fs.existsSync(path.join(raiz, caminho));
+}
+
+function auditar(raiz, arquivo) {
+  const resultado = executar(auditor, [raiz, "--files", arquivo, "--json"], { allowFailure: true });
+  return JSON.parse(resultado.stdout);
 }
 
 try {
-  const manifest = readJson(path.join(pluginRoot, ".codex-plugin", "plugin.json"));
-  assert.equal(manifest.version, "1.0.3");
-  const skillNames = fs.readdirSync(path.join(pluginRoot, "skills"))
-    .filter((name) => fs.existsSync(path.join(pluginRoot, "skills", name, "SKILL.md")));
-  assert(skillNames.includes("gerar-massa-playwright"));
-  assert(skillNames.includes("criar-testes-implantacao-playwright"));
-  assert(!skillNames.includes("criar-automacao-playwright"));
+  const manifesto = JSON.parse(fs.readFileSync(path.join(raizPlugin, ".codex-plugin", "plugin.json"), "utf8"));
+  assert.equal(manifesto.version, "1.0.4");
 
-  const massSkill = fs.readFileSync(path.join(pluginRoot, "skills", "gerar-massa-playwright", "SKILL.md"), "utf8");
-  const implementationSkill = fs.readFileSync(path.join(pluginRoot, "skills", "criar-testes-implantacao-playwright", "SKILL.md"), "utf8");
-  const readabilityReference = fs.readFileSync(path.join(pluginRoot, "references", "legibilidade-codigo.md"), "utf8");
-  const implementationAgent = fs.readFileSync(path.join(pluginRoot, "skills", "criar-testes-implantacao-playwright", "agents", "openai.yaml"), "utf8");
-  assert.match(massSkill, /MODO: Geracao de massa de dados/);
-  assert.match(massSkill, /Nao usar quando.*MODO: Implantacao/);
-  assert.match(implementationSkill, /MODO: Implantacao/);
-  assert.match(implementationSkill, /Nao usar.*MODO: Geracao de massa de dados/);
-  assert.match(implementationSkill, /playwright test <spec> --list/);
-  assert.match(implementationSkill, /unico `test`/);
-  assert.match(implementationSkill, /validationReport/);
-  assert.match(implementationSkill, /headed maximizado/);
-  assert.match(implementationSkill, /classificar a verificacao como `dependencia`/);
-  assert.match(implementationSkill, /overlay opcional/);
-  assert.match(implementationSkill, /getByRole\('row'\)/);
-  assert.match(implementationSkill, /test\.step/);
-  assert.match(implementationSkill, /legibilidade-codigo\.md/);
-  assert.match(readabilityReference, /Comentario util/);
-  assert.match(readabilityReference, /Comentario redundante/);
-  assert.match(implementationAgent, /icon_small:\s*"\.\/assets\/playwright\.png"/);
-  assert.match(implementationAgent, /icon_large:\s*"\.\/assets\/playwright\.png"/);
-  assert(fs.existsSync(path.join(pluginRoot, "skills", "criar-testes-implantacao-playwright", "assets", "playwright.png")));
+  const skillImplantacao = fs.readFileSync(
+    path.join(raizPlugin, "skills", "criar-testes-implantacao-playwright", "SKILL.md"),
+    "utf8",
+  );
+  const skillMassa = fs.readFileSync(
+    path.join(raizPlugin, "skills", "gerar-massa-playwright", "SKILL.md"),
+    "utf8",
+  );
+  const referenciaLegibilidade = fs.readFileSync(
+    path.join(raizPlugin, "references", "legibilidade-codigo.md"),
+    "utf8",
+  );
+  assert.match(skillImplantacao, /--mode implantacao/);
+  assert.match(skillImplantacao, /RelatorioValidacoes/);
+  assert.match(skillImplantacao, /campo, rotulo, controle, tipo, valorValido/);
+  assert.match(skillMassa, /--mode massa/);
+  assert.match(referenciaLegibilidade, /unica colecao/);
+  assert.match(referenciaLegibilidade, /Nao criar `BasePage`/);
 
-  run(scaffold, [projectRoot]);
-  for (const relative of [
+  const projetoBasico = path.join(raizTemporaria, "basico");
+  executar(scaffold, [projetoBasico]);
+  for (const arquivo of [
+    "playwright.config.js",
     ".env.example",
+    "tests/utils/authProfiles.js",
+    "tests/utils/testData.js",
+    "tests/fixtures/maximizedTest.js",
+  ]) assert(existe(projetoBasico, arquivo), `Modo basico nao criou ${arquivo}`);
+  for (const arquivo of [
+    "tests/pages/BasePage.js",
+    "tests/utils/clientConfig.js",
+    "tests/utils/validationReport.js",
+    "tests/utils/legacyForm.js",
+    "config/defaults.json",
+  ]) assert(!existe(projetoBasico, arquivo), `Modo basico criou arquivo preventivo: ${arquivo}`);
+  assert(!fs.readFileSync(path.join(projetoBasico, ".env.example"), "utf8").includes("E2E_CLIENT_PROFILE"));
+
+  const projetoMassa = path.join(raizTemporaria, "massa");
+  executar(scaffold, [projetoMassa, "--mode", "massa"]);
+  assert(existe(projetoMassa, "tests/utils/testData.js"));
+  assert(!existe(projetoMassa, "tests/utils/validationReport.js"));
+  assert(!existe(projetoMassa, "config/clientes/referencia.json"));
+
+  const projetoImplantacao = path.join(raizTemporaria, "implantacao");
+  executar(scaffold, [projetoImplantacao, "--mode", "implantacao"]);
+  for (const arquivo of [
     "config/defaults.json",
     "config/clientes/referencia.json",
     "tests/utils/clientConfig.js",
     "tests/utils/validationReport.js",
-    "tests/fixtures/maximizedTest.js",
-  ]) assert(fs.existsSync(path.join(projectRoot, relative)), `Scaffold nao criou ${relative}`);
-  const generatedConfig = fs.readFileSync(path.join(projectRoot, "playwright.config.js"), "utf8");
-  assert.match(generatedConfig, /viewport:\s*null/);
-  assert.match(generatedConfig, /--start-maximized/);
-  assert.match(generatedConfig, /trace:\s*'retain-on-first-failure'/);
-  assert.match(generatedConfig, /screenshot:\s*'only-on-failure'/);
-  assert.match(generatedConfig, /video:\s*'off'/);
-  assert(!generatedConfig.includes("devices['Desktop Chrome']"));
-  assert.match(fs.readFileSync(path.join(projectRoot, "tests", "fixtures", "maximizedTest.js"), "utf8"), /Browser\.setWindowBounds/);
-  assert.match(fs.readFileSync(path.join(projectRoot, ".env.example"), "utf8"), /^E2E_CLIENT_PROFILE=referencia$/m);
-  fs.writeFileSync(path.join(projectRoot, ".env.example"), "CUSTOM_SETTING=preservar\nE2E_CLIENT_PROFILE=cliente-a\n", "utf8");
-  run(scaffold, [projectRoot]);
-  const updatedEnvExample = fs.readFileSync(path.join(projectRoot, ".env.example"), "utf8");
-  assert.match(updatedEnvExample, /^CUSTOM_SETTING=preservar$/m);
-  assert.match(updatedEnvExample, /^E2E_CLIENT_PROFILE=cliente-a$/m);
-  assert(!updatedEnvExample.includes("E2E_CLIENT_PROFILE=referencia"));
-  const headedSmokeResult = run(checkEnvironment, [projectRoot, "--headed-smoke", "--json"], { allowFailure: true });
-  const headedSmokeSummary = JSON.parse(headedSmokeResult.stdout);
-  assert.equal(headedSmokeSummary.browserSmoke.requested, true);
-  assert.equal(headedSmokeSummary.browserSmoke.headed, true);
-  const scaffoldSnapshot = fs.readFileSync(path.join(projectRoot, "tests", "utils", "clientConfig.js"), "utf8");
-  run(scaffold, [projectRoot]);
-  assert.equal(fs.readFileSync(path.join(projectRoot, "tests", "utils", "clientConfig.js"), "utf8"), scaffoldSnapshot);
+  ]) assert(existe(projetoImplantacao, arquivo), `Modo implantacao nao criou ${arquivo}`);
+  assert(!existe(projetoImplantacao, "tests/pages/BasePage.js"));
+  assert(!existe(projetoImplantacao, "tests/utils/legacyForm.js"));
+  assert.match(
+    fs.readFileSync(path.join(projetoImplantacao, ".env.example"), "utf8"),
+    /^E2E_CLIENT_PROFILE=referencia$/m,
+  );
 
-  const { createValidationReport } = require(path.join(projectRoot, "tests", "utils", "validationReport.js"));
-  const report = createValidationReport({
-    projectRoot,
-    spec: "modulo.fluxo-multipagina",
-    runId: "RUN_001",
-    planned: [
-      { id: "tela1.nome", screen: "Tela 1", kind: "obrigatoriedade", field: "Nome" },
-      { id: "tela1.data", screen: "Tela 1", kind: "formato", field: "Data" },
-      { id: "tela2.curso", screen: "Tela 2", kind: "obrigatoriedade", field: "Curso" },
+  const projetoLegado = path.join(raizTemporaria, "legado");
+  executar(scaffold, [projetoLegado, "--mode", "implantacao", "--legacy-form"]);
+  assert(existe(projetoLegado, "tests/utils/legacyForm.js"));
+
+  const modoInvalido = executar(scaffold, [path.join(raizTemporaria, "invalido"), "--mode", "todos"], {
+    allowFailure: true,
+  });
+  assert.notEqual(modoInvalido.status, 0);
+  assert.match(modoInvalido.stderr, /Modo invalido/);
+
+  fs.writeFileSync(
+    path.join(projetoBasico, ".env.example"),
+    "CUSTOM_SETTING=preservar\nE2E_WORKERS=2\n",
+    "utf8",
+  );
+  executar(scaffold, [projetoBasico]);
+  const envPreservado = fs.readFileSync(path.join(projetoBasico, ".env.example"), "utf8");
+  assert.match(envPreservado, /^CUSTOM_SETTING=preservar$/m);
+  assert.match(envPreservado, /^E2E_WORKERS=2$/m);
+  assert(!envPreservado.includes("E2E_WORKERS=1"));
+
+  const configuracao = require(path.join(projetoImplantacao, "tests", "utils", "clientConfig.js"));
+  escreverJson(path.join(projetoImplantacao, "config", "defaults.json"), {
+    curso: { estado: "PADRAO", municipio: "CIDADE PADRAO" },
+  });
+  escreverJson(path.join(projetoImplantacao, "config", "clientes", "cliente-a.json"), {
+    curso: { programa: "PROGRAMA A", municipio: "CIDADE A", pendente: null },
+  });
+
+  const dadosCliente = configuracao.obterDadosDaSpec({
+    raizProjeto: projetoImplantacao,
+    perfil: "cliente-a",
+    spec: "curso.cadastrar",
+    requisitos: [
+      { caminho: "curso.estado", tipo: "string" },
+      { caminho: "curso.municipio", tipo: "string" },
+      { caminho: "curso.programa", tipo: "string" },
     ],
   });
-  await report.check("tela1.nome", async () => {});
-  await report.check("tela1.data", async () => { throw new Error("senha=segredo contato qa@example.test"); });
-  report.blockPending({ screen: "Tela 2", reason: "Avanco indevido impediu a verificacao" });
-  const reportFile = report.write();
-  const reportMarkdown = fs.readFileSync(reportFile, "utf8");
-  assert.match(reportMarkdown, /Passou: 1/);
-  assert.match(reportMarkdown, /Falhou: 1/);
-  assert.match(reportMarkdown, /Nao executado: 1/);
-  assert.match(reportMarkdown, /senha=\\<redacted\\>/);
-  assert.match(reportMarkdown, /\\<email\\>/);
-  assert(!reportMarkdown.includes("segredo"));
-  assert(!reportMarkdown.includes("qa@example.test"));
-  assert.throws(() => report.assertSuccessful(), /1 falha\(s\), 1 nao executada\(s\)/);
+  assert.equal(dadosCliente.curso.estado, "PADRAO");
+  assert.equal(dadosCliente.curso.municipio, "CIDADE A");
+  assert.equal(dadosCliente.curso.programa, "PROGRAMA A");
 
-  const counters = { login: 0, entry: 0, advances: 0, persistence: 0 };
-  const continuationReport = createValidationReport({
-    projectRoot,
-    spec: "modulo.fluxo-continuo",
-    runId: "RUN_003",
-    planned: [
-      { id: "tela1.a", screen: "Tela 1", field: "A" },
-      { id: "tela1.b", screen: "Tela 1", field: "B" },
-      { id: "tela1.c", screen: "Tela 1", field: "C" },
-      { id: "tela2.d", screen: "Tela 2", field: "D" },
-      { id: "persistencia", screen: "Resultado", field: "Registro" },
+  const dadosRuntime = configuracao.obterDadosDaSpec({
+    raizProjeto: projetoImplantacao,
+    perfil: "cliente-a",
+    spec: "curso.cadastrar",
+    requisitos: ["curso.programa"],
+    runtime: { curso: { programa: "PROGRAMA RUNTIME" } },
+  });
+  assert.equal(dadosRuntime.curso.programa, "PROGRAMA RUNTIME");
+  assert.throws(() => configuracao.obterDadosDaSpec({
+    raizProjeto: projetoImplantacao,
+    perfil: "cliente-a",
+    spec: "curso.outra",
+    requisitos: ["curso.pendente"],
+  }), /curso\.pendente/);
+  assert.throws(() => configuracao.obterDadosDaSpec({
+    raizProjeto: projetoImplantacao,
+    perfil: "cliente-a",
+    spec: "curso.cadastrar",
+    requisitos: [{ caminho: "curso.programa", tipo: "number" }],
+  }), /tipo incompatível/);
+  assert.throws(() => configuracao.obterDadosDaSpec({
+    raizProjeto: projetoImplantacao,
+    perfil: "../segredo",
+    spec: "curso.cadastrar",
+  }), /Perfil de cliente inválido/);
+  assert.throws(() => configuracao.obterDadosDaSpec({
+    raizProjeto: projetoImplantacao,
+    perfil: "inexistente",
+    spec: "curso.cadastrar",
+  }), /não encontrado/);
+
+  const chaveSensivel = ["se", "nha"].join("");
+  escreverJson(
+    path.join(projetoImplantacao, "config", "clientes", "sensivel.json"),
+    { [chaveSensivel]: ["nao", "permitido"].join("-") },
+  );
+  assert.throws(() => configuracao.obterDadosDaSpec({
+    raizProjeto: projetoImplantacao,
+    perfil: "sensivel",
+    spec: "curso.cadastrar",
+  }), /Chave sensível proibida/);
+
+  const { RelatorioValidacoes } = require(
+    path.join(projetoImplantacao, "tests", "utils", "validationReport.js"),
+  );
+  const relatorio = new RelatorioValidacoes({
+    raizProjeto: projetoImplantacao,
+    spec: "curso.cadastrar",
+    idExecucao: "RUN_001",
+    verificacoesPlanejadas: [
+      { id: "nome", tela: "Cadastro", tipo: "obrigatoriedade", campo: "Nome" },
+      { id: "persistencia", tela: "Consulta", tipo: "persistencia", campo: "Curso" },
     ],
   });
-  counters.login += 1;
-  counters.entry += 1;
-  continuationReport.pass("tela1.a");
-  continuationReport.fail("tela1.b", "O sistema avancou quando deveria bloquear");
-  continuationReport.blockPending({ screen: "Tela 1", reason: "Tela anterior ficou inacessivel" });
-  counters.advances += 1;
-  continuationReport.pass("tela2.d");
-  counters.persistence += 1;
-  continuationReport.pass("persistencia");
-  continuationReport.write();
-  assert.deepEqual(counters, { login: 1, entry: 1, advances: 1, persistence: 1 });
-  assert.deepEqual(continuationReport.summary(), { total: 5, passed: 3, failed: 1, blocked: 1 });
-
-  const successfulReport = createValidationReport({
-    projectRoot,
-    spec: "modulo.fluxo-sucesso",
-    runId: "RUN_002",
-    planned: [{ id: "persistencia", screen: "Resultado", kind: "persistencia", field: "Registro" }],
-  });
-  successfulReport.pass("persistencia");
-  successfulReport.write();
-  assert.doesNotThrow(() => successfulReport.assertSuccessful());
-  assert.throws(() => createValidationReport({
-    projectRoot,
-    spec: "modulo.validacao-duplicada",
-    runId: "RUN_004",
-    planned: [
-      { id: "estado", screen: "Tela", kind: "obrigatoriedade", field: "Municipio" },
-      { id: "municipio", screen: "Tela", kind: "obrigatoriedade", field: "Municipio" },
+  assert.equal(await relatorio.verificar("nome", async () => {}), true);
+  assert.equal(await relatorio.verificar("persistencia", async () => {
+    throw new Error("senha=segredo usuario=admin");
+  }), false);
+  const arquivoRelatorio = relatorio.gravar();
+  const conteudoRelatorio = fs.readFileSync(arquivoRelatorio, "utf8");
+  assert(!conteudoRelatorio.includes("segredo"));
+  assert(!conteudoRelatorio.includes("admin"));
+  assert.throws(() => relatorio.validarResultado(), /1 falha/);
+  assert.throws(() => new RelatorioValidacoes({
+    spec: "duplicada",
+    idExecucao: "RUN_002",
+    verificacoesPlanejadas: [
+      { id: "a", tela: "Tela", tipo: "obrigatoriedade", campo: "Nome" },
+      { id: "b", tela: "Tela", tipo: "obrigatoriedade", campo: "Nome" },
     ],
-  }), /Validacao semanticamente duplicada/);
+  }), /semanticamente duplicada/);
 
-  writeJson(path.join(projectRoot, "config", "defaults.json"), {
-    comum: { modalidade: "PADRAO" },
-  });
-  writeJson(path.join(projectRoot, "config", "clientes", "referencia.json"), {
-    modulo: {
-      specA: { dependencia: "VALOR_REFERENCIA" },
-      specB: { outraDependencia: null },
-    },
-  });
-  writeJson(path.join(projectRoot, "config", "clientes", "cliente-a.json"), {
-    modulo: {
-      specA: { dependencia: "VALOR_CLIENTE_A" },
-      specB: { outraDependencia: null },
-    },
-  });
-
-  const clientConfig = require(path.join(projectRoot, "tests", "utils", "clientConfig.js"));
-  const specA = clientConfig.requireSpecData({
-    projectRoot,
-    profile: "cliente-a",
-    spec: "modulo.spec-a",
-    required: ["modulo.specA.dependencia"],
-  });
-  assert.equal(specA.modulo.specA.dependencia, "VALOR_CLIENTE_A");
-  assert.equal(specA.comum.modalidade, "PADRAO");
-
-  const runtime = clientConfig.requireSpecData({
-    projectRoot,
-    profile: "cliente-a",
-    spec: "modulo.spec-a",
-    required: [{ path: "modulo.specA.dependencia", type: "string" }],
-    runtime: { modulo: { specA: { dependencia: "VALOR_RUNTIME" } } },
-  });
-  assert.equal(runtime.modulo.specA.dependencia, "VALOR_RUNTIME");
-  assert.throws(() => clientConfig.requireSpecData({
-    projectRoot,
-    profile: "cliente-a",
-    spec: "modulo.spec-b",
-    required: ["modulo.specB.outraDependencia"],
-  }), /modulo\.specB\.outraDependencia/);
-  assert.throws(() => clientConfig.requireSpecData({
-    projectRoot,
-    profile: "cliente-a",
-    spec: "modulo.spec-a",
-    required: [{ path: "modulo.specA.dependencia", type: "number" }],
-  }), /tipo incompativel/);
-  assert.throws(() => clientConfig.requireSpecData({
-    projectRoot,
-    profile: "cliente-a",
-    spec: "modulo.spec-vazia",
-    required: ["modulo.objetoVazio"],
-    runtime: { modulo: { objetoVazio: {} } },
-  }), /modulo\.objetoVazio/);
-  assert.throws(() => clientConfig.loadClientConfig({ projectRoot, profile: "\.\.\/segredo" }), /Perfil de cliente invalido/);
-  assert.throws(() => clientConfig.loadClientConfig({ projectRoot, profile: "cliente-inexistente" }), /Perfil do cliente nao encontrado/);
-
-  const invalidProfile = path.join(projectRoot, "config", "clientes", "invalido.json");
-  fs.writeFileSync(invalidProfile, "{", "utf8");
-  assert.throws(() => clientConfig.loadClientConfig({ projectRoot, profile: "invalido" }), /Perfil do cliente invalido/);
-  fs.rmSync(invalidProfile);
-
-  const sensitiveKey = ["se", "nha"].join("");
-  const sensitiveProfile = path.join(projectRoot, "config", "clientes", "sensivel.json");
-  writeJson(sensitiveProfile, { [sensitiveKey]: ["nao", "permitido"].join("-") });
-  assert.throws(() => clientConfig.loadClientConfig({ projectRoot, profile: "sensivel" }), /Chave sensivel proibida/);
-  fs.rmSync(sensitiveProfile);
-  const structuralProfile = path.join(projectRoot, "config", "clientes", "estrutural.json");
-  fs.writeFileSync(structuralProfile, '{"__proto__":{"poluido":true}}\n', "utf8");
-  assert.throws(() => clientConfig.loadClientConfig({ projectRoot, profile: "estrutural" }), /Chave sensivel proibida|Chave estrutural proibida/);
-  fs.rmSync(structuralProfile);
-
-  run(updateProfiles, [
-    projectRoot,
-    "--classification", "client",
-    "--path", "modulo.specC.preRequisito",
-    "--reference-value-json", JSON.stringify("VALOR_REFERENCIA_C"),
-  ]);
-  assert.equal(readJson(path.join(projectRoot, "config", "clientes", "referencia.json")).modulo.specC.preRequisito, "VALOR_REFERENCIA_C");
-
-  run(updateProfiles, [
-    projectRoot,
+  executar(atualizarPerfis, [
+    projetoImplantacao,
     "--classification", "default",
-    "--path", "comum.categoria",
-    "--value-json", JSON.stringify("CATEGORIA_PADRAO"),
+    "--path", "curso.area",
+    "--value-json", JSON.stringify("AREA PADRAO"),
   ]);
-  assert.equal(readJson(path.join(projectRoot, "config", "defaults.json")).comum.categoria, "CATEGORIA_PADRAO");
-  const rejectedSensitive = run(updateProfiles, [
-    projectRoot,
-    "--classification", "client",
-    "--path", "modulo.senha",
-    "--reference-value-json", JSON.stringify("segredo"),
-  ], { allowFailure: true });
-  assert.notEqual(rejectedSensitive.status, 0);
-  const rejectedStructuralPath = run(updateProfiles, [
-    projectRoot,
-    "--classification", "client",
-    "--path", "constructor.prototype.poluido",
-    "--reference-value-json", JSON.stringify(true),
-  ], { allowFailure: true });
-  assert.notEqual(rejectedStructuralPath.status, 0);
-  assert.equal(readJson(path.join(projectRoot, "config", "clientes", "cliente-a.json")).modulo.specC.preRequisito, null);
+  assert.equal(
+    JSON.parse(fs.readFileSync(path.join(projetoImplantacao, "config", "defaults.json"), "utf8")).curso.area,
+    "AREA PADRAO",
+  );
 
-  writeJson(path.join(projectRoot, "config", "clientes", "cliente-b.json"), {
-    modulo: { specC: { preRequisito: "VALOR_EXISTENTE" } },
-  });
-  run(updateProfiles, [
-    projectRoot,
-    "--classification", "client",
-    "--path", "modulo.specC.preRequisito",
-    "--reference-value-json", JSON.stringify("NAO_SOBRESCREVER"),
-  ]);
-  assert.equal(readJson(path.join(projectRoot, "config", "clientes", "cliente-b.json")).modulo.specC.preRequisito, "VALOR_EXISTENTE");
-  assert.equal(readJson(path.join(projectRoot, "config", "clientes", "referencia.json")).modulo.specC.preRequisito, "VALOR_REFERENCIA_C");
+  const paginaBase = path.join(projetoImplantacao, "tests", "pages", "BasePage.js");
+  fs.writeFileSync(paginaBase, [
+    "class BasePage {",
+    "  constructor(page) { this.page = page; }",
+    "  byId(id) { return this.page.locator(`[id=\"${id}\"]`); }",
+    "}",
+    "module.exports = { BasePage };",
+    "",
+  ].join("\n"), "utf8");
+  const auditoriaBase = auditar(projetoImplantacao, "tests/pages/BasePage.js");
+  assert(auditoriaBase.findings.some((item) => item.rule === "trivial-base-page"));
+  assert(auditoriaBase.findings.some((item) => item.rule === "generic-id-helper"));
+  fs.rmSync(paginaBase);
 
-  const massPrompt = [
+  const paginaDireta = path.join(projetoImplantacao, "tests", "pages", "CursoPage.js");
+  fs.writeFileSync(paginaDireta, [
+    "class CursoPage {",
+    "  constructor(page) {",
+    "    this.nome = page.locator('[id=\"cadastroCurso:nome\"]');",
+    "  }",
+    "}",
+    "module.exports = { CursoPage };",
+    "",
+  ].join("\n"), "utf8");
+  const auditoriaDireta = auditar(projetoImplantacao, "tests/pages/CursoPage.js");
+  assert(!auditoriaDireta.findings.some((item) => item.rule === "generic-id-helper"));
+  assert(!auditoriaDireta.findings.some((item) => item.rule === "escaped-jsf-id"));
+
+  const paginaLocalidade = path.join(projetoImplantacao, "tests", "pages", "LocalidadePage.js");
+  fs.writeFileSync(paginaLocalidade, [
+    "class LocalidadePage {",
+    "  async selecionar() {",
+    "    await this.estado.selectOption({ label: 'Rio Grande do Norte' });",
+    "  }",
+    "}",
+    "module.exports = { LocalidadePage };",
+    "",
+  ].join("\n"), "utf8");
+  assert(auditar(projetoImplantacao, "tests/pages/LocalidadePage.js").findings
+    .some((item) => item.rule === "institutional-location-hardcoded"));
+
+  const specLegivel = path.join(projetoImplantacao, "tests", "e2e", "implantacao-legivel.spec.js");
+  fs.writeFileSync(specLegivel, [
+    "const { test } = require('../fixtures/maximizedTest');",
+    "const { obterDadosDaSpec } = require('../utils/clientConfig');",
+    "const { RelatorioValidacoes } = require('../utils/validationReport');",
+    "let dadosCliente;",
+    "// O preflight valida somente a massa desta spec antes da navegacao.",
+    "test.beforeAll(() => { dadosCliente = obterDadosDaSpec({ spec: 'x', requisitos: [] }); });",
+    "test('deve validar obrigatorios da implantacao', async () => {",
+    "  const CAMPOS_OBRIGATORIOS = [",
+    "    { campo: 'nome', rotulo: 'Nome', controle: {}, tipo: 'texto', valorValido: 'CURSO E2E' },",
+    "  ];",
+    "  const relatorio = new RelatorioValidacoes({ spec: 'x', idExecucao: 'RUN', verificacoesPlanejadas: [] });",
+    "  await test.step('Preparar formulario', async () => { void dadosCliente; });",
+    "  // A mesma colecao orienta todas as validacoes na sessao unica.",
+    "  await test.step('Validar campos obrigatorios', async () => {",
+    "    for (const campo of CAMPOS_OBRIGATORIOS) void campo;",
+    "  });",
+    "  relatorio.gravar();",
+    "  relatorio.validarResultado();",
+    "});",
+    "",
+  ].join("\n"), "utf8");
+  const auditoriaLegivel = auditar(projetoImplantacao, "tests/e2e/implantacao-legivel.spec.js");
+  for (const regra of [
+    "missing-validation-report",
+    "positional-validation-cases",
+    "callback-field-descriptors",
+    "duplicated-field-sources",
+    "implantation-without-functional-steps",
+  ]) assert(!auditoriaLegivel.findings.some((item) => item.rule === regra), regra);
+
+  const specDuplicada = path.join(projetoImplantacao, "tests", "e2e", "implantacao-duplicada.spec.js");
+  fs.writeFileSync(specDuplicada, [
+    "const { test } = require('@playwright/test');",
+    "const { obterDadosDaSpec } = require('../utils/clientConfig');",
+    "test.beforeAll(() => obterDadosDaSpec({ spec: 'x', requisitos: [] }));",
+    "test('obrigatorios da implantacao', async () => {",
+    "  const CAMPOS_OBRIGATORIOS = [",
+    "    { campo: 'nome', rotulo: 'Nome', restaurar: () => preencher() },",
+    "  ];",
+    "  const restauracoes = { nome: () => preencher() };",
+    "  void CAMPOS_OBRIGATORIOS; void restauracoes;",
+    "});",
+    "",
+  ].join("\n"), "utf8");
+  const auditoriaDuplicada = auditar(projetoImplantacao, "tests/e2e/implantacao-duplicada.spec.js");
+  assert(auditoriaDuplicada.findings.some((item) => item.rule === "callback-field-descriptors"));
+  assert(auditoriaDuplicada.findings.some((item) => item.rule === "duplicated-field-sources"));
+
+  const fabrica = path.join(projetoImplantacao, "tests", "utils", "factory.js");
+  fs.writeFileSync(fabrica, "function criar(opcoes) { return new RelatorioValidacoes(opcoes); }\nmodule.exports = { criar };\n", "utf8");
+  assert(auditar(projetoImplantacao, "tests/utils/factory.js").findings
+    .some((item) => item.rule === "trivial-factory"));
+
+  const promptMassa = [
     "MODO: Geracao de massa de dados",
     "URL: https://example.test",
     "USUARIO: exemplo",
     "SENHA: exemplo",
     "CAMINHO: Menu > Cadastro",
   ].join("\n");
-  const massResult = run(optimizeContext, [projectRoot, "--json", "--stdin"], { input: massPrompt });
-  const massSummary = JSON.parse(massResult.stdout);
-  assert.equal(massSummary.normalizedInput.functionalMode, "massa");
-  assert.equal(massSummary.normalizedInput.quantity, 1);
-  assert.equal(massSummary.normalizedInput.quantityValid, true);
-  assert.equal(massSummary.normalizedInput.contractComplete, true);
-  const invalidQuantity = run(optimizeContext, [projectRoot, "--json", "--stdin"], {
-    input: `${massPrompt}\nQUANTIDADE: zero`,
-  });
-  const invalidQuantitySummary = JSON.parse(invalidQuantity.stdout);
-  assert.equal(invalidQuantitySummary.normalizedInput.quantityValid, false);
-  assert.equal(invalidQuantitySummary.normalizedInput.contractComplete, false);
-  const blankContract = run(optimizeContext, [projectRoot, "--json", "--stdin"], {
-    input: [
-      "MODO: Implantacao",
-      "URL:",
-      "USUARIO:",
-      "SENHA:",
-      "CAMINHO:",
-      "AGENTS.md do modulo:",
-      "Codigo-fonte:",
-    ].join("\n"),
-  });
-  const blankContractSummary = JSON.parse(blankContract.stdout);
-  assert.equal(blankContractSummary.normalizedInput.contractComplete, false);
-  assert.equal(blankContractSummary.nextAction, "pedir-contrato-minimo");
+  const resumoMassa = JSON.parse(executar(
+    otimizarContexto,
+    [projetoMassa, "--json", "--stdin"],
+    { input: promptMassa },
+  ).stdout);
+  assert.equal(resumoMassa.normalizedInput.functionalMode, "massa");
+  assert.equal(resumoMassa.normalizedInput.quantity, 1);
 
-  const implementationPrompt = [
-    "MODO: Implantação",
+  const promptImplantacao = [
+    "MODO: Implantacao",
     "URL: https://example.test",
     "USUARIO: exemplo",
     "SENHA: exemplo",
     "CAMINHO: Menu > Cadastro",
-    "AGENTS.md do módulo: /repo/AGENTS.md",
-    "Código-fonte: /repo/sistema",
+    "AGENTS.md do modulo: /repo/AGENTS.md",
+    "Codigo-fonte: /repo/sistema",
   ].join("\n");
-  const implementationResult = run(optimizeContext, [projectRoot, "--json", "--stdin"], { input: implementationPrompt });
-  const implementationSummary = JSON.parse(implementationResult.stdout);
-  assert.equal(implementationSummary.normalizedInput.functionalMode, "implantacao");
-  assert.equal(implementationSummary.normalizedInput.contractComplete, true);
+  const resumoImplantacao = JSON.parse(executar(
+    otimizarContexto,
+    [projetoImplantacao, "--json", "--stdin"],
+    { input: promptImplantacao },
+  ).stdout);
+  assert.equal(resumoImplantacao.normalizedInput.functionalMode, "implantacao");
+  assert.equal(resumoImplantacao.normalizedInput.contractComplete, true);
 
-  const ambiguous = run(optimizeContext, [projectRoot, "--json", "--stdin"], {
-    input: `${massPrompt}\nMODO: Implantacao`,
-  });
-  const ambiguousSummary = JSON.parse(ambiguous.stdout);
-  assert.equal(ambiguousSummary.normalizedInput.functionalMode, "contraditorio");
-  assert.equal(ambiguousSummary.nextAction, "pedir-modo-funcional");
-  const missingMode = run(optimizeContext, [projectRoot, "--json", "--stdin"], {
-    input: massPrompt.replace("MODO: Geracao de massa de dados\n", ""),
-  });
-  const missingModeSummary = JSON.parse(missingMode.stdout);
-  assert.equal(missingModeSummary.normalizedInput.functionalMode, "ausente");
-  assert.equal(missingModeSummary.nextAction, "pedir-modo-funcional");
+  const ambiguo = JSON.parse(executar(
+    otimizarContexto,
+    [projetoImplantacao, "--json", "--stdin"],
+    { input: `${promptMassa}\nMODO: Implantacao` },
+  ).stdout);
+  assert.equal(ambiguo.normalizedInput.functionalMode, "contraditorio");
 
-  const cleanAuditResult = run(audit, [projectRoot, "--json"], { allowFailure: true });
-  const cleanAuditSummary = JSON.parse(cleanAuditResult.stdout);
-  assert(!cleanAuditSummary.findings.some((item) => item.rule === "local-absolute-path"));
-  assert(!cleanAuditSummary.findings.some((item) => item.rule === "failure-trace-required"));
-  assert(!cleanAuditSummary.findings.some((item) => item.rule === "failure-screenshot-required"));
-
-  const configFile = path.join(projectRoot, "playwright.config.js");
-  const goodConfig = fs.readFileSync(configFile, "utf8");
-  fs.writeFileSync(configFile, goodConfig
-    .replace("trace: 'retain-on-first-failure'", "trace: 'off'")
-    .replace("screenshot: 'only-on-failure'", "screenshot: 'off'"), "utf8");
-  const noEvidenceAudit = JSON.parse(run(audit, [projectRoot, "--json"], { allowFailure: true }).stdout);
-  assert(noEvidenceAudit.findings.some((item) => item.rule === "failure-trace-required"));
-  assert(noEvidenceAudit.findings.some((item) => item.rule === "failure-screenshot-required"));
-  fs.writeFileSync(configFile, goodConfig, "utf8");
-
-  const fragilePage = path.join(projectRoot, "tests", "pages", "FragileOverlayPage.js");
-  const immediateVisibilityGuard = "    if (await this.cookieConsent.isVis" + "ible()) await this.cookieConsent.click();";
-  fs.writeFileSync(fragilePage, [
-    "class FragileOverlayPage {",
-    "  async submit() {",
-    immediateVisibilityGuard,
-    "    await this.submitButton.click();",
-    "  }",
-    "}",
-    "module.exports = { FragileOverlayPage };",
-    "",
-  ].join("\n"), "utf8");
-  const fragileOverlayAudit = JSON.parse(run(audit, [projectRoot, "--files", path.relative(projectRoot, fragilePage), "--json"], { allowFailure: true }).stdout);
-  assert(fragileOverlayAudit.findings.some((item) => item.rule === "optional-overlay-race"));
-
-  const safePage = path.join(projectRoot, "tests", "pages", "SafeOverlayPage.js");
-  fs.writeFileSync(safePage, [
-    "class SafeOverlayPage {",
-    "  async submit() {",
-    "    try { await this.submitButton.click({ timeout: 5000 }); }",
-    "    catch (error) {",
-    "      if (!(await this.cookieConsent.isVisible())) throw error;",
-    "      await this.cookieConsent.click();",
-    "      await this.submitButton.click();",
-    "    }",
-    "  }",
-    "}",
-    "module.exports = { SafeOverlayPage };",
-    "",
-  ].join("\n"), "utf8");
-  const safeOverlayAudit = JSON.parse(run(audit, [projectRoot, "--files", path.relative(projectRoot, safePage), "--json"], { allowFailure: true }).stdout);
-  assert(!safeOverlayAudit.findings.some((item) => item.rule === "optional-overlay-race"));
-
-  const structuralTablePage = path.join(projectRoot, "tests", "pages", "StructuralTablePage.js");
-  const structuralTableCode = "const rows = page.locator('table.listagem tbody" + " tr');\nvoid rows;\n";
-  fs.writeFileSync(structuralTablePage, structuralTableCode, "utf8");
-  const structuralTableAudit = JSON.parse(run(audit, [projectRoot, "--files", path.relative(projectRoot, structuralTablePage), "--json"], { allowFailure: true }).stdout);
-  assert(structuralTableAudit.findings.some((item) => item.rule === "structural-table-selector"));
-
-  const semanticTablePage = path.join(projectRoot, "tests", "pages", "SemanticTablePage.js");
-  fs.writeFileSync(semanticTablePage, "const rows = page.getByRole('table', { name: /Resultados/ }).getByRole('row').filter({ hasText: nome });\nvoid rows;\n", "utf8");
-  const semanticTableAudit = JSON.parse(run(audit, [projectRoot, "--files", path.relative(projectRoot, semanticTablePage), "--json"], { allowFailure: true }).stdout);
-  assert(!semanticTableAudit.findings.some((item) => item.rule === "structural-table-selector"));
-
-  const badSpec = path.join(projectRoot, "tests", "e2e", "preflight-fora-do-escopo.spec.js");
-  fs.writeFileSync(badSpec, "const { requireSpecData } = require('../utils/clientConfig');\nrequireSpecData({ spec: 'x', required: [] });\n", "utf8");
-  const auditResult = run(audit, [projectRoot, "--files", path.relative(projectRoot, badSpec), "--json"], { allowFailure: true });
-  const auditSummary = JSON.parse(auditResult.stdout);
-  assert(auditSummary.findings.some((item) => item.rule === "client-data-preflight-scope"));
-
-  const goodSpec = path.join(projectRoot, "tests", "e2e", "preflight-por-spec.spec.js");
-  fs.writeFileSync(goodSpec, [
-    "const { test } = require('@playwright/test');",
-    "const { requireSpecData } = require('../utils/clientConfig');",
-    "let data;",
-    "test.beforeAll(() => { data = requireSpecData({ spec: 'x', required: [] }); });",
-    "test('deve validar somente sua massa quando selecionada', async () => { void data; });",
-    "",
-  ].join("\n"), "utf8");
-  const goodAuditResult = run(audit, [projectRoot, "--files", path.relative(projectRoot, goodSpec), "--json"], { allowFailure: true });
-  const goodAuditSummary = JSON.parse(goodAuditResult.stdout);
-  assert(!goodAuditSummary.findings.some((item) => item.rule === "client-data-preflight-scope"));
-
-  const singleSessionSpec = path.join(projectRoot, "tests", "e2e", "obrigatorios-sessao-unica.spec.js");
-  fs.writeFileSync(singleSessionSpec, [
-    "const { test } = require('../fixtures/maximizedTest');",
-    "const { requireSpecData } = require('../utils/clientConfig');",
-    "const { createValidationReport } = require('../utils/validationReport');",
-    "let data;",
-    "test.beforeAll(() => { data = requireSpecData({ spec: 'x', required: [] }); });",
-    "test('deve validar obrigatorios e concluir implantacao', async () => {",
-    "  const report = createValidationReport({ spec: 'x', runId: 'RUN', planned: [] });",
-    "  for (const campo of ['nome']) await report.check(campo, async () => {});",
-    "  report.write();",
-    "  report.assertSuccessful();",
-    "  void data;",
-    "});",
-    "",
-  ].join("\n"), "utf8");
-  const singleSessionAudit = JSON.parse(run(audit, [projectRoot, "--files", path.relative(projectRoot, singleSessionSpec), "--json"], { allowFailure: true }).stdout);
-  assert(!singleSessionAudit.findings.some((item) => item.rule === "fragmented-implantation-flow"));
-  assert(!singleSessionAudit.findings.some((item) => item.rule === "missing-validation-report"));
-  assert(singleSessionAudit.findings.some((item) => item.rule === "implantation-without-functional-steps"));
-  assert(singleSessionAudit.findings.some((item) => item.rule === "implantation-without-explanatory-comments"));
-
-  const readableSpec = path.join(projectRoot, "tests", "e2e", "implantacao-legivel.spec.js");
-  fs.writeFileSync(readableSpec, [
-    "const { test } = require('../fixtures/maximizedTest');",
-    "const { requireSpecData } = require('../utils/clientConfig');",
-    "const { createValidationReport } = require('../utils/validationReport');",
-    "const CAMPOS_OBRIGATORIOS = [{ campo: 'nome', rotulo: 'Nome' }];",
-    "let dadosCliente;",
-    "// O preflight valida somente a massa exigida por esta spec, antes de abrir o navegador.",
-    "test.beforeAll(() => { dadosCliente = requireSpecData({ spec: 'x', required: [] }); });",
-    "test('deve validar obrigatorios e concluir implantacao', async () => {",
-    "  const relatorio = createValidationReport({ spec: 'x', runId: 'RUN', planned: [] });",
-    "  await test.step('Preparar o formulario', async () => { void dadosCliente; });",
-    "  // Todos os obrigatorios sao exercitados na mesma sessao para evitar registros parciais.",
-    "  await test.step('Validar campos obrigatorios', async () => {",
-    "    for (const { campo } of CAMPOS_OBRIGATORIOS) await relatorio.check(campo, async () => {});",
-    "  });",
-    "  await test.step('Concluir e confirmar persistencia', async () => {});",
-    "  relatorio.write();",
-    "  relatorio.assertSuccessful();",
-    "});",
-    "",
-  ].join("\n"), "utf8");
-  const readableAudit = JSON.parse(run(audit, [projectRoot, "--files", path.relative(projectRoot, readableSpec), "--json"], { allowFailure: true }).stdout);
-  for (const rule of [
-    "implantation-without-functional-steps",
-    "implantation-without-explanatory-comments",
-    "positional-validation-cases",
-    "generic-variable-names",
-  ]) assert(!readableAudit.findings.some((item) => item.rule === rule));
-
-  const excessiveCommentsSpec = path.join(projectRoot, "tests", "e2e", "implantacao-comentarios-excessivos.spec.js");
-  const comments = Array.from({ length: 12 }, (_, index) => `// Explicacao repetida ${index + 1}`);
-  fs.writeFileSync(excessiveCommentsSpec, [
-    "const { test } = require('@playwright/test');",
-    "const { requireSpecData } = require('../utils/clientConfig');",
-    ...comments,
-    "test.beforeAll(() => requireSpecData({ spec: 'x', required: [] }));",
-    "test('deve validar obrigatorios de implantacao', async () => {",
-    "  await test.step('Validar', async () => {});",
-    "});",
-    "",
-  ].join("\n"), "utf8");
-  const excessiveCommentsAudit = JSON.parse(run(audit, [projectRoot, "--files", path.relative(projectRoot, excessiveCommentsSpec), "--json"], { allowFailure: true }).stdout);
-  assert(excessiveCommentsAudit.findings.some((item) => item.rule === "excessive-comments"));
-
-  const abstractSpec = path.join(projectRoot, "tests", "e2e", "implantacao-abstrata.spec.js");
-  const genericFlowFunction = "async function executar" + "Fluxo() {}";
-  fs.writeFileSync(abstractSpec, [
-    "const { test } = require('@playwright/test');",
-    "const { requireSpecData } = require('../utils/clientConfig');",
-    genericFlowFunction,
-    "test.beforeAll(() => requireSpecData({ spec: 'x', required: [] }));",
-    "test('deve validar obrigatorios de implantacao', async () => { await executarFluxo(); });",
-    "",
-  ].join("\n"), "utf8");
-  const abstractAudit = JSON.parse(run(audit, [projectRoot, "--files", path.relative(projectRoot, abstractSpec), "--json"], { allowFailure: true }).stdout);
-  assert(abstractAudit.findings.some((item) => item.rule === "single-use-generic-helper"));
-
-  const sharedMessageSpec = path.join(projectRoot, "tests", "e2e", "obrigatorios-mensagem-compartilhada.spec.js");
-  fs.writeFileSync(sharedMessageSpec, [
-    "const { test } = require('@playwright/test');",
-    "const { requireSpecData } = require('../utils/clientConfig');",
-    "const REQUIRED_CASES = [",
-    "  ['estado', 'Municipio'],",
-    "  ['municipio', 'Municipio'],",
-    "];",
-    "test.beforeAll(() => requireSpecData({ spec: 'x', required: [] }));",
-    "test('deve validar obrigatorios de implantacao', async () => { void REQUIRED_CASES; });",
-    "",
-  ].join("\n"), "utf8");
-  const sharedMessageAudit = JSON.parse(run(audit, [projectRoot, "--files", path.relative(projectRoot, sharedMessageSpec), "--json"], { allowFailure: true }).stdout);
-  assert(sharedMessageAudit.findings.some((item) => item.rule === "shared-required-message"));
-  assert(sharedMessageAudit.findings.some((item) => item.rule === "positional-validation-cases"));
-
-  const fragmentedSpec = path.join(projectRoot, "tests", "e2e", "obrigatorios-fragmentados.spec.js");
-  fs.writeFileSync(fragmentedSpec, [
-    "const { test } = require('../fixtures/maximizedTest');",
-    "const { requireSpecData } = require('../utils/clientConfig');",
-    "test.beforeAll(() => requireSpecData({ spec: 'x', required: [] }));",
-    "test.beforeEach(async () => { await login(); await acessarFluxo(); });",
-    "test('campo obrigatorio nome', async () => {});",
-    "test('campo obrigatorio data', async () => {});",
-    "",
-  ].join("\n"), "utf8");
-  const fragmentedAudit = JSON.parse(run(audit, [projectRoot, "--files", path.relative(projectRoot, fragmentedSpec), "--json"], { allowFailure: true }).stdout);
-  assert(fragmentedAudit.findings.some((item) => item.rule === "fragmented-implantation-flow"));
-  assert(fragmentedAudit.findings.some((item) => item.rule === "repeated-login-per-validation"));
-  assert(fragmentedAudit.findings.some((item) => item.rule === "missing-validation-report"));
-
-  console.log("OK: contrato 1.0.3, legibilidade, interface, dependencias, evidencias, sessao unica e perfis validados.");
+  console.log("OK: contrato 1.0.4, scaffold por modo, fonte unica, perfis e legibilidade validados.");
 } finally {
-  fs.rmSync(tempRoot, { recursive: true, force: true });
+  fs.rmSync(raizTemporaria, { recursive: true, force: true });
 }

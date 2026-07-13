@@ -65,19 +65,19 @@ Se o projeto ja usar outro mecanismo, preservar o padrao. Quando o usuario forne
 - garantir `.env` no `.gitignore`;
 - garantir `.playwright-e2e/cache/` no `.gitignore`;
 - garantir `.playwright-e2e/private-domain/` no `.gitignore` quando houver overlay privado local;
-- usar `getAuthProfile(profileName)` nas specs e `process.env` somente dentro do helper;
+- usar `obterCredenciais(nomePerfil)` nas specs e `process.env` somente dentro do utilitario;
 - nao repetir segredos em README, logs, traces, screenshots ou resposta final.
 
 Credenciais devem ser separadas por perfil funcional. Criar/usar `tests/utils/authProfiles.js`:
 
 ```javascript
-const { getAuthProfile } = require('../utils/authProfiles');
+const { obterCredenciais } = require('../utils/authProfiles');
 
-const auth = getAuthProfile('docente');
-await loginPage.realizarLogin(auth.username, auth.password);
+const credenciais = obterCredenciais('docente');
+await loginPage.realizarLogin(credenciais.username, credenciais.password);
 ```
 
-O helper deve mapear o perfil para variaveis de ambiente no formato `E2E_<PERFIL>_USERNAME` e `E2E_<PERFIL>_PASSWORD`, convertendo hifens e espacos para `_`. Exemplos: `docente` -> `E2E_DOCENTE_USERNAME`; `coord-graduacao` -> `E2E_COORD_GRADUACAO_USERNAME`. Nao usar `process.env.E2E_USERNAME` ou `process.env.E2E_PASSWORD` em specs novas.
+O utilitario deve mapear o perfil para variaveis de ambiente no formato `E2E_<PERFIL>_USERNAME` e `E2E_<PERFIL>_PASSWORD`, convertendo hifens e espacos para `_`. Exemplos: `docente` -> `E2E_DOCENTE_USERNAME`; `coord-graduacao` -> `E2E_COORD_GRADUACAO_USERNAME`. Nao usar `process.env.E2E_USERNAME` ou `process.env.E2E_PASSWORD` em specs novas.
 
 Configurar Playwright com `workers: process.env.E2E_WORKERS ? Number(process.env.E2E_WORKERS) : 1`. O padrao serial evita conflito de sessao em sistemas legados quando varios perfis do `.env` apontam temporariamente para a mesma conta. Aumentar `E2E_WORKERS` somente quando as contas e massas forem independentes.
 
@@ -100,7 +100,7 @@ config/
 - `E2E_CLIENT_PROFILE`: nome seguro do arquivo ativo, sem extensao.
 - Dados gerados pela spec permanecem em runtime e prevalecem sobre cliente e defaults.
 
-Usar `tests/utils/clientConfig.js` como carregador unico. Cada spec/`describe` declara apenas os caminhos que usa com `requireSpecData` dentro de `test.beforeAll`, sem fixture `page`. Assim, uma propriedade pendente de outra spec nao bloqueia a execucao selecionada.
+Usar `tests/utils/clientConfig.js` como carregador unico. Cada spec/`describe` declara apenas os caminhos que usa com `obterDadosDaSpec` dentro de `test.beforeAll`, sem fixture `page`. Assim, uma propriedade pendente de outra spec nao bloqueia a execucao selecionada.
 
 Ao descobrir nova massa especifica no ambiente de referencia, usar `update-client-profiles.mjs`: preencher somente `referencia.json`, adicionar `null` aos demais perfis e preservar valores existentes. O preenchimento correto dos clientes e manual; nunca selecionar a primeira opcao arbitrariamente.
 
@@ -149,14 +149,14 @@ Com `evidencias: minimo` ou `evidencias: falha`, nao criar nem atualizar README 
 - Validar obrigatorios um por vez dentro do mesmo teste: remover, submeter, registrar, restaurar explicitamente e somente entao passar ao proximo campo. Defaults definidos pelo servidor deixam de existir quando limpos e precisam ser selecionados novamente. Avancar uma unica vez por tela.
 - Exigir evidencia propria para cada obrigatorio. Quando um campo apenas controla outro campo obrigatorio, registrar `dependencia` e nao usar a mensagem do dependente como se fosse do controlador. Manter unicos os descritores `(tela, tipo, campo)` do relatorio.
 - Identificar campos volateis/nao redistribuidos pelo servidor, especialmente senha e upload. Restaura-los apos cada submissao para que um validador short-circuit nao masque o campo-alvo seguinte.
-- Usar `validationReport` para preservar granularidade por campo e gerar Markdown sanitizado em `test-results/implantacao/`; falhar a spec somente depois de escrever o relatorio.
+- Usar `RelatorioValidacoes` para preservar granularidade por campo e gerar Markdown sanitizado em `test-results/implantacao/`; falhar a spec somente depois de escrever o relatorio.
 - Antes de executar uma acao que cria ou altera dado persistente, mapear os campos obrigatorios conhecidos, gerar `runId` unico e definir uma validacao final.
 - Reduzir repeticoes de execucao quando houver criacao de registro. Se uma tentativa parcial gerar dado, reaproveitar esse registro ou limpar somente quando a tela oferecer acao segura e autorizada.
 
 ## Reprodutibilidade
 
 - A spec deve rodar do zero pelo CLI em outra maquina com Node, Playwright, Chromium, projeto versionado e `.env` preenchido.
-- Sempre partir de `BASE_URL`/`baseURL`, autenticar pelo fluxo automatizado e usar credenciais via `getAuthProfile(profileName)`.
+- Sempre partir de `BASE_URL`/`baseURL`, autenticar pelo fluxo automatizado e usar credenciais via `obterCredenciais(nomePerfil)`.
 - Nao depender de sessao aberta no MCP, navegador ja logado, perfil local do Chrome, `launchPersistentContext`, `storageState` gravado manualmente, cache local, caminhos absolutos ou arquivos fora do projeto.
 - Dados criados pela automacao devem usar `runId` ou prefixo rastreavel. Dados variaveis devem ser calculados em runtime. Dados institucionais preexistentes devem vir de `defaults.json` ou do perfil versionado do cliente; segredos permanecem no `.env`.
 - Nao deixar `test.only`, `test.skip`, flags temporarias ou ordem manual de execucao no codigo final.

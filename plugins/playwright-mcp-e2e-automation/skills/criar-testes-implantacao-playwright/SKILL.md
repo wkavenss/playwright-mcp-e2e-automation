@@ -35,14 +35,14 @@ Classificar cada valor obrigatorio:
 
 Para nova chave especifica, executar `node ../../scripts/update-client-profiles.mjs <raiz-do-projeto> --classification client --path <caminho.logico> --reference-value-json <json>`. O script preenche somente `referencia.json`, adiciona `null` aos demais perfis e preserva valores existentes. Nunca copiar o valor de referencia para outro cliente nem escolher a primeira opcao da tela.
 
-Cada spec ou `describe` deve declarar somente seus requisitos com `requireSpecData`. Validar dentro de `test.beforeAll` sem depender de `page`, para que apenas specs selecionadas sejam bloqueadas:
+Cada spec ou `describe` deve declarar somente seus requisitos com `obterDadosDaSpec`. Validar dentro de `test.beforeAll` sem depender de `page`, para que apenas specs selecionadas sejam bloqueadas:
 
 ```javascript
-let clientData;
+let dadosCliente;
 test.beforeAll(() => {
-  clientData = requireSpecData({
+  dadosCliente = obterDadosDaSpec({
     spec: 'modulo.operacao',
-    required: ['modulo.dadoObrigatorio'],
+    requisitos: ['modulo.dadoObrigatorio'],
   });
 });
 ```
@@ -54,7 +54,8 @@ Propriedades ausentes de outras specs nunca bloqueiam a execucao selecionada.
 1. Criar um unico `test` para a operacao completa: autenticar uma vez, entrar no fluxo uma vez e manter a mesma fixture `page` ate a confirmacao de persistencia.
    Em projeto/pedido em portugues, usar portugues sem acentos nos identificadores de dominio e preservar APIs/palavras reservadas do Playwright e JavaScript. Seguir outro idioma quando ele for predominante no repositorio.
    Manter nomes naturais e objetivos; evitar abreviacoes, nomes genericos e traducoes excessivamente longas.
-2. Pre-registrar no `validationReport` todas as verificacoes por tela. Em cada tela, preencher a base valida uma vez e, para cada obrigatorio, remover somente o campo alvo, submeter, registrar bloqueio/mensagem e restaurar somente esse campo antes do proximo. Nao preencher novamente o formulario inteiro nem tratar default do primeiro carregamento como restaurado depois de limpa-lo.
+2. Pre-registrar no `RelatorioValidacoes` todas as verificacoes por tela. Definir os obrigatorios em uma unica colecao de objetos `{ campo, rotulo, controle, tipo, valorValido }`, sem callbacks, arrays posicionais, mapas paralelos ou `switch` duplicado. Derivar dessa colecao o preenchimento inicial, plano do relatorio, limpeza, restauracao e sequencia de validacao.
+   Em cada tela, preencher a base valida uma vez e, para cada obrigatorio, remover somente o campo alvo, submeter, registrar bloqueio/mensagem e restaurar somente esse campo antes do proximo. Nao preencher novamente o formulario inteiro nem tratar default do primeiro carregamento como restaurado depois de limpa-lo.
    Mapear campos volateis que o servidor limpa a cada resposta, como senha e upload, e restaura-los apos toda submissao. Considerar validadores short-circuit que podem impedir as regras seguintes quando um campo volatil fica vazio.
    Descritores `(tela, tipo, campo)` devem ser unicos. Duas verificacoes nao podem aparecer no relatorio com a mesma descricao para esconder que uma mensagem foi atribuida ao campo errado.
 3. Na mesma tela e sessao, validar formatos somente quando comprovados. Aceitar bloqueio de digitacao ou rejeicao na submissao e restaurar o valor valido antes de avancar.
@@ -71,8 +72,9 @@ Gerar `test-results/implantacao/<spec>-<runId>.md` com itens `passou`, `falhou` 
 
 ## Implementacao E Validacao
 
-- Executar `check-environment.mjs <raiz> --headed-smoke --json`, `optimize-context.mjs` e, se necessario, `scaffold-playwright.mjs`; nao iniciar exploracao se o smoke headed falhar.
-- Usar Page Objects, `getByRole`, `getByLabel`, texto escopado e IDs JSF estaveis centralizados.
+- Executar `check-environment.mjs <raiz> --headed-smoke --json`, `optimize-context.mjs` e, se necessario, `scaffold-playwright.mjs <raiz> --mode implantacao`; nao iniciar exploracao se o smoke headed falhar.
+- Usar Page Objects, `getByRole`, `getByLabel`, texto escopado e IDs JSF estaveis declarados diretamente como `[id="form:campo"]`.
+- Nao criar `BasePage`, helper que apenas encapsule `page.locator`, fabrica que apenas chame `new`, funcao/exportacao sem consumidor ou `legacyForm` sem necessidade comprovada.
 - Evitar `.nth()`, posicao, XPath e IDs JSF dinamicos.
 - Em tabelas, priorizar tabela por role/nome acessivel e linhas com `getByRole('row').filter({ hasText })`; usar ID estavel do container como fallback legado e justificar CSS estrutural inevitavel.
 - Para cookie, modal ou overlay opcional que possa aparecer tarde, nao depender apenas de `isVisible()` antes da acao critica. Recuperar somente o clique interceptado: confirmar o overlay, fecha-lo, repetir uma vez e relancar qualquer erro nao relacionado.
@@ -89,4 +91,4 @@ Carregar referencias em `../../references/` somente conforme o risco: legibilida
 
 ## Saida
 
-Entregar spec, Page Object, `validationReport`, utilitarios necessarios, `.env.example`, comando, inventario resumido de obrigatorios/formatos, resultado headed, caminho do relatorio Markdown, perfis/chaves usados e pendencias.
+Entregar spec, Page Object, `RelatorioValidacoes`, utilitarios necessarios, `.env.example`, comando, inventario resumido de obrigatorios/formatos, resultado headed, caminho do relatorio Markdown, perfis/chaves usados e pendencias.

@@ -24,9 +24,10 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Specs devem orquestrar a historia funcional; seletores e interacoes pertencem aos Page Objects.
 - Specs extensas devem usar `test.step` para fases funcionais, objetos nomeados para colecoes de validacao e comentarios que expliquem decisoes nao obvias sem repetir comandos.
 - Em projetos em portugues, nomes de dominio devem usar portugues natural sem traduzir APIs ou palavras reservadas. Nomes genericos, abreviacoes e traducoes excessivamente longas prejudicam a leitura.
-- Funcoes auxiliares devem eliminar repeticao real ou representar fase funcional clara; a narrativa principal nao pode ficar escondida em helper generico.
+- Funcoes auxiliares devem eliminar repeticao real ou representar fase funcional clara; reprovar `BasePage` trivial, helper de ID, fabrica de uma linha e exportacao sem consumidor.
+- Um conjunto de campos deve ter uma unica fonte declarativa. Listas, mapas e `switch` paralelos com a mesma relacao aumentam o custo de manutencao.
 - Locators semanticos e escopados devem prevalecer sobre CSS estrutural e XPath.
-- ID JSF gerado, indice escondido em `evaluate`, ID JSF estavel espalhado sem helper e `waitForTimeout` sem anotacao padronizada sao riscos de manutencao.
+- ID JSF gerado, indice escondido em `evaluate`, ID JSF estavel escrito como seletor escapado e `waitForTimeout` sem anotacao padronizada sao riscos de manutencao. ID estavel direto `[id="form:campo"]` no Page Object e aceito.
 - Assertions devem comprovar o efeito funcional, nao somente a presenca de um elemento.
 - Uma mensagem de campo dependente nao comprova obrigatoriedade do campo controlador; classificar e revisar dependencias separadamente.
 - Filtro, busca ou assert nao pode perder parte do criterio informado pelo usuario sem confirmacao explicita.
@@ -42,7 +43,7 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - `.playwright-e2e/cache/` deve estar ignorado e conter somente mapas sanitizados; cache com senha, cookies, tokens, storageState, nomes reais, usuarios, documentos, emails ou telefones e defeito.
 - `.playwright-e2e/private-domain/`, quando existir, deve estar ignorado e nunca deve ter conteudo copiado para arquivos publicos/versionados.
 - Testes devem evitar dependencia de ordem, dados compartilhados imprevisiveis e efeitos destrutivos sem controle.
-- Perfis `config/clientes/*.json` devem conter somente massa institucional nao secreta; cada spec valida apenas suas propriedades em `test.beforeAll` com `requireSpecData`.
+- Perfis `config/clientes/*.json` devem conter somente massa institucional nao secreta; cada spec valida apenas suas propriedades em `test.beforeAll` com `obterDadosDaSpec`.
 - Propriedades `null` de specs nao selecionadas nao podem bloquear uma execucao parcial.
 - Configuracao padrao do plugin deve usar Chromium headed, trace e screenshot somente em falhas e video desligado, salvo decisao explicita do projeto.
 

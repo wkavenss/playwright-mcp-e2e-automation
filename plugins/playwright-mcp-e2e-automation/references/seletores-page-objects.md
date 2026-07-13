@@ -28,7 +28,7 @@ Nao usar `.nth()`, indice numerico, posicao visual ou `.first()` sem filtro por 
 
 Nao usar IDs gerados como `j_id`, `j_id_jsp`, `j_idt` ou `javax.faces` como seletor principal. Esses valores mudam entre builds, sessoes ou telas e deixam a automacao fragil.
 
-Nao converter tudo cegamente para `getByRole/getByLabel`: em JSF/RichFaces legado, muitos elementos nao possuem acessibilidade confiavel. IDs JSF estaveis, como `form:campo`, podem ser o melhor contrato quando centralizados em helper e nomeados por getter funcional.
+Nao converter tudo cegamente para `getByRole/getByLabel`: em JSF/RichFaces legado, muitos elementos nao possuem acessibilidade confiavel. IDs JSF estaveis, como `form:campo`, podem ser o melhor contrato quando declarados diretamente e nomeados no Page Object.
 
 Elemento JSF `attached` e `hidden` nao e automaticamente erro: menus, submenus e componentes RichFaces podem existir ocultos no DOM ate o acionamento correto. Use `toBeAttached` somente para contrato tecnico de menu/markup e mantenha `toBeVisible` para campos interativos, mensagem final, registro e resultado funcional.
 
@@ -46,12 +46,10 @@ Para campos em formularios tabulares ou telas legadas:
 - Quando a label for apenas visual, localizar a linha ou container pelo texto da label e entao buscar `input`, `textarea` ou `select` dentro dele.
 - Quando so houver ID parcialmente estavel, usar sufixo escopado, como `textarea[id$=":justificativa-objetivos"]`, dentro da secao correta.
 - Para radios/checkboxes em formulario legado, preferir helper por label de campo + label de opcao: `radioByFieldLabel(form, 'Titulo', 'Contem')`. O helper deve validar unicidade e evitar `radios[1]`, `children[2]` ou ID gerado.
-- Para ID JSF estavel inevitavel, preferir helper legivel a escape manual repetido:
+- Para ID JSF estavel inevitavel, evitar escape e declarar o locator diretamente no Page Object:
 
 ```javascript
-byId(id) {
-  return this.page.locator(`[id="${id}"]`);
-}
+this.nome = page.locator('[id="cadastroCurso:nome"]');
 ```
 
 - Para textareas ocultos por editor JSF, centralizar sufixos estaveis:
@@ -62,7 +60,7 @@ byTextareaIdSuffix(suffix) {
 }
 ```
 
-- Evitar helpers genericos que recebem IDs internos crus, como `campo(id)` e `preencherValor(id, valor)`, quando isso esconder seletores frageis.
+- Nao criar `byId`, `localizarPorId` ou helper generico que apenas encapsule `page.locator`.
 - Criar getters/metodos semanticos, como `localCursoInput`, `objetivosTextarea` e `preencherObjetivosImportancia`.
 - Se usar sufixo `id$` em campo critico, validar unicidade antes de preencher: `await expect(campo).toHaveCount(1)`.
 - Em autocomplete, filtrar sugestoes pelo texto esperado antes de `.first()`; nao selecionar a primeira linha cegamente.
@@ -137,7 +135,7 @@ Page Objects devem representar acoes funcionais, como `realizarLogin`, `acessarF
 
 Um fluxo de negocio atravessando varias telas deve ficar em um unico `test`, com `test.step` para as etapas internas. Nao criar um `test` por tela quando as telas dependem da mesma sessao, do mesmo cadastro ou do mesmo estado transacional.
 
-Obrigatoriedade e formato da mesma operacao tambem ficam nesse unico `test`. Usar um loop de verificacoes por tela, restaurar o campo apos cada submissao negativa, registrar cada resultado no `validationReport` e avancar apenas uma vez com a base valida.
+Obrigatoriedade e formato da mesma operacao tambem ficam nesse unico `test`. Usar um loop de verificacoes por tela, restaurar o campo apos cada submissao negativa, registrar cada resultado no `RelatorioValidacoes` e avancar apenas uma vez com a base valida.
 
 O teste deve ser reprodutivel por outra pessoa com o mesmo perfil funcional: iniciar pela URL/configuracao do projeto, autenticar com variaveis de ambiente, criar ou localizar massa controlada, e validar o efeito funcional sem depender de estado de execucoes anteriores.
 

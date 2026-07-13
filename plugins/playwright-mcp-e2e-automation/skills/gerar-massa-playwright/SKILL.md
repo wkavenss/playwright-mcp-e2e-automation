@@ -19,7 +19,7 @@ Gravar credenciais reais somente em `.env`, manter `.env` ignorado e criar `.env
 
 1. Inspecionar a estrutura Playwright existente e preservar linguagem, package manager, Page Objects e convencoes.
 2. Executar `node ../../scripts/check-environment.mjs <raiz-do-projeto>` e `node ../../scripts/optimize-context.mjs <raiz-do-projeto> --mode padrao --json --stdin` com pedido sanitizado.
-3. Se necessario, executar `node ../../scripts/scaffold-playwright.mjs <raiz-do-projeto>` sem sobrescrever arquivos existentes.
+3. Se necessario, executar `node ../../scripts/scaffold-playwright.mjs <raiz-do-projeto> --mode massa` sem sobrescrever arquivos existentes. Criar depois somente o gerador de dados exigido pela operacao real.
 4. Navegar pelo caminho informado e identificar os campos obrigatorios pela tela real; consultar codigo apenas quando ja estiver no escopo do projeto e for indispensavel para completar o fluxo.
 5. Gerar dados sinteticos, unicos e rastreaveis em runtime. Nao usar dados pessoais reais.
 6. Para cada registro, preencher obrigatorios, concluir a operacao, validar mensagem de sucesso e localizar o registro na listagem ou consulta correspondente.
@@ -31,7 +31,8 @@ Gravar credenciais reais somente em `.env`, manter `.env` ignorado e criar `.env
 ## Regras
 
 - Specs orquestram o fluxo; Page Objects concentram seletores e interacoes.
-- Priorizar `getByRole`, `getByLabel`, texto escopado e IDs JSF estaveis centralizados.
+- Priorizar `getByRole`, `getByLabel`, texto escopado e IDs JSF estaveis declarados diretamente no Page Object como `[id="form:campo"]`.
+- Nao criar `BasePage`, helper de ID, relatorio de implantacao, perfil de cliente ou formulario legado sem uso comprovado.
 - Evitar `.nth()`, posicao, XPath e IDs JSF dinamicos.
 - Manter uma sessao continua por registro, navegador maximizado e `workers: 1` por padrao.
 - Nao remover nem alterar dados preexistentes.

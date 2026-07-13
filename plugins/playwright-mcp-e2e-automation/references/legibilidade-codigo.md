@@ -15,6 +15,9 @@ Use esta referencia ao criar ou refatorar specs extensas, especialmente quando o
 - Usar `test.step` apenas para grandes fases funcionais. Nao criar uma etapa para cada campo obrigatorio.
 - Representar listas de validacao com objetos nomeados, como `{ campo: 'nome', rotulo: 'Nome' }`, em vez de pares posicionais.
 - Extrair funcao somente quando representar uma fase clara ou eliminar repeticao real. Evitar factories, wrappers e helpers genericos usados uma unica vez.
+- Para campos repetidos, manter uma unica colecao `{ campo, rotulo, controle, tipo, valorValido }` e derivar dela preenchimento, relatorio, limpeza e restauracao. Nao duplicar a mesma relacao em lista, mapa e `switch`.
+- Nao criar `BasePage` apenas para guardar `page` ou localizar ID. Aceitar repeticao curta e explicita de locators dentro do Page Object.
+- Nao gerar utilitario, metodo ou exportacao para uma necessidade futura ainda nao comprovada.
 - Reduzir condicionais profundas sem dividir o fluxo transacional nem impedir a escrita do relatorio final.
 
 ## Comentarios
