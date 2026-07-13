@@ -1,6 +1,6 @@
 {
   "name": "playwright-mcp-e2e-automation",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Playwright CLI and MCP toolkit for synthetic data generation and implementation-focused E2E validation in legacy web systems.",
   "author": {
     "name": "wkavenss"
@@ -10,7 +10,7 @@
   "interface": {
     "displayName": "Playwright MCP E2E",
     "shortDescription": "Massa e testes de implantacao com Playwright",
-    "longDescription": "Gere massa sintetica ou crie testes de implantacao com contratos separados. O modo de massa percorre o caminho informado, preenche obrigatorios e confirma persistencia sem gerar cenarios negativos. O modo de implantacao analisa tela e codigo-fonte seletivamente, cria testes de sucesso, obrigatoriedade e formato, usa perfis de dados por cliente validados no escopo de cada spec, Page Objects, credenciais por perfil no .env, Chromium headed, CLI-first, cache sanitizado, reparo objetivo de locators e Playwright MCP somente quando a tela real precisa ser observada.",
+    "longDescription": "Automatize dois fluxos com Playwright: gerar massa ou validar uma implantacao. A geracao cria registros sinteticos e confirma a persistencia. A implantacao analisa a tela e o codigo-fonte para validar cadastro, obrigatoriedades e formatos, usando dados por cliente e execucao headed.",
     "developerName": "wkavenss",
     "category": "Developer tools",
     "capabilities": [

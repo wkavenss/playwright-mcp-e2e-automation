@@ -1,4 +1,6 @@
 interface:
   display_name: "Criar testes de implantacao"
-  short_description: "Cria testes Playwright para implantacao"
+  short_description: "Valida implantacao com testes Playwright"
+  icon_small: "./assets/playwright.png"
+  icon_large: "./assets/playwright.png"
   default_prompt: "Use $criar-testes-implantacao-playwright quando o pedido declarar MODO: Implantacao; gere uma spec por operacao, em sessao unica maximizada, com relatorio por validacao e perfis de massa por cliente."

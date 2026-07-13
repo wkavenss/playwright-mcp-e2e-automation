@@ -41,7 +41,7 @@ function readJson(file) {
 
 try {
   const manifest = readJson(path.join(pluginRoot, ".codex-plugin", "plugin.json"));
-  assert.equal(manifest.version, "1.0.1");
+  assert.equal(manifest.version, "1.0.2");
   const skillNames = fs.readdirSync(path.join(pluginRoot, "skills"))
     .filter((name) => fs.existsSync(path.join(pluginRoot, "skills", name, "SKILL.md")));
   assert(skillNames.includes("gerar-massa-playwright"));
@@ -50,6 +50,7 @@ try {
 
   const massSkill = fs.readFileSync(path.join(pluginRoot, "skills", "gerar-massa-playwright", "SKILL.md"), "utf8");
   const implementationSkill = fs.readFileSync(path.join(pluginRoot, "skills", "criar-testes-implantacao-playwright", "SKILL.md"), "utf8");
+  const implementationAgent = fs.readFileSync(path.join(pluginRoot, "skills", "criar-testes-implantacao-playwright", "agents", "openai.yaml"), "utf8");
   assert.match(massSkill, /MODO: Geracao de massa de dados/);
   assert.match(massSkill, /Nao usar quando.*MODO: Implantacao/);
   assert.match(implementationSkill, /MODO: Implantacao/);
@@ -61,6 +62,9 @@ try {
   assert.match(implementationSkill, /classificar a verificacao como `dependencia`/);
   assert.match(implementationSkill, /overlay opcional/);
   assert.match(implementationSkill, /getByRole\('row'\)/);
+  assert.match(implementationAgent, /icon_small:\s*"\.\/assets\/playwright\.png"/);
+  assert.match(implementationAgent, /icon_large:\s*"\.\/assets\/playwright\.png"/);
+  assert(fs.existsSync(path.join(pluginRoot, "skills", "criar-testes-implantacao-playwright", "assets", "playwright.png")));
 
   run(scaffold, [projectRoot]);
   for (const relative of [
@@ -468,7 +472,7 @@ try {
   assert(fragmentedAudit.findings.some((item) => item.rule === "repeated-login-per-validation"));
   assert(fragmentedAudit.findings.some((item) => item.rule === "missing-validation-report"));
 
-  console.log("OK: contrato 1.0.1, dependencias, evidencias de falha, overlays, locators, sessao unica e perfis validados.");
+  console.log("OK: contrato 1.0.2, interface da skill, dependencias, evidencias de falha, overlays, locators, sessao unica e perfis validados.");
 } finally {
   fs.rmSync(tempRoot, { recursive: true, force: true });
 }
