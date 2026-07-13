@@ -41,7 +41,7 @@ function readJson(file) {
 
 try {
   const manifest = readJson(path.join(pluginRoot, ".codex-plugin", "plugin.json"));
-  assert.equal(manifest.version, "1.0.2");
+  assert.equal(manifest.version, "1.0.3");
   const skillNames = fs.readdirSync(path.join(pluginRoot, "skills"))
     .filter((name) => fs.existsSync(path.join(pluginRoot, "skills", name, "SKILL.md")));
   assert(skillNames.includes("gerar-massa-playwright"));
@@ -50,6 +50,7 @@ try {
 
   const massSkill = fs.readFileSync(path.join(pluginRoot, "skills", "gerar-massa-playwright", "SKILL.md"), "utf8");
   const implementationSkill = fs.readFileSync(path.join(pluginRoot, "skills", "criar-testes-implantacao-playwright", "SKILL.md"), "utf8");
+  const readabilityReference = fs.readFileSync(path.join(pluginRoot, "references", "legibilidade-codigo.md"), "utf8");
   const implementationAgent = fs.readFileSync(path.join(pluginRoot, "skills", "criar-testes-implantacao-playwright", "agents", "openai.yaml"), "utf8");
   assert.match(massSkill, /MODO: Geracao de massa de dados/);
   assert.match(massSkill, /Nao usar quando.*MODO: Implantacao/);
@@ -62,6 +63,10 @@ try {
   assert.match(implementationSkill, /classificar a verificacao como `dependencia`/);
   assert.match(implementationSkill, /overlay opcional/);
   assert.match(implementationSkill, /getByRole\('row'\)/);
+  assert.match(implementationSkill, /test\.step/);
+  assert.match(implementationSkill, /legibilidade-codigo\.md/);
+  assert.match(readabilityReference, /Comentario util/);
+  assert.match(readabilityReference, /Comentario redundante/);
   assert.match(implementationAgent, /icon_small:\s*"\.\/assets\/playwright\.png"/);
   assert.match(implementationAgent, /icon_large:\s*"\.\/assets\/playwright\.png"/);
   assert(fs.existsSync(path.join(pluginRoot, "skills", "criar-testes-implantacao-playwright", "assets", "playwright.png")));
@@ -441,6 +446,66 @@ try {
   const singleSessionAudit = JSON.parse(run(audit, [projectRoot, "--files", path.relative(projectRoot, singleSessionSpec), "--json"], { allowFailure: true }).stdout);
   assert(!singleSessionAudit.findings.some((item) => item.rule === "fragmented-implantation-flow"));
   assert(!singleSessionAudit.findings.some((item) => item.rule === "missing-validation-report"));
+  assert(singleSessionAudit.findings.some((item) => item.rule === "implantation-without-functional-steps"));
+  assert(singleSessionAudit.findings.some((item) => item.rule === "implantation-without-explanatory-comments"));
+
+  const readableSpec = path.join(projectRoot, "tests", "e2e", "implantacao-legivel.spec.js");
+  fs.writeFileSync(readableSpec, [
+    "const { test } = require('../fixtures/maximizedTest');",
+    "const { requireSpecData } = require('../utils/clientConfig');",
+    "const { createValidationReport } = require('../utils/validationReport');",
+    "const CAMPOS_OBRIGATORIOS = [{ campo: 'nome', rotulo: 'Nome' }];",
+    "let dadosCliente;",
+    "// O preflight valida somente a massa exigida por esta spec, antes de abrir o navegador.",
+    "test.beforeAll(() => { dadosCliente = requireSpecData({ spec: 'x', required: [] }); });",
+    "test('deve validar obrigatorios e concluir implantacao', async () => {",
+    "  const relatorio = createValidationReport({ spec: 'x', runId: 'RUN', planned: [] });",
+    "  await test.step('Preparar o formulario', async () => { void dadosCliente; });",
+    "  // Todos os obrigatorios sao exercitados na mesma sessao para evitar registros parciais.",
+    "  await test.step('Validar campos obrigatorios', async () => {",
+    "    for (const { campo } of CAMPOS_OBRIGATORIOS) await relatorio.check(campo, async () => {});",
+    "  });",
+    "  await test.step('Concluir e confirmar persistencia', async () => {});",
+    "  relatorio.write();",
+    "  relatorio.assertSuccessful();",
+    "});",
+    "",
+  ].join("\n"), "utf8");
+  const readableAudit = JSON.parse(run(audit, [projectRoot, "--files", path.relative(projectRoot, readableSpec), "--json"], { allowFailure: true }).stdout);
+  for (const rule of [
+    "implantation-without-functional-steps",
+    "implantation-without-explanatory-comments",
+    "positional-validation-cases",
+    "generic-variable-names",
+  ]) assert(!readableAudit.findings.some((item) => item.rule === rule));
+
+  const excessiveCommentsSpec = path.join(projectRoot, "tests", "e2e", "implantacao-comentarios-excessivos.spec.js");
+  const comments = Array.from({ length: 12 }, (_, index) => `// Explicacao repetida ${index + 1}`);
+  fs.writeFileSync(excessiveCommentsSpec, [
+    "const { test } = require('@playwright/test');",
+    "const { requireSpecData } = require('../utils/clientConfig');",
+    ...comments,
+    "test.beforeAll(() => requireSpecData({ spec: 'x', required: [] }));",
+    "test('deve validar obrigatorios de implantacao', async () => {",
+    "  await test.step('Validar', async () => {});",
+    "});",
+    "",
+  ].join("\n"), "utf8");
+  const excessiveCommentsAudit = JSON.parse(run(audit, [projectRoot, "--files", path.relative(projectRoot, excessiveCommentsSpec), "--json"], { allowFailure: true }).stdout);
+  assert(excessiveCommentsAudit.findings.some((item) => item.rule === "excessive-comments"));
+
+  const abstractSpec = path.join(projectRoot, "tests", "e2e", "implantacao-abstrata.spec.js");
+  const genericFlowFunction = "async function executar" + "Fluxo() {}";
+  fs.writeFileSync(abstractSpec, [
+    "const { test } = require('@playwright/test');",
+    "const { requireSpecData } = require('../utils/clientConfig');",
+    genericFlowFunction,
+    "test.beforeAll(() => requireSpecData({ spec: 'x', required: [] }));",
+    "test('deve validar obrigatorios de implantacao', async () => { await executarFluxo(); });",
+    "",
+  ].join("\n"), "utf8");
+  const abstractAudit = JSON.parse(run(audit, [projectRoot, "--files", path.relative(projectRoot, abstractSpec), "--json"], { allowFailure: true }).stdout);
+  assert(abstractAudit.findings.some((item) => item.rule === "single-use-generic-helper"));
 
   const sharedMessageSpec = path.join(projectRoot, "tests", "e2e", "obrigatorios-mensagem-compartilhada.spec.js");
   fs.writeFileSync(sharedMessageSpec, [
@@ -456,6 +521,7 @@ try {
   ].join("\n"), "utf8");
   const sharedMessageAudit = JSON.parse(run(audit, [projectRoot, "--files", path.relative(projectRoot, sharedMessageSpec), "--json"], { allowFailure: true }).stdout);
   assert(sharedMessageAudit.findings.some((item) => item.rule === "shared-required-message"));
+  assert(sharedMessageAudit.findings.some((item) => item.rule === "positional-validation-cases"));
 
   const fragmentedSpec = path.join(projectRoot, "tests", "e2e", "obrigatorios-fragmentados.spec.js");
   fs.writeFileSync(fragmentedSpec, [
@@ -472,7 +538,7 @@ try {
   assert(fragmentedAudit.findings.some((item) => item.rule === "repeated-login-per-validation"));
   assert(fragmentedAudit.findings.some((item) => item.rule === "missing-validation-report"));
 
-  console.log("OK: contrato 1.0.2, interface da skill, dependencias, evidencias de falha, overlays, locators, sessao unica e perfis validados.");
+  console.log("OK: contrato 1.0.3, legibilidade, interface, dependencias, evidencias, sessao unica e perfis validados.");
 } finally {
   fs.rmSync(tempRoot, { recursive: true, force: true });
 }

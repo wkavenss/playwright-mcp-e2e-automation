@@ -22,6 +22,9 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 ## Criterios
 
 - Specs devem orquestrar a historia funcional; seletores e interacoes pertencem aos Page Objects.
+- Specs extensas devem usar `test.step` para fases funcionais, objetos nomeados para colecoes de validacao e comentarios que expliquem decisoes nao obvias sem repetir comandos.
+- Em projetos em portugues, nomes de dominio devem usar portugues natural sem traduzir APIs ou palavras reservadas. Nomes genericos, abreviacoes e traducoes excessivamente longas prejudicam a leitura.
+- Funcoes auxiliares devem eliminar repeticao real ou representar fase funcional clara; a narrativa principal nao pode ficar escondida em helper generico.
 - Locators semanticos e escopados devem prevalecer sobre CSS estrutural e XPath.
 - ID JSF gerado, indice escondido em `evaluate`, ID JSF estavel espalhado sem helper e `waitForTimeout` sem anotacao padronizada sao riscos de manutencao.
 - Assertions devem comprovar o efeito funcional, nao somente a presenca de um elemento.
@@ -44,3 +47,5 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Configuracao padrao do plugin deve usar Chromium headed, trace e screenshot somente em falhas e video desligado, salvo decisao explicita do projeto.
 
 Se nao houver achados, declarar isso e mencionar testes nao executados ou riscos que permaneceram.
+
+Ao revisar especificamente legibilidade, carregar `../../references/legibilidade-codigo.md`.

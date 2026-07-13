@@ -29,6 +29,11 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Substituir datas, anos, periodos, semestres e prazos fixos por geradores dinamicos ou parametro local quando a regra exigir valor oficial.
 - Mover seletores e interacoes diretas da spec para Page Objects quando houver acoplamento claro.
 - Trocar metodos genericos como `clickButton1`, `fillInput2` e `goNext` por nomes funcionais.
+- Em projeto em portugues, usar portugues natural sem acentos nos identificadores de dominio, preservando APIs e palavras reservadas do framework/linguagem.
+- Trocar pares posicionais de validacao por objetos com propriedades nomeadas quando isso tornar a leitura imediata.
+- Em spec extensa, agrupar grandes fases com `test.step` e comentar apenas linhas-chave: preflight, massa, sessao, restauracao, dependencia, recuperacao e persistencia.
+- Remover comentario que apenas repete a instrucao seguinte, mas preservar explicacoes uteis para leitores iniciantes.
+- Remover helper generico usado uma unica vez quando a logica ficar mais clara diretamente na fase funcional.
 - Reduzir `.nth()`, `.first()` sem filtro, XPath sem justificativa, ID gerado e seletor estrutural fragil.
 - Corrigir indice escondido em `evaluate`, ID JSF gerado, ID JSF estavel espalhado sem helper e `waitForTimeout` sem anotacao padronizada de requisito explicito.
 - Preservar todos os criterios informados pelo usuario; nao simplificar filtro/assert sem confirmacao.
@@ -45,6 +50,8 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Nao instalar dependencias nem baixar navegador sem autorizacao.
 - Nao reformatar ou reescrever arquivos sem relacao com a higiene solicitada.
 - Nao copiar conteudo do overlay privado para README, codigo, fixtures versionadas ou resposta final.
+
+Ao higienizar legibilidade, carregar `../../references/legibilidade-codigo.md`.
 
 ## Saida
 

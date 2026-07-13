@@ -588,9 +588,47 @@ for (const file of specFiles) {
   const testDefinitions = matches(content, /\btest\s*\(/g);
   const implantationSpec = /\brequireSpecData\s*\(/.test(content)
     && /(?:obrigatori|formato|invalid|implantacao|implantação)/i.test(content);
-  const requiredArray = firstMatch(content, /\b(?:REQUIRED|OBRIGATOR)[A-Za-z0-9_]*\s*=\s*\[[\s\S]{0,7000}?\n\s*\];/gi);
+  const functionalSteps = matches(content, /\btest\.step\s*\(/g);
+  if (implantationSpec && !functionalSteps.length) {
+    add("warning", "implantation-without-functional-steps", relative(file), 1, "Organize a spec de implantacao em grandes fases com test.step, sem criar uma etapa por campo.");
+  }
+  if (functionalSteps.length > 10) {
+    add("warning", "excessive-test-steps", relative(file), lineNumber(content, functionalSteps[10].index), "Ha test.step demais; agrupe por fase funcional em vez de criar uma etapa para cada verificacao.");
+  }
+
+  const commentLines = content.split(/\r?\n/).filter((line) => /^\s*(?:\/\/|\/\*|\*)/.test(line)).length;
+  const codeLines = content.split(/\r?\n/).filter((line) => line.trim() && !/^\s*(?:\/\/|\/\*|\*|\*\/)/.test(line)).length;
+  if (implantationSpec && commentLines === 0) {
+    add("warning", "implantation-without-explanatory-comments", relative(file), 1, "Comente linhas-chave para explicar preflight, massa, sessao, restauracao, dependencias e persistencia.");
+  }
+  if (commentLines >= 12 && commentLines > codeLines * 0.45) {
+    add("warning", "excessive-comments", relative(file), 1, "Comentarios ocupam grande parte da spec; remova explicacoes que apenas repetem comandos evidentes.");
+  }
+  const obviousComment = firstMatch(content, /\/\/\s*(?:clica|clicar|preenche|preencher|seleciona|selecionar|digita|digitar|abre|abrir|fecha|fechar)\b[^\n]*\n\s*await\s+[^\n]*\.(?:click|fill|selectOption|type)\s*\(/gi);
+  if (obviousComment) {
+    add("warning", "obvious-action-comment", relative(file), lineNumber(content, obviousComment.index), "Evite comentario que apenas repete a acao seguinte; explique intencao, causa ou efeito nao obvio.");
+  }
+
+  const genericVariables = matches(content, /\b(?:const|let|var)\s+(?:data|access|success|planned|result|item)\b/g);
+  if (implantationSpec && genericVariables.length >= 3) {
+    add("warning", "generic-variable-names", relative(file), lineNumber(content, genericVariables[0].index), "Use nomes de dominio naturais, como dadosCurso, acessoFormulario, cadastroConcluido e verificacoesPlanejadas.");
+  }
+
+  const genericHelper = firstMatch(content, /\b(?:async\s+)?function\s+(helper|processar|executarFluxo|runFlow|executeFlow)\s*\(/g);
+  if (genericHelper) {
+    const helperName = genericHelper[1];
+    const uses = matches(content, new RegExp(`\\b${helperName}\\b`, "g"));
+    if (uses.length <= 2) {
+      add("warning", "single-use-generic-helper", relative(file), lineNumber(content, genericHelper.index), "Helper generico usado uma unica vez pode esconder a narrativa; mantenha a logica na fase funcional ou use nome de dominio claro.");
+    }
+  }
+
+  const requiredArray = firstMatch(content, /\b(?:REQUIRED|OBRIGATOR|CAMPOS?_OBRIGATOR|VALIDATION_CASES)[A-Za-z0-9_]*\s*=\s*\[[\s\S]{0,7000}?\n\s*\];/gi);
   if (implantationSpec && requiredArray) {
     const tuples = matches(requiredArray[0], /\[\s*["'`]([^"'`]+)["'`]\s*,\s*["'`]([^"'`]+)["'`]\s*\]/g);
+    if (tuples.length) {
+      add("warning", "positional-validation-cases", relative(file), lineNumber(content, requiredArray.index + tuples[0].index), "Troque pares posicionais por objetos nomeados, como { campo, rotulo }, para facilitar a leitura.");
+    }
     const labels = new Map();
     for (const tuple of tuples) {
       const field = tuple[1];
@@ -608,11 +646,11 @@ for (const file of specFiles) {
   if (implantationSpec && !/\b(?:createValidationReport|ValidationReport)\b/.test(content)) {
     add("error", "missing-validation-report", relative(file), 1, "Spec de implantacao deve pre-registrar verificacoes e gerar relatorio Markdown com validationReport.");
   }
-  const repeatedLoginHook = firstMatch(content, /\btest\.beforeEach\s*\([\s\S]{0,1200}?\b(?:login|autenticar|realizarLogin|openCreateForm|acessarFluxo)\s*\(/gi);
+  const repeatedLoginHook = firstMatch(content, /\btest\.beforeEach\s*\([\s\S]{0,1200}?\b(?:login|autenticar|realizarLogin|openCreateForm|abrirFormularioCadastro|acessarFluxo)\s*\(/gi);
   if (implantationSpec && testDefinitions.length > 1 && repeatedLoginHook) {
     add("error", "repeated-login-per-validation", relative(file), lineNumber(content, repeatedLoginHook.index), "Nao autentique/reentre no fluxo em beforeEach para validacoes da mesma operacao; use uma unica sessao no teste completo.");
   }
-  const flowEntries = matches(content, /\b(?:openCreateForm|acessarFluxo|abrirFluxo|entrarNoFluxo)\s*\(/gi);
+  const flowEntries = matches(content, /\b(?:openCreateForm|abrirFormularioCadastro|acessarFluxo|abrirFluxo|entrarNoFluxo)\s*\(/gi);
   if (implantationSpec && flowEntries.length > 1) {
     add("error", "reentered-transactional-flow", relative(file), lineNumber(content, flowEntries[1].index), "A spec entra no fluxo mais de uma vez; autentique e navegue uma unica vez, avancando do estado atual.");
   }

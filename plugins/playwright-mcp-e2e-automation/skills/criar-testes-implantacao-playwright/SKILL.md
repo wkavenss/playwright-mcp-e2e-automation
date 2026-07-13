@@ -52,6 +52,8 @@ Propriedades ausentes de outras specs nunca bloqueiam a execucao selecionada.
 ## Geracao Dos Testes
 
 1. Criar um unico `test` para a operacao completa: autenticar uma vez, entrar no fluxo uma vez e manter a mesma fixture `page` ate a confirmacao de persistencia.
+   Em projeto/pedido em portugues, usar portugues sem acentos nos identificadores de dominio e preservar APIs/palavras reservadas do Playwright e JavaScript. Seguir outro idioma quando ele for predominante no repositorio.
+   Manter nomes naturais e objetivos; evitar abreviacoes, nomes genericos e traducoes excessivamente longas.
 2. Pre-registrar no `validationReport` todas as verificacoes por tela. Em cada tela, preencher a base valida uma vez e, para cada obrigatorio, remover somente o campo alvo, submeter, registrar bloqueio/mensagem e restaurar somente esse campo antes do proximo. Nao preencher novamente o formulario inteiro nem tratar default do primeiro carregamento como restaurado depois de limpa-lo.
    Mapear campos volateis que o servidor limpa a cada resposta, como senha e upload, e restaura-los apos toda submissao. Considerar validadores short-circuit que podem impedir as regras seguintes quando um campo volatil fica vazio.
    Descritores `(tela, tipo, campo)` devem ser unicos. Duas verificacoes nao podem aparecer no relatorio com a mesma descricao para esconder que uma mensagem foi atribuida ao campo errado.
@@ -60,6 +62,10 @@ Propriedades ausentes de outras specs nunca bloqueiam a execucao selecionada.
 4. Avancar uma unica vez por tela, somente depois das verificacoes alcancaveis, e concluir o cadastro positivo com dados sinteticos unicos, mensagem de sucesso e confirmacao na listagem/consulta.
 5. Se uma validacao fizer o sistema avancar ou persistir indevidamente, registrar falha, marcar verificacoes inacessiveis como `nao-executado` e continuar do estado atual. Nao refazer login, voltar ao inicio ou criar outro registro.
 6. Nao exigir `input[type=number]`; considerar texto com conversor, mascara ou validacao de servidor. Nunca excluir automaticamente dado persistido por defeito.
+
+Organizar a spec com `test.step` para grandes fases funcionais, sem criar uma etapa por campo. Usar objetos nomeados em listas de validacao, manter a narrativa principal na spec e extrair somente funcoes que eliminem repeticao real ou representem fase clara.
+
+Adicionar comentarios nas linhas-chave para explicar preflight, origem da massa, `runId`, sessao unica, restauracao de campos, dependencias, overlays, persistencia e escrita do relatorio. Nao comentar operacoes obvias isoladas. A quantidade depende da complexidade; consultar `../../references/legibilidade-codigo.md` ao criar ou refatorar uma spec de implantacao.
 
 Gerar `test-results/implantacao/<spec>-<runId>.md` com itens `passou`, `falhou` e `nao-executado`, agrupados por tela. Escrever o relatorio em `finally`, anexa-lo ao `testInfo` e falhar a spec ao final se houver falha ou item nao executado. O relatorio nao pode conter credenciais, dados pessoais ou valores sensiveis.
 
@@ -79,7 +85,7 @@ Gerar `test-results/implantacao/<spec>-<runId>.md` com itens `passou`, `falhou` 
 - Executar cada spec afetada e depois `quality-gate.mjs`.
 - Considerar concluido somente quando as specs passarem no ambiente real; divergencia de implantacao ou massa ausente permanece bloqueio, nao sucesso parcial.
 
-Carregar referencias em `../../references/` somente conforme o risco: configuracao/perfis, seletores, exploracao MCP, diagnostico ou otimizacao.
+Carregar referencias em `../../references/` somente conforme o risco: legibilidade, configuracao/perfis, seletores, exploracao MCP, diagnostico ou otimizacao.
 
 ## Saida
 
