@@ -41,7 +41,7 @@ function readJson(file) {
 
 try {
   const manifest = readJson(path.join(pluginRoot, ".codex-plugin", "plugin.json"));
-  assert.equal(manifest.version, "1.0.0");
+  assert.equal(manifest.version, "1.0.1");
   const skillNames = fs.readdirSync(path.join(pluginRoot, "skills"))
     .filter((name) => fs.existsSync(path.join(pluginRoot, "skills", name, "SKILL.md")));
   assert(skillNames.includes("gerar-massa-playwright"));
@@ -58,6 +58,9 @@ try {
   assert.match(implementationSkill, /unico `test`/);
   assert.match(implementationSkill, /validationReport/);
   assert.match(implementationSkill, /headed maximizado/);
+  assert.match(implementationSkill, /classificar a verificacao como `dependencia`/);
+  assert.match(implementationSkill, /overlay opcional/);
+  assert.match(implementationSkill, /getByRole\('row'\)/);
 
   run(scaffold, [projectRoot]);
   for (const relative of [
@@ -71,6 +74,9 @@ try {
   const generatedConfig = fs.readFileSync(path.join(projectRoot, "playwright.config.js"), "utf8");
   assert.match(generatedConfig, /viewport:\s*null/);
   assert.match(generatedConfig, /--start-maximized/);
+  assert.match(generatedConfig, /trace:\s*'retain-on-first-failure'/);
+  assert.match(generatedConfig, /screenshot:\s*'only-on-failure'/);
+  assert.match(generatedConfig, /video:\s*'off'/);
   assert(!generatedConfig.includes("devices['Desktop Chrome']"));
   assert.match(fs.readFileSync(path.join(projectRoot, "tests", "fixtures", "maximizedTest.js"), "utf8"), /Browser\.setWindowBounds/);
   assert.match(fs.readFileSync(path.join(projectRoot, ".env.example"), "utf8"), /^E2E_CLIENT_PROFILE=referencia$/m);
@@ -148,6 +154,15 @@ try {
   successfulReport.pass("persistencia");
   successfulReport.write();
   assert.doesNotThrow(() => successfulReport.assertSuccessful());
+  assert.throws(() => createValidationReport({
+    projectRoot,
+    spec: "modulo.validacao-duplicada",
+    runId: "RUN_004",
+    planned: [
+      { id: "estado", screen: "Tela", kind: "obrigatoriedade", field: "Municipio" },
+      { id: "municipio", screen: "Tela", kind: "obrigatoriedade", field: "Municipio" },
+    ],
+  }), /Validacao semanticamente duplicada/);
 
   writeJson(path.join(projectRoot, "config", "defaults.json"), {
     comum: { modalidade: "PADRAO" },
@@ -327,6 +342,62 @@ try {
   const cleanAuditResult = run(audit, [projectRoot, "--json"], { allowFailure: true });
   const cleanAuditSummary = JSON.parse(cleanAuditResult.stdout);
   assert(!cleanAuditSummary.findings.some((item) => item.rule === "local-absolute-path"));
+  assert(!cleanAuditSummary.findings.some((item) => item.rule === "failure-trace-required"));
+  assert(!cleanAuditSummary.findings.some((item) => item.rule === "failure-screenshot-required"));
+
+  const configFile = path.join(projectRoot, "playwright.config.js");
+  const goodConfig = fs.readFileSync(configFile, "utf8");
+  fs.writeFileSync(configFile, goodConfig
+    .replace("trace: 'retain-on-first-failure'", "trace: 'off'")
+    .replace("screenshot: 'only-on-failure'", "screenshot: 'off'"), "utf8");
+  const noEvidenceAudit = JSON.parse(run(audit, [projectRoot, "--json"], { allowFailure: true }).stdout);
+  assert(noEvidenceAudit.findings.some((item) => item.rule === "failure-trace-required"));
+  assert(noEvidenceAudit.findings.some((item) => item.rule === "failure-screenshot-required"));
+  fs.writeFileSync(configFile, goodConfig, "utf8");
+
+  const fragilePage = path.join(projectRoot, "tests", "pages", "FragileOverlayPage.js");
+  const immediateVisibilityGuard = "    if (await this.cookieConsent.isVis" + "ible()) await this.cookieConsent.click();";
+  fs.writeFileSync(fragilePage, [
+    "class FragileOverlayPage {",
+    "  async submit() {",
+    immediateVisibilityGuard,
+    "    await this.submitButton.click();",
+    "  }",
+    "}",
+    "module.exports = { FragileOverlayPage };",
+    "",
+  ].join("\n"), "utf8");
+  const fragileOverlayAudit = JSON.parse(run(audit, [projectRoot, "--files", path.relative(projectRoot, fragilePage), "--json"], { allowFailure: true }).stdout);
+  assert(fragileOverlayAudit.findings.some((item) => item.rule === "optional-overlay-race"));
+
+  const safePage = path.join(projectRoot, "tests", "pages", "SafeOverlayPage.js");
+  fs.writeFileSync(safePage, [
+    "class SafeOverlayPage {",
+    "  async submit() {",
+    "    try { await this.submitButton.click({ timeout: 5000 }); }",
+    "    catch (error) {",
+    "      if (!(await this.cookieConsent.isVisible())) throw error;",
+    "      await this.cookieConsent.click();",
+    "      await this.submitButton.click();",
+    "    }",
+    "  }",
+    "}",
+    "module.exports = { SafeOverlayPage };",
+    "",
+  ].join("\n"), "utf8");
+  const safeOverlayAudit = JSON.parse(run(audit, [projectRoot, "--files", path.relative(projectRoot, safePage), "--json"], { allowFailure: true }).stdout);
+  assert(!safeOverlayAudit.findings.some((item) => item.rule === "optional-overlay-race"));
+
+  const structuralTablePage = path.join(projectRoot, "tests", "pages", "StructuralTablePage.js");
+  const structuralTableCode = "const rows = page.locator('table.listagem tbody" + " tr');\nvoid rows;\n";
+  fs.writeFileSync(structuralTablePage, structuralTableCode, "utf8");
+  const structuralTableAudit = JSON.parse(run(audit, [projectRoot, "--files", path.relative(projectRoot, structuralTablePage), "--json"], { allowFailure: true }).stdout);
+  assert(structuralTableAudit.findings.some((item) => item.rule === "structural-table-selector"));
+
+  const semanticTablePage = path.join(projectRoot, "tests", "pages", "SemanticTablePage.js");
+  fs.writeFileSync(semanticTablePage, "const rows = page.getByRole('table', { name: /Resultados/ }).getByRole('row').filter({ hasText: nome });\nvoid rows;\n", "utf8");
+  const semanticTableAudit = JSON.parse(run(audit, [projectRoot, "--files", path.relative(projectRoot, semanticTablePage), "--json"], { allowFailure: true }).stdout);
+  assert(!semanticTableAudit.findings.some((item) => item.rule === "structural-table-selector"));
 
   const badSpec = path.join(projectRoot, "tests", "e2e", "preflight-fora-do-escopo.spec.js");
   fs.writeFileSync(badSpec, "const { requireSpecData } = require('../utils/clientConfig');\nrequireSpecData({ spec: 'x', required: [] });\n", "utf8");
@@ -367,6 +438,21 @@ try {
   assert(!singleSessionAudit.findings.some((item) => item.rule === "fragmented-implantation-flow"));
   assert(!singleSessionAudit.findings.some((item) => item.rule === "missing-validation-report"));
 
+  const sharedMessageSpec = path.join(projectRoot, "tests", "e2e", "obrigatorios-mensagem-compartilhada.spec.js");
+  fs.writeFileSync(sharedMessageSpec, [
+    "const { test } = require('@playwright/test');",
+    "const { requireSpecData } = require('../utils/clientConfig');",
+    "const REQUIRED_CASES = [",
+    "  ['estado', 'Municipio'],",
+    "  ['municipio', 'Municipio'],",
+    "];",
+    "test.beforeAll(() => requireSpecData({ spec: 'x', required: [] }));",
+    "test('deve validar obrigatorios de implantacao', async () => { void REQUIRED_CASES; });",
+    "",
+  ].join("\n"), "utf8");
+  const sharedMessageAudit = JSON.parse(run(audit, [projectRoot, "--files", path.relative(projectRoot, sharedMessageSpec), "--json"], { allowFailure: true }).stdout);
+  assert(sharedMessageAudit.findings.some((item) => item.rule === "shared-required-message"));
+
   const fragmentedSpec = path.join(projectRoot, "tests", "e2e", "obrigatorios-fragmentados.spec.js");
   fs.writeFileSync(fragmentedSpec, [
     "const { test } = require('../fixtures/maximizedTest');",
@@ -382,7 +468,7 @@ try {
   assert(fragmentedAudit.findings.some((item) => item.rule === "repeated-login-per-validation"));
   assert(fragmentedAudit.findings.some((item) => item.rule === "missing-validation-report"));
 
-  console.log("OK: contrato 1.0.0, sessao unica, relatorio, maximização, perfis e preflight por spec validados.");
+  console.log("OK: contrato 1.0.1, dependencias, evidencias de falha, overlays, locators, sessao unica e perfis validados.");
 } finally {
   fs.rmSync(tempRoot, { recursive: true, force: true });
 }

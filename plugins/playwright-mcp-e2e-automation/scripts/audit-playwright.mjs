@@ -399,6 +399,16 @@ for (const file of codeFiles) {
     add("warning", "xpath-without-justification", rel, lineNumber(content, xpathSelector.index), "XPath deve ser ultimo recurso e ter justificativa curta no Page Object.");
   }
 
+  const structuralTableSelector = firstMatch(content, /locator\s*\(\s*["'`][^"'`]*\btable\b[^"'`]*\b(?:tbody\s+tr|thead\s+tr|tr\s+td)\b[^"'`]*["'`]/gi);
+  if (structuralTableSelector && !hasNearby(content, structuralTableSelector.index, /sem (?:role|acessibilidade)|fallback legado|estrutura legada justificada/i, 240)) {
+    add("warning", "structural-table-selector", rel, lineNumber(content, structuralTableSelector.index), "Evite acoplar linhas a table/tbody/tr; localize a tabela por role/nome ou ID estavel e filtre getByRole('row').");
+  }
+
+  const optionalOverlayRace = firstMatch(content, /if\s*\(\s*await\s+[A-Za-z0-9_.$]*(?:cookie|consent|modal|dialog|overlay)[A-Za-z0-9_.$]*\.isVisible\s*\(\s*\)\s*\)\s*(?:\{\s*)?await\s+[A-Za-z0-9_.$]+\.click\s*\(/gi);
+  if (optionalOverlayRace) {
+    add("warning", "optional-overlay-race", rel, lineNumber(content, optionalOverlayRace.index), "isVisible() retorna imediatamente; para overlay tardio, recupere o clique interceptado, feche o overlay e repita uma vez, relancando erros nao relacionados.");
+  }
+
   const imageTitleLink = firstMatch(content, /locator\s*\([^)]*["'`][^"'`]*img\[title=/gs);
   if (imageTitleLink) {
     add("warning", "image-title-link-selector", rel, lineNumber(content, imageTitleLink.index), "Evite acoplar link/botao a img[title]; tente getByRole ou seletor acessivel antes.");
@@ -578,6 +588,20 @@ for (const file of specFiles) {
   const testDefinitions = matches(content, /\btest\s*\(/g);
   const implantationSpec = /\brequireSpecData\s*\(/.test(content)
     && /(?:obrigatori|formato|invalid|implantacao|implantação)/i.test(content);
+  const requiredArray = firstMatch(content, /\b(?:REQUIRED|OBRIGATOR)[A-Za-z0-9_]*\s*=\s*\[[\s\S]{0,7000}?\n\s*\];/gi);
+  if (implantationSpec && requiredArray) {
+    const tuples = matches(requiredArray[0], /\[\s*["'`]([^"'`]+)["'`]\s*,\s*["'`]([^"'`]+)["'`]\s*\]/g);
+    const labels = new Map();
+    for (const tuple of tuples) {
+      const field = tuple[1];
+      const label = tuple[2];
+      if (labels.has(label) && labels.get(label) !== field) {
+        add("error", "shared-required-message", relative(file), lineNumber(content, requiredArray.index + tuple.index), "Campos diferentes nao podem compartilhar a mesma mensagem como prova de obrigatoriedade; classifique dependencias separadamente.");
+        break;
+      }
+      labels.set(label, field);
+    }
+  }
   if (implantationSpec && testDefinitions.length > 1) {
     add("error", "fragmented-implantation-flow", relative(file), lineNumber(content, testDefinitions[1].index), "Mantenha uma unica definicao test para a operacao de implantacao; registre validacoes por campo no validationReport sem repetir login/fluxo.");
   }
@@ -734,10 +758,14 @@ if (!configFile) {
   if (!/--start-maximized/.test(config)) add("error", "maximized-launch", rel, 1, "Inclua --start-maximized em launchOptions para execucao headed.");
   const hasCdpMaximize = codeFiles.some((file) => /Browser\.setWindowBounds[\s\S]{0,200}?maximized/.test(fs.readFileSync(file, "utf8")));
   if (!hasCdpMaximize) add("error", "missing-cdp-maximize", rel, 1, "Adicione fixture/helper CDP com Browser.setWindowBounds=maximized para estabilizar a maximização entre sistemas operacionais.");
-  for (const artifact of ["trace", "screenshot", "video"]) {
-    if (!new RegExp(`${artifact}\\s*:\\s*["']off["']`).test(config)) {
-      add("warning", "minimal-evidence", rel, 1, `Defina ${artifact}: 'off' para evidencias minimas por padrao.`);
-    }
+  if (!/trace\s*:\s*["'](?:retain-on-first-failure|retain-on-failure)["']/.test(config)) {
+    add("error", "failure-trace-required", rel, 1, "Use trace: 'retain-on-first-failure' ou 'retain-on-failure' para diagnosticar falhas sem guardar artefatos de sucesso.");
+  }
+  if (!/screenshot\s*:\s*["'](?:only-on-failure|on-first-failure)["']/.test(config)) {
+    add("error", "failure-screenshot-required", rel, 1, "Use screenshot: 'only-on-failure' ou 'on-first-failure'.");
+  }
+  if (!/video\s*:\s*["']off["']/.test(config)) {
+    add("warning", "video-default", rel, 1, "Mantenha video: 'off' por padrao; habilite somente quando indispensavel.");
   }
 }
 

@@ -25,6 +25,7 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Locators semanticos e escopados devem prevalecer sobre CSS estrutural e XPath.
 - ID JSF gerado, indice escondido em `evaluate`, ID JSF estavel espalhado sem helper e `waitForTimeout` sem anotacao padronizada sao riscos de manutencao.
 - Assertions devem comprovar o efeito funcional, nao somente a presenca de um elemento.
+- Uma mensagem de campo dependente nao comprova obrigatoriedade do campo controlador; classificar e revisar dependencias separadamente.
 - Filtro, busca ou assert nao pode perder parte do criterio informado pelo usuario sem confirmacao explicita.
 - `waitForTimeout`, retries excessivos e esperas globais podem mascarar sincronizacao incorreta.
 - Credenciais devem vir de `.env`, que precisa estar ignorado; `.env.example` nao deve conter segredos.
@@ -40,6 +41,6 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Testes devem evitar dependencia de ordem, dados compartilhados imprevisiveis e efeitos destrutivos sem controle.
 - Perfis `config/clientes/*.json` devem conter somente massa institucional nao secreta; cada spec valida apenas suas propriedades em `test.beforeAll` com `requireSpecData`.
 - Propriedades `null` de specs nao selecionadas nao podem bloquear uma execucao parcial.
-- Configuracao padrao do plugin deve usar Chromium headed e evidencias minimas, salvo decisao explicita do projeto.
+- Configuracao padrao do plugin deve usar Chromium headed, trace e screenshot somente em falhas e video desligado, salvo decisao explicita do projeto.
 
 Se nao houver achados, declarar isso e mencionar testes nao executados ou riscos que permaneceram.

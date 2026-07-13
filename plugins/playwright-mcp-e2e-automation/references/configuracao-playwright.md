@@ -106,13 +106,13 @@ Ao descobrir nova massa especifica no ambiente de referencia, usar `update-clien
 
 ## Evidencias
 
-Por padrao, configurar Playwright com evidencias minimas:
+Por padrao, configurar Playwright com evidencias somente em falhas:
 
-- `trace: 'off'`;
-- `screenshot: 'off'`;
+- `trace: 'retain-on-first-failure'`;
+- `screenshot: 'only-on-failure'`;
 - `video: 'off'`.
 
-Quando o usuario pedir `evidencias: falha`, usar artefatos somente em falha:
+Quando o usuario pedir `evidencias: falha`, manter artefatos somente em falha:
 
 - `trace: 'retain-on-failure'` ou `trace: 'on-first-retry'`;
 - `screenshot: 'only-on-failure'`;
@@ -120,7 +120,7 @@ Quando o usuario pedir `evidencias: falha`, usar artefatos somente em falha:
 
 Quando o usuario pedir `evidencias: completo`, habilitar evidencias suficientes para diagnostico e documentar onde ficam relatorio HTML, traces, screenshots e videos.
 
-Com `evidencias: minimo`, nao criar nem atualizar README por causa de evidencias. Com `evidencias: falha`, registrar apenas o necessario para entender o erro. Com `evidencias: completo`, documentar comandos, relatorios, traces, screenshots, videos e limitacoes no README.
+Com `evidencias: minimo` ou `evidencias: falha`, nao criar nem atualizar README por causa de evidencias e guardar somente trace/screenshot de falhas. Com `evidencias: completo`, documentar comandos, relatorios, traces, screenshots, videos e limitacoes no README.
 
 ## Dados De Teste
 
@@ -147,6 +147,7 @@ Com `evidencias: minimo`, nao criar nem atualizar README por causa de evidencias
 - Modelar cada fluxo de negocio como uma unica spec/teste, usando a fixture `page` do Playwright Test e mantendo a mesma pagina/contexto durante login, navegacao, preenchimento, avancos e validacao.
 - Nao abrir/fechar navegador manualmente a cada tela e nao dividir as telas de um mesmo cadastro em testes independentes.
 - Validar obrigatorios um por vez dentro do mesmo teste: remover, submeter, registrar, restaurar explicitamente e somente entao passar ao proximo campo. Defaults definidos pelo servidor deixam de existir quando limpos e precisam ser selecionados novamente. Avancar uma unica vez por tela.
+- Exigir evidencia propria para cada obrigatorio. Quando um campo apenas controla outro campo obrigatorio, registrar `dependencia` e nao usar a mensagem do dependente como se fosse do controlador. Manter unicos os descritores `(tela, tipo, campo)` do relatorio.
 - Identificar campos volateis/nao redistribuidos pelo servidor, especialmente senha e upload. Restaura-los apos cada submissao para que um validador short-circuit nao masque o campo-alvo seguinte.
 - Usar `validationReport` para preservar granularidade por campo e gerar Markdown sanitizado em `test-results/implantacao/`; falhar a spec somente depois de escrever o relatorio.
 - Antes de executar uma acao que cria ou altera dado persistente, mapear os campos obrigatorios conhecidos, gerar `runId` unico e definir uma validacao final.

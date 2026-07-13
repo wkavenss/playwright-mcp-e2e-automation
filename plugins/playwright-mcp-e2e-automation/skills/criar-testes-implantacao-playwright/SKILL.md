@@ -21,6 +21,7 @@ Gravar credenciais reais somente em `.env`, manter `.env` ignorado e criar `.env
 2. Ler o `AGENTS.md` informado e seguir suas instrucoes progressivas.
 3. A partir da tela/operacao, localizar somente JSP, MBean, validadores, conversores e persistencia diretamente ligados ao fluxo. Nao analisar o modulo inteiro.
 4. Montar inventario compacto por campo: label, origem da obrigatoriedade/formato, valor valido, comportamento invalido observavel, seletor e estrategia de persistencia.
+   Classificar como `obrigatoriedade` somente quando o bloqueio ou mensagem puder ser atribuido ao proprio campo. Se limpar um controle apenas limpar, desabilitar ou invalidar outro campo, classificar a verificacao como `dependencia`; nunca reutilizar a mensagem do dependente como prova de obrigatoriedade do controlador.
 5. Usar o codigo como comportamento esperado e a tela para confirmar o que esta implantado. Se divergirem, manter o criterio do codigo, falhar a spec e relatar divergencia de implantacao.
 6. Nao transformar condicao interna sem efeito observavel em teste E2E.
 
@@ -53,6 +54,7 @@ Propriedades ausentes de outras specs nunca bloqueiam a execucao selecionada.
 1. Criar um unico `test` para a operacao completa: autenticar uma vez, entrar no fluxo uma vez e manter a mesma fixture `page` ate a confirmacao de persistencia.
 2. Pre-registrar no `validationReport` todas as verificacoes por tela. Em cada tela, preencher a base valida uma vez e, para cada obrigatorio, remover somente o campo alvo, submeter, registrar bloqueio/mensagem e restaurar somente esse campo antes do proximo. Nao preencher novamente o formulario inteiro nem tratar default do primeiro carregamento como restaurado depois de limpa-lo.
    Mapear campos volateis que o servidor limpa a cada resposta, como senha e upload, e restaura-los apos toda submissao. Considerar validadores short-circuit que podem impedir as regras seguintes quando um campo volatil fica vazio.
+   Descritores `(tela, tipo, campo)` devem ser unicos. Duas verificacoes nao podem aparecer no relatorio com a mesma descricao para esconder que uma mensagem foi atribuida ao campo errado.
 3. Na mesma tela e sessao, validar formatos somente quando comprovados. Aceitar bloqueio de digitacao ou rejeicao na submissao e restaurar o valor valido antes de avancar.
    Para campos dependentes via AJAX, aguardar uma mudanca observavel no controle dependente antes de submeter; nao usar somente o valor transitorio do campo pai como sinal de sincronizacao.
 4. Avancar uma unica vez por tela, somente depois das verificacoes alcancaveis, e concluir o cadastro positivo com dados sinteticos unicos, mensagem de sucesso e confirmacao na listagem/consulta.
@@ -66,6 +68,8 @@ Gerar `test-results/implantacao/<spec>-<runId>.md` com itens `passou`, `falhou` 
 - Executar `check-environment.mjs <raiz> --headed-smoke --json`, `optimize-context.mjs` e, se necessario, `scaffold-playwright.mjs`; nao iniciar exploracao se o smoke headed falhar.
 - Usar Page Objects, `getByRole`, `getByLabel`, texto escopado e IDs JSF estaveis centralizados.
 - Evitar `.nth()`, posicao, XPath e IDs JSF dinamicos.
+- Em tabelas, priorizar tabela por role/nome acessivel e linhas com `getByRole('row').filter({ hasText })`; usar ID estavel do container como fallback legado e justificar CSS estrutural inevitavel.
+- Para cookie, modal ou overlay opcional que possa aparecer tarde, nao depender apenas de `isVisible()` antes da acao critica. Recuperar somente o clique interceptado: confirmar o overlay, fecha-lo, repetir uma vez e relancar qualquer erro nao relacionado.
 - Manter Chromium headed maximizado, `viewport: null`, `--start-maximized`, fixture CDP, `workers: 1`, dados unicos e registros positivos rastreados.
 - Definir timeout unico proporcional ao fluxo completo; nao conservar o padrao de 30 segundos quando a mesma spec executar varias validacoes sequenciais.
 - Na descoberta MCP, abrir uma unica pagina, dimensiona-la uma vez para a area disponivel da tela, autenticar uma vez e confirmar cada tela conforme for alcancada. Nao usar probe independente em fluxo transacional nem reentrar no cadastro para mapear a proxima tela.

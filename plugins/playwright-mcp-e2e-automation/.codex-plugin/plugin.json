@@ -1,6 +1,6 @@
 {
   "name": "playwright-mcp-e2e-automation",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Playwright CLI and MCP toolkit for synthetic data generation and implementation-focused E2E validation in legacy web systems.",
   "author": {
     "name": "wkavenss"

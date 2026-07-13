@@ -28,7 +28,9 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Nao substituir uma validacao funcional por mera verificacao de visibilidade.
 - Nao trocar criterio informado pelo usuario por outro mais fraco sem confirmacao explicita; se a alternativa preservar so parte do criterio, parar e pedir confirmacao.
 - Preferir locators semanticos e assertions com espera automatica.
+- Em tabela, preferir role/nome acessivel e linha filtrada; aceitar ID estavel do container como fallback legado, sem cadeia estrutural `table tbody tr` injustificada.
 - Evitar `waitForTimeout`; corrigir a condicao de sincronizacao.
+- Se cookie/modal/overlay opcional interceptar uma acao, recuperar somente esse clique, fechar o overlay e repetir uma vez. Nao usar `isVisible()` imediato como unica protecao e relancar erros nao relacionados.
 - Preservar `.env`, `.gitignore`, Page Objects e convencoes existentes.
 - Nao corrigir falha copiando erro cru, stack trace, timeout, texto de `body` inteiro ou mensagem transitoria para comentario, fixture, constante ou assert.
 - Nao hardcodar nomes reais de pessoas, usuarios, servidores/funcionarios, documentos, matriculas, emails ou telefones observados na tela.
@@ -39,7 +41,7 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Cache local pode orientar a correcao, mas nao substituir confirmacao real quando seletor, tela ou estado estiverem incertos.
 - Overlay privado local em `.playwright-e2e/private-domain/` pode orientar termos e receitas do projeto, mas nunca deve ser copiado para codigo versionado, logs ou resumo.
 - Fazer uma tentativa objetiva de correcao. Se a causa exigir investigacao ampla ou dados ausentes, parar e pedir somente o que falta.
-- Gerar trace, screenshot ou video apenas quando solicitado ou indispensavel para diagnosticar a falha.
+- Preservar trace e screenshot configurados somente para falhas; manter video desligado salvo necessidade explicita.
 
 ## Saida
 

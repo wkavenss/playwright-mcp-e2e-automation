@@ -32,9 +32,9 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - `tests/e2e` para specs, `tests/pages/BasePage.js` para helper minimo de Page Objects, `tests/utils/authProfiles.js` para perfis de autenticacao, `tests/utils/testData.js` para massa dinamica e `tests/utils/legacyForm.js` para formularios legados.
 - Chromium headed e maximizado por padrao, com `viewport: null`, `--start-maximized` e fixture CDP.
 - `workers: 1` por padrao, com override por `E2E_WORKERS`, para evitar conflito de sessao quando perfis locais usam a mesma conta.
-- `trace`, `screenshot` e `video` desligados por padrao.
+- `trace: 'retain-on-first-failure'`, `screenshot: 'only-on-failure'` e `video: 'off'` por padrao.
 - Scripts `test:e2e` e `test:e2e:headed`.
 - Variaveis `BASE_URL`, `E2E_CLIENT_PROFILE`, `E2E_WORKERS` e credenciais por perfil, como `E2E_EXAMPLE_USERNAME`/`E2E_EXAMPLE_PASSWORD`.
 - `.playwright-e2e/cache/`, `.playwright-e2e/private-domain/`, `.playwright-e2e/changed-files.json` e `.playwright-e2e/error-context.md` ignorados para dados locais sanitizados.
 
-Nao criar teste de exemplo, README, trace, screenshot ou video. O scaffolder e nao destrutivo e nao sobrescreve arquivos existentes.
+Nao criar teste de exemplo ou README. O scaffolder e nao destrutivo, nao sobrescreve arquivos existentes e guarda trace/screenshot somente quando houver falha.

@@ -16,6 +16,8 @@ Escolher localizadores nesta ordem:
 
 Nunca usar indice global, "primeiro botao da pagina", classe gerada ou seletor de layout quando houver contexto funcional. Se nao houver nome acessivel, registrar a limitacao e sugerir `data-testid` estavel quando isso desbloquear a automacao.
 
+Em tabelas/listagens, localizar primeiro a tabela por role e caption/nome acessivel, ou por ID estavel do container quando a marcacao legada nao expuser acessibilidade. Dentro dela, preferir `getByRole('row').filter({ hasText: dadoUnico })`. Evitar cadeias estruturais como `table.listagem tbody tr`; se forem inevitaveis, escopar no container estavel e registrar `fallback legado sem role acessivel` junto ao seletor.
+
 Mapear seletores sob demanda: identificar o seletor no momento em que o passo precisa dele, gravar no Page Object e seguir. Nao criar inventario de todos os campos/botoes antes de implementar o fluxo.
 
 Nao usar nomes reais de pessoas, usuarios, servidores/funcionarios, emails, documentos, matriculas ou telefones observados na tela como seletor, `hasText`, assert ou fixture versionada. Em tabelas/listagens, preferir registro criado pela propria automacao com `runId`, texto neutro fornecido pelo usuario ou variavel local nao versionada. Quando um dado real for inevitavel para localizar um registro preexistente, encapsular em parametro generico e nao repetir o valor em comentarios ou logs.
@@ -33,6 +35,10 @@ Elemento JSF `attached` e `hidden` nao e automaticamente erro: menus, submenus e
 Se `getByText` gerar duplicidade, nao troque o criterio por outro mais fraco. Escopar por formulario, menu, tabela, linha, cabecalho ou criterio composto informado pelo usuario. Se uma alternativa preservar apenas parte do criterio, pedir confirmacao antes de alterar.
 
 Quando houver snapshot/HTML de tela legada, usar `legacy-jsf-map.mjs` para extrair controles, links, sinais `jsfcljs`, troca de aba, `_blank`, popup por formulario e links por icone. Gerar um unico manifest de probes por tela em vez de validar um seletor por processo.
+
+## Overlays Opcionais Tardios
+
+Cookie, modal, dialogo ou overlay que surge depois do carregamento pode interceptar um clique mesmo quando `isVisible()` retornou `false` imediatamente antes. Para uma acao critica, tentar o clique com timeout curto, recuperar apenas quando o overlay estiver visivel, fecha-lo e repetir a acao uma vez. Relancar o erro original quando o overlay nao for a causa; nunca transformar a recuperacao em `catch` generico que oculta falhas.
 
 Para campos em formularios tabulares ou telas legadas:
 

@@ -100,8 +100,8 @@ module.exports = defineConfig({
     launchOptions: {
       args: ['--start-maximized'],
     },
-    trace: 'off',
-    screenshot: 'off',
+    trace: 'retain-on-first-failure',
+    screenshot: 'only-on-failure',
     video: 'off',
   },
   projects: [
@@ -260,13 +260,19 @@ class ValidationReport {
     this.runId = sanitize(runId);
     this.projectRoot = path.resolve(projectRoot);
     this.checks = new Map();
+    this.semanticChecks = new Map();
     planned.forEach((check) => this.register(check));
   }
 
   register(check) {
     const normalized = normalizeCheck(check);
     if (this.checks.has(normalized.id)) throw new Error(\`Validacao duplicada: \${normalized.id}\`);
+    const semanticKey = [normalized.screen, normalized.kind, normalized.field].join('::');
+    if (this.semanticChecks.has(semanticKey)) {
+      throw new Error(\`Validacao semanticamente duplicada: \${semanticKey}\`);
+    }
     this.checks.set(normalized.id, normalized);
+    this.semanticChecks.set(semanticKey, normalized.id);
     return normalized.id;
   }
 
