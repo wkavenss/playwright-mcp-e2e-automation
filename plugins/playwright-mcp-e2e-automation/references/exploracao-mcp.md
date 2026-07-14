@@ -7,8 +7,8 @@ Use este arquivo quando a tela tiver fluxo complexo, quando a leitura inicial na
 Para cada tela relevante, levantar apenas o necessario para agir com seguranca. Nao catalogar todos os seletores da tela.
 
 - tela, URL/rota, titulo/cabecalho;
-- formulario principal, campos visiveis e origem da obrigatoriedade;
-- botoes, links, menus, tabelas, modais, banners e mensagens;
+- formulario principal, campos visiveis, origem da obrigatoriedade e listas vindas de cadastros anteriores;
+- botoes do fluxo, efeito esperado, risco de persistencia, links, tabelas, modais, banners e mensagens;
 - acao segura seguinte e validacao funcional candidata.
 
 Reaproveitar o mapa quando voltar para a mesma tela na mesma execucao.
@@ -28,7 +28,8 @@ Nao capturar nem colar DOM completo, HTML completo, screenshots ou listas integr
 ## Navegacao
 
 - Confirmar pagina inicial, caminho de usuario, telas intermediarias e estado final pela interface real.
-- Seguir somente o caminho informado pelo usuario. Nao abrir funcionalidade vizinha, menu parecido ou caso de uso alternativo para explorar.
+- Seguir somente o `CAMINHO` do caso atual. Em lote, cada bloco numerado continua estrito e nao autoriza explorar funcionalidades vizinhas.
+- Nao abrir menu global, area externa, atalho de outro modulo ou funcionalidade sem relacao comprovada com o caminho atual.
 - Preferir navegacao pela interface quando o objetivo for validar o fluxo do usuario.
 - Usar URL direta somente se o fluxo exigir ou se o usuario tiver informado essa rota.
 - Validar mudanca de tela por cabecalho, texto principal, formulario, tabela, rota ou estado visual confiavel.
@@ -43,9 +44,12 @@ Nao capturar nem colar DOM completo, HTML completo, screenshots ou listas integr
 - Quando a estrela/asterisco azul estiver presente, nao usar submissao vazia para descobrir obrigatoriedade.
 - Considerar atributos HTML, legenda visual, mensagem de validacao e regra de tela apenas quando o marcador visual de obrigatoriedade nao existir ou quando houver falha funcional real.
 - Para cada campo usado: registrar label, tipo, obrigatoriedade, valor usado, seletor escolhido e validacao esperada.
+- Classificar valores como gerados, de dominio ou cadastro anterior. Para cadastro anterior, confirmar que a tela expoe ao menos uma opcao valida sem valor institucional fixo.
 - Registrar valores usados de forma sanitizada. Dados pessoais, usuarios, documentos, emails e telefones devem aparecer como tipo de dado ou variavel generica, nunca como valor real.
 - Nao submeter formulario incompleto apenas para observar validacoes de campos obrigatorios.
 - Diferenciar acoes intermediarias de finais: salvar, avancar, enviar, confirmar, cancelar ou excluir.
+- Antes de clicar Voltar/Cancelar, confirmar se a reentrada e segura na mesma sessao.
+- Durante o inventario do guia, nao confirmar acao destrutiva nem transicao irreversivel. Depois da aprovacao, a spec correspondente pode executa-la somente sobre alvo sintetico criado, persistido e localizado de forma unica pela propria spec na execucao atual.
 - Antes de acao final, verificar permissao explicita, ambiente seguro, dados de teste, reversibilidade e ausencia de impacto real.
 - Antes de acao que persiste dado, confirmar que os campos obrigatorios conhecidos, massa neutra e validacao final ja estao definidos. Nao usar repetidas submisssoes como mecanismo de descoberta.
 

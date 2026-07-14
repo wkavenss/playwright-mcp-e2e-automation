@@ -43,9 +43,9 @@ Nao copiar stack trace, erro bruto do terminal, timeout completo, payload, HTML,
 
 Se houver captcha, MFA, bloqueio de automacao, indisponibilidade, permissao insuficiente ou regra ambigua, nao inventar alternativa insegura. Estruturar a automacao ate o ponto possivel e registrar a informacao necessaria para prosseguir.
 
-Em producao ou ambiente real, nao executar criacao, alteracao, submissao, aprovacao, exclusao ou acao irreversivel sem autorizacao explicita e dados seguros.
+Em producao ou ambiente real, nao executar criacao, alteracao, submissao, aprovacao, exclusao ou acao irreversivel sem autorizacao explicita e dados seguros. Em spec destrutiva aprovada, o alvo deve ter sido criado integralmente pela propria spec na execucao atual e localizado de forma unica pelo `runId`.
 
-Se a falha aconteceu depois de uma acao que pode ter criado dado persistente, nao repetir a submissao cegamente. Primeiro verificar se o registro foi criado, reutilizar o dado rastreavel quando possivel ou limpar somente com acao segura e autorizada.
+Se a falha aconteceu depois de uma acao que pode ter criado dado persistente, nao repetir a submissao cegamente. Em fluxo comum, primeiro verificar se o registro foi criado e reutilizar o dado rastreavel quando possivel. Em remocao ou transicao irreversivel, preservar o alvo identificado e nao executar tentativa de limpeza automatica: o residuo e a evidencia necessaria para diagnostico seguro.
 
 ## Resumo Completo
 

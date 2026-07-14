@@ -1,6 +1,6 @@
 # Playwright MCP E2E Automation
 
-Plugin para Codex que gera massa sintética, cria testes de implantação, corrige, revisa, higieniza e prepara automações E2E com Playwright, Page Objects, `.env`, perfis de dados por cliente, Playwright CLI e Playwright MCP.
+Plugin para Codex que gera massa sintética, cria smoke tests de implantação, corrige, revisa, higieniza e prepara automações E2E com Playwright, Page Objects, `.env`, Playwright CLI e Playwright MCP.
 
 O padrão é simples:
 
@@ -127,6 +127,51 @@ AGENTS.md do módulo: /caminho/AGENTS.md
 Código-fonte: /caminho/do/sistema
 ```
 
-Esse modo analisa tela e código seletivamente e cria uma spec por operação: um login, uma sessão maximizada, validações individuais de obrigatoriedade/formato por tela e uma única conclusão positiva. Cada verificação aparece em relatório Markdown, sem reabrir o fluxo. Se o modo estiver ausente ou contraditório, o plugin pede a escolha antes de criar código ou executar o navegador.
+Para criar várias specs no mesmo pedido, mantenha cada caso e suas credenciais no mesmo bloco:
 
-Com esses dados, o plugin gera código Playwright reproduzível com Page Objects, `.env`, perfis por cliente, Chromium headed maximizado e evidências mínimas.
+```text
+MODO: Implantação
+URL:
+
+CASO DE USO 1:
+OPERAÇÃO:
+CAMINHO:
+PERFIL:
+USUÁRIO:
+SENHA:
+MASSA E PRÉ-CONDIÇÕES:     # opcional
+DADOS ESPECÍFICOS:         # opcional
+RESULTADO ESPERADO:        # opcional
+OBSERVAÇÕES:               # opcional
+
+CASO DE USO 2:
+OPERAÇÃO:
+CAMINHO:
+PERFIL:
+USUÁRIO:
+SENHA:
+MASSA E PRÉ-CONDIÇÕES:     # opcional
+DADOS ESPECÍFICOS:         # opcional
+RESULTADO ESPERADO:        # opcional
+OBSERVAÇÕES:               # opcional
+
+FONTES DE REFERÊNCIA:
+AGENTS.md do módulo: /caminho/AGENTS.md
+Código-fonte: /caminho/do/sistema
+```
+
+Os blocos devem ser numerados a partir de 1 e conter operação, caminho, perfil, usuário e senha. O plugin processa todos os casos completos na ordem, cria uma spec independente para cada um e bloqueia apenas o caso sem informação ou massa suficiente. Casos com o mesmo perfil e credenciais reutilizam as variáveis do `.env`; credenciais nunca entram no código.
+
+O formato de guia não é aceito. Converta o documento em casos de uso explícitos e envie apenas os que já tenham caminho e pré-condições suficientes para automação.
+
+Esse modo analisa tela e código seletivamente e cria uma spec por operação: um login, uma sessão maximizada, validações individuais de obrigatoriedade, cobertura dos botões seguros e uma única conclusão positiva. Testes negativos de tipo e formato não fazem parte do smoke.
+
+A spec conserva apenas a história funcional. Navegação, botões e conclusão usam assertions normais; as obrigatoriedades usam `expect.soft` para verificar todos os campos na mesma sessão. Antes da única persistência positiva, a spec consulta `testInfo.errors` uma vez e encerra sem cadastrar se alguma obrigatoriedade falhou. O Page Object concentra locators, campos e operações de preenchimento, validação, restauração e consulta, sem camada `flows`, `BasePage` ou método único que esconda todo o smoke. O lote nunca adiciona relatório customizado, `fluxoAcessivel`, inventário ou metadados à spec.
+
+Listas alimentadas por cadastros anteriores usam a primeira opção válida, ignorando placeholders, valores vazios, opções ocultas e desabilitadas. Valores de domínio que alteram o significado do registro continuam explícitos. Voltar e Cancelar podem reentrar no fluxo usando a mesma sessão.
+
+Remoções e transições irreversíveis só atuam sobre um registro sintético criado pela própria spec na execução atual. A spec confirma persistência e unicidade pelo `runId`, testa Cancelar antes de Confirmar quando disponível e valida ausência ou estado final. Se não puder garantir propriedade exclusiva ou segurança contra cascata, somente essa operação fica bloqueada. O relatório HTML mostra diretamente quais specs passaram ou falharam, com trace e screenshot somente em falhas.
+
+Se o modo estiver ausente ou contraditório, o plugin pede a escolha antes de criar código ou executar o navegador.
+
+Com esses dados, o plugin gera código Playwright reproduzível com Page Objects, `.env`, Chromium headed maximizado e evidências mínimas. Projetos novos não recebem perfis JSON por cliente.

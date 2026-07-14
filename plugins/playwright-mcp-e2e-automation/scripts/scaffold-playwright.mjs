@@ -93,8 +93,6 @@ function atualizarPackageJson() {
   for (const [nome, comando] of Object.entries({
     test: "playwright test",
     "test:headed": "playwright test --headed",
-    "test:e2e": "playwright test",
-    "test:e2e:headed": "playwright test --headed",
   })) {
     if (packageJson.scripts[nome]) continue;
     packageJson.scripts[nome] = comando;
@@ -121,14 +119,6 @@ const chavesEnv = [
   ["E2E_EXAMPLE_USERNAME", ""],
   ["E2E_EXAMPLE_PASSWORD", ""],
 ];
-
-if (modo === "implantacao") {
-  chavesEnv.splice(1, 0, ["E2E_CLIENT_PROFILE", "referencia"]);
-  escreverSeAusente("config/defaults.json", "{}\n");
-  escreverSeAusente("config/clientes/referencia.json", "{}\n");
-  copiarTemplate("tests/utils/clientConfig.js");
-  copiarTemplate("tests/utils/validationReport.js");
-}
 
 if (incluirFormularioLegado) {
   copiarTemplate("tests/utils/legacyForm.js");

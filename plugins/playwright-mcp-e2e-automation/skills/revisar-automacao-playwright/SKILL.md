@@ -21,31 +21,56 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 
 ## Criterios
 
-- Specs devem orquestrar a historia funcional; seletores e interacoes pertencem aos Page Objects.
-- Specs extensas devem usar `test.step` para fases funcionais, objetos nomeados para colecoes de validacao e comentarios que expliquem decisoes nao obvias sem repetir comandos.
+- Specs devem orquestrar a historia funcional e a barreira de persistencia; seletores, descritores campo-locator-valor e interacoes pertencem aos Page Objects.
+- Specs devem manter uma sequencia direta, objetos nomeados para colecoes de validacao e comentarios que expliquem decisoes nao obvias sem repetir comandos.
 - Em projetos em portugues, nomes de dominio devem usar portugues natural sem traduzir APIs ou palavras reservadas. Nomes genericos, abreviacoes e traducoes excessivamente longas prejudicam a leitura.
 - Funcoes auxiliares devem eliminar repeticao real ou representar fase funcional clara; reprovar `BasePage` trivial, helper de ID, fabrica de uma linha e exportacao sem consumidor.
-- Um conjunto de campos deve ter uma unica fonte declarativa. Listas, mapas e `switch` paralelos com a mesma relacao aumentam o custo de manutencao.
+- Um conjunto de campos deve ter uma unica fonte declarativa no Page Object. Listas, mapas e `switch` paralelos, ou uma colecao extensa campo-locator-valor na spec, aumentam o custo de manutencao.
+- Colecao extensa no Page Object pode usar um objeto nomeado completo por linha quando continuar legivel. Factory posicional, arquivo adicional ou mapa paralelo usado apenas para reduzir linhas piora a manutencao.
+- Page Object nao deve usar `testInfo` ou esconder toda a operacao em `executarSmokeCompleto`. Camada `flows` que apenas desloca a orquestracao tambem adiciona complexidade sem ganho.
+- Wrapper interno curto usado uma unica vez deve ser incorporado quando apenas encadear chamadas. Nao tratar como excesso um metodo consumido pela spec ou que concentre assertions, sincronizacao ou protecao transacional.
+- Clique com confirmacao deve reutilizar a recuperacao de overlay existente, sem duplicar aceite de cookies e nova tentativa em outro metodo.
+- Quantidade de linhas isolada nao justifica dividir Page Object, criar facade ou extrair helper generico. Exigir responsabilidade separada ou reuso real.
+- Percentual de reducao nao mede manutencao: diferenciar eliminacao real de responsabilidade da mera compactacao visual ou transferencia do mesmo codigo para outro arquivo.
+- Em arquivo com um unico teste, `test.describe` sem configuracao, hooks ou contexto adicional e ruido organizacional. O modulo pode compor diretamente o titulo do `test`.
+- Specs de implantacao devem apresentar fases sequenciais e poucos niveis de decisao. Arvores de `if`, estados `fluxoAcessivel`/`cadastroConcluido` e relatorio particular tendem a duplicar o runner e esconder a historia funcional.
+- Acesso, navegacao, botoes e conclusao devem falhar imediatamente. Evidencias recuperaveis de obrigatoriedade podem usar `expect.soft`; a sentinela e a ausencia de sucesso permanecem assertions normais.
+- Depois do loop de obrigatorios, deve existir uma unica barreira baseada em `testInfo.errors` antes da persistencia. Sem essa barreira, uma falha suave pode reprovar o teste e ainda criar um registro.
+- O Page Object deve separar `clicarCadastrar()`/`clicarConfirmar()` de `validarMensagemSucesso()`; um metodo que submete e valida ambos esconde duas responsabilidades.
+- Colecao de obrigatorios nao deve ser inicializada como plano e depois sobrescrita com dados reais na mesma variavel. Usar nomes distintos, como `camposPlanejados` e `camposObrigatorios`.
+- Locator e metodo declarados sem consumidor comprovado aumentam a superficie de manutencao e devem ser removidos.
 - Locators semanticos e escopados devem prevalecer sobre CSS estrutural e XPath.
 - ID JSF gerado, indice escondido em `evaluate`, ID JSF estavel escrito como seletor escapado e `waitForTimeout` sem anotacao padronizada sao riscos de manutencao. ID estavel direto `[id="form:campo"]` no Page Object e aceito.
 - Assertions devem comprovar o efeito funcional, nao somente a presenca de um elemento.
-- Uma mensagem de campo dependente nao comprova obrigatoriedade do campo controlador; classificar e revisar dependencias separadamente.
+- Dependencias entre campos devem apenas preparar o fluxo smoke; nao devem virar teste negativo proprio sem requisito explicito fora de implantacao.
 - Filtro, busca ou assert nao pode perder parte do criterio informado pelo usuario sem confirmacao explicita.
 - `waitForTimeout`, retries excessivos e esperas globais podem mascarar sincronizacao incorreta.
+- Timeout local em `click`, `fill`, `check` ou `selectOption` deve ter motivo funcional; quando apenas reduz o `actionTimeout` central, prejudica portabilidade e duplica configuracao. `expect.poll` com limite explicito nao e espera fixa.
+- O limite total deve ficar em `timeout: 180_000` no `playwright.config`. Para spec excepcionalmente grande, preferir `test.slow()`; `test.setTimeout` e aceitavel somente quando um valor exato for comprovado e comentado.
 - Credenciais devem vir de `.env`, que precisa estar ignorado; `.env.example` nao deve conter segredos.
 - Nomes reais de pessoas, usuarios, servidores/funcionarios, documentos, matriculas, emails, telefones e identificadores pessoais nao devem aparecer hardcoded em specs, Page Objects, fixtures, asserts, comentarios ou logs.
 - Datas, periodos, anos, semestres, prazos e vencimentos fixos devem ser tratados como risco de reprodutibilidade, salvo regra explicitamente fixa e parametrizada.
 - Erro cru, stack trace, timeout, texto de `body` inteiro, `console.log`, codigo comentado, `TODO/FIXME` e sobras de codegen devem ser tratados como sujeira de automacao.
 - Fluxos de negocio que atravessam varias telas devem preservar uma unica sessao de navegador dentro do mesmo `test`; dividir cada tela em um teste independente ou abrir/fechar navegador manualmente aumenta fragilidade e pode gerar dados duplicados.
-- Validacoes de obrigatoriedade/formato da mesma operacao devem permanecer no mesmo `test`, com relatorio por verificacao; login em `beforeEach` para um teste por campo e defeito de isolamento transacional.
+- Validacoes de obrigatoriedade e botoes da mesma operacao devem permanecer no mesmo `test`; login em `beforeEach` para um teste por campo e defeito de isolamento transacional.
+- Submissoes negativas devem usar campo-sentinela obrigatorio e restauracao em `finally`, para que uma regra ausente nao persista o cadastro. A evidencia do alvo deve usar `expect.soft` para permitir os demais campos na mesma sessao.
+- Cada obrigatorio deve ser identificado na mensagem da assertion. `test.step`, annotations, inventario e Markdown proprio sao ruido em uma spec de implantacao com um unico fluxo.
+- Em `MODO: Implantacao`, teste negativo de tipo/formato esta fora do smoke e deve ser removido. Formato valido continua podendo orientar o preenchimento.
 - Chromium headed deve abrir maximizado, com viewport nativo e fallback CDP quando o projeto seguir o padrao do plugin.
 - A suite deve ser reprodutivel por outra pessoa com o mesmo perfil funcional e `.env` preenchido; dependencias de sessao local, perfil persistente, `storageState` manual, caminhos absolutos, `test.only/skip` ou massa escondida fora do projeto sao defeitos.
 - `.playwright-e2e/cache/` deve estar ignorado e conter somente mapas sanitizados; cache com senha, cookies, tokens, storageState, nomes reais, usuarios, documentos, emails ou telefones e defeito.
 - `.playwright-e2e/private-domain/`, quando existir, deve estar ignorado e nunca deve ter conteudo copiado para arquivos publicos/versionados.
-- Testes devem evitar dependencia de ordem, dados compartilhados imprevisiveis e efeitos destrutivos sem controle.
-- Perfis `config/clientes/*.json` devem conter somente massa institucional nao secreta; cada spec valida apenas suas propriedades em `test.beforeAll` com `obterDadosDaSpec`.
+- Testes devem evitar dependencia de ordem e dados compartilhados imprevisiveis. Remocao ou transicao irreversivel so e segura quando a mesma spec cria o alvo na execucao atual, comprova persistencia e unicidade pelo `runId`, escopa a acao e valida ausencia ou novo estado.
+- Reprovar acao destrutiva sobre primeira linha, `.first()`/`.nth()` sem filtro exato, prefixo generico, massa preexistente ou alvo preparado por outra spec. Falha depois da criacao deve preservar o registro para diagnostico, sem limpeza automatica.
+- Cada `CAMINHO`, individual ou em bloco `CASO DE USO <n>`, limita uma unica operacao. Explorar funcionalidade vizinha e defeito de escopo; etapas tecnicas do mesmo fluxo nao viram specs.
+- O lote pertence ao processamento do prompt. Reprovar spec com numero/status do caso, mapa de credenciais, `RelatorioValidacoes`, `verificacoesPlanejadas` ou controle manual como `fluxoAcessivel`.
+- Para listas de cadastros anteriores, revisar se a primeira opcao realmente valida exclui placeholder, vazio, oculto e desabilitado. Campos de dominio devem manter valor intencional.
+- `config/clientes`, `defaults.json`, `clientConfig` e `E2E_CLIENT_PROFILE` sao infraestrutura legada: alertar para migracao somente quando ainda existirem consumidores, sem excluir automaticamente.
+- Reentrada controlada apos Voltar/Cancelar e permitida na mesma sessao antes de persistencia; novo login ou novo contexto continuam sendo defeitos.
+- Consentimento que possa aparecer na abertura deve ser procurado por no maximo `2_000` ms antes das credenciais, aceito quando presente e ignorado quando ausente. A recuperacao tardia continua permitida somente para repetir uma acao interceptada uma vez e relancar erros nao relacionados.
+- `isVisible()` imediato apos submissao/navegacao nao comprova saida do fluxo; revisar se a continuidade aguarda um campo estavel da tela com timeout curto.
 - Propriedades `null` de specs nao selecionadas nao podem bloquear uma execucao parcial.
-- Configuracao padrao do plugin deve usar Chromium headed, trace e screenshot somente em falhas e video desligado, salvo decisao explicita do projeto.
+- Configuracao padrao do plugin deve usar Chromium headed, reporters `line` e `html`, trace e screenshot somente em falhas e video desligado, salvo decisao explicita do projeto.
 
 Se nao houver achados, declarar isso e mencionar testes nao executados ou riscos que permaneceram.
 

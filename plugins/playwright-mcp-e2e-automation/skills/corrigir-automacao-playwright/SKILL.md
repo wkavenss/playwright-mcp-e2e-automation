@@ -30,18 +30,38 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Preferir locators semanticos e assertions com espera automatica.
 - Em tabela, preferir role/nome acessivel e linha filtrada; aceitar ID estavel do container como fallback legado, sem cadeia estrutural `table tbody tr` injustificada.
 - Evitar `waitForTimeout`; corrigir a condicao de sincronizacao.
-- Se cookie/modal/overlay opcional interceptar uma acao, recuperar somente esse clique, fechar o overlay e repetir uma vez. Nao usar `isVisible()` imediato como unica protecao e relancar erros nao relacionados.
+- Remover timeout local menor de acoes quando ele apenas antecipa o `actionTimeout` central. Preservar limite explicito somente para condicao funcional comprovada, como `expect.poll` de lista dinamica.
+- Remover `test.setTimeout` repetido da spec quando o projeto puder usar `timeout: 180_000` central; preferir `test.slow()` para fluxo excepcionalmente grande e preservar valor exato apenas com evidencia e justificativa.
+- Apos submissao/navegacao, nao decidir continuidade por `isVisible()` imediato; aguardar campo estavel da tela com timeout curto para distinguir atualizacao do DOM de saida real.
+- Se houver consentimento conhecido de cookies, procura-lo por no maximo `2_000` ms antes das credenciais e aceita-lo quando aparecer, sem falhar quando estiver ausente. Se cookie/modal/overlay ainda interceptar uma acao, recuperar somente esse clique, fechar o overlay e repetir uma vez. Nao usar `isVisible()` imediato como unica protecao e relancar erros nao relacionados.
 - Preservar `.env`, `.gitignore`, Page Objects e convencoes existentes.
 - Nao corrigir falha copiando erro cru, stack trace, timeout, texto de `body` inteiro ou mensagem transitoria para comentario, fixture, constante ou assert.
 - Nao hardcodar nomes reais de pessoas, usuarios, servidores/funcionarios, documentos, matriculas, emails ou telefones observados na tela.
 - Nao corrigir falha temporal trocando uma data vencida por outra data fixa; substituir por gerador dinamico ou parametro local quando a regra exigir data oficial.
 - Nao reexecutar submissao que cria/altera dado persistente sem antes verificar se a tentativa anterior ja criou registro. Reutilizar ou limpar somente quando for seguro e autorizado.
+- Em remocao ou transicao irreversivel, preservar o contrato de propriedade: alvo criado pela propria spec na execucao atual, `runId` exclusivo, persistencia anterior e linha unica comprovadas, acao escopada e estado final validado. Nao "corrigir" escolhendo primeira linha, registro preexistente, massa de outra spec ou prefixo generico.
+- Se a falha destrutiva ocorrer depois da criacao do alvo, preservar o registro identificado. Nao repetir a acao nem adicionar limpeza automatica em `finally` para fazer o teste passar.
+- Em validacao negativa de obrigatoriedade, usar campo-sentinela obrigatorio para impedir persistencia caso a regra sob teste falhe; restaurar alvo e sentinela em `finally`. Nao executar a conclusao positiva quando uma verificacao bloqueante falhar.
 - Manter o cenario afetado em uma unica sessao de navegador quando as telas dependem do mesmo estado; nao quebrar uma correcao em um teste por tela.
+- Se a spec repetir uma colecao extensa de campo-locator-valor, mover essa fonte para o Page Object sem esconder a sequencia funcional. Nao corrigir criando camada `flows` ou metodo `executarSmokeCompleto`.
+- Se a colecao do Page Object ficar visualmente extensa, usar um objeto nomeado completo por linha quando legivel; nao introduzir factory posicional ou arquivo auxiliar apenas para diminuir linhas.
+- Page Object nao deve importar ou manipular `testInfo`; preserve a barreira de persistencia na spec.
+- Incorporar wrapper interno curto usado uma unica vez quando ele apenas encadear chamadas, preservando metodos da API da spec e operacoes com assertions ou protecao transacional.
+- Nao usar percentual de reducao como objetivo da correcao; eliminar responsabilidade duplicada ou sem consumidor, sem apenas compactar comandos ou transferir o mesmo codigo.
+- Em clique com confirmacao e overlay opcional, registrar o dialogo e reutilizar a recuperacao do clique existente; nao duplicar aceite e repeticao.
+- Em spec de implantacao, manter fases sequenciais e rasas. Remover `test.describe` quando o arquivo possui um unico teste e o agrupamento nao acrescenta configuracao ou contexto.
+- Separar a acao de submissao da comprovacao do resultado: o Page Object deve oferecer clique e `validarMensagemSucesso()` como operacoes distintas.
+- Usar assertions normais em acesso, botoes, navegacao e conclusao. Nao manter o fluxo artificialmente vivo depois de uma falha que possa ter alterado a pagina.
+- Nas obrigatoriedades recuperaveis, usar `expect.soft` somente na evidencia do campo-alvo. Manter assertions normais na sentinela e na ausencia de sucesso, restaurando alvo e sentinela em `finally`.
+- Remover `RelatorioValidacoes`, `fluxoAcessivel`, `cadastroConcluido` e inventarios duplicados quando apenas replicarem o runner. Depois do loop, usar uma unica barreira `if (testInfo.errors.length > 0) return` antes da persistencia positiva.
+- Remover da spec numero/status do lote, mapas de casos ou credenciais e `verificacoesPlanejadas`; essas informacoes pertencem ao processamento do prompt, nao ao teste individual.
+- Remover `test.step`, annotations e documentacao de limitacoes das specs de implantacao. Identificar o campo diretamente na mensagem da assertion.
+- Remover locator ou metodo sem consumidor comprovado. Nao preservar codigo preventivo apenas porque esta no Page Object.
 - Preservar reprodutibilidade por CLI: nao corrigir usando sessao local ja autenticada, perfil persistente, `storageState` manual, caminhos absolutos, `test.only/skip` ou massa escondida fora do projeto.
 - Cache local pode orientar a correcao, mas nao substituir confirmacao real quando seletor, tela ou estado estiverem incertos.
 - Overlay privado local em `.playwright-e2e/private-domain/` pode orientar termos e receitas do projeto, mas nunca deve ser copiado para codigo versionado, logs ou resumo.
 - Fazer uma tentativa objetiva de correcao. Se a causa exigir investigacao ampla ou dados ausentes, parar e pedir somente o que falta.
-- Preservar trace e screenshot configurados somente para falhas; manter video desligado salvo necessidade explicita.
+- Preservar reporters nativos `line` e `html`, trace e screenshot configurados somente para falhas; manter video desligado salvo necessidade explicita.
 
 ## Saida
 

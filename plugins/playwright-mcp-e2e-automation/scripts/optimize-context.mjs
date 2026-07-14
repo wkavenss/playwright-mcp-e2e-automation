@@ -136,7 +136,7 @@ function packageHasPlaywright(packageJson) {
 
 function recommendedCommand(packageJson, specFiles) {
   const scripts = packageJson?.scripts || {};
-  const preferredScript = ["test:e2e:headed", "test:headed", "test:e2e", "test"].find((name) => scripts[name]);
+  const preferredScript = ["test:headed", "test", "test:e2e:headed", "test:e2e"].find((name) => scripts[name]);
   const specArg = specFiles.length === 1 ? ` ${specFiles[0]}` : "";
   if (preferredScript) return `npm run ${preferredScript}${specArg ? ` --${specArg}` : ""}`;
   return `npx playwright test${specArg} --headed --reporter=line`;
@@ -177,27 +177,149 @@ function readInput() {
   return "";
 }
 
+function cleanPromptValue(value) {
+  return String(value)
+    .replace(/\s+#\s*opcional.*$/i, "")
+    .replace(/^[-*]\s+/, "")
+    .trim();
+}
+
+function isPromptFieldHeader(line) {
+  const normalized = normalizeText(line);
+  return /^(?:modo|url(?:\s+base)?|caso de uso(?:\s+\d+)?|operacao|caminho|passo a passo|perfil|usuario|user|senha|password|massa e pre-condicoes|dados especificos|resultado esperado|observacoes|fontes de referencia|agents\.md(?:\s+do\s+modulo)?|codigo-fonte|credenciais|casos de uso|guia de navegacao|abrangencia|secoes\/casos|secoes|casos)\s*:/.test(normalized);
+}
+
+function promptFieldValue(lines, regex) {
+  const index = lines.findIndex((line) => regex.test(normalizeText(line)));
+  if (index < 0) return "";
+  const inline = cleanPromptValue(lines[index].slice(lines[index].indexOf(":") + 1));
+  if (inline) return inline;
+  for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+    if (isPromptFieldHeader(lines[cursor])) break;
+    const candidate = cleanPromptValue(lines[cursor]);
+    if (candidate && !candidate.startsWith("#")) return candidate;
+  }
+  return "";
+}
+
+function parseNumberedUseCases(lines) {
+  const headers = lines
+    .map((line, index) => {
+      const match = normalizeText(line).match(/^caso de uso\s+(\d+)\s*:/);
+      return match ? { index, number: Number(match[1]) } : null;
+    })
+    .filter(Boolean);
+  const hasUnnumberedHeader = lines.some((line) => /^caso de uso\s*:/.test(normalizeText(line)));
+  const numberingValid = headers.length > 0
+    && !hasUnnumberedHeader
+    && headers.every((header, index) => header.number === index + 1);
+
+  const cases = headers.map((header, index) => {
+    const end = headers[index + 1]?.index ?? lines.length;
+    const block = lines.slice(header.index + 1, end);
+    return {
+      number: header.number,
+      operation: promptFieldValue(block, /^operacao\s*:/),
+      path: promptFieldValue(block, /^(?:caminho|passo a passo)\s*:/),
+      profile: promptFieldValue(block, /^perfil\s*:/),
+      username: promptFieldValue(block, /^(?:usuario|user)\s*:/),
+      password: promptFieldValue(block, /^(?:senha|password)\s*:/),
+      mass: promptFieldValue(block, /^massa e pre-condicoes\s*:/),
+      specificData: promptFieldValue(block, /^dados especificos\s*:/),
+      expectedResult: promptFieldValue(block, /^resultado esperado\s*:/),
+      observations: promptFieldValue(block, /^observacoes\s*:/),
+      blockers: [],
+      duplicateOf: null,
+    };
+  });
+
+  for (const useCase of cases) {
+    if (!useCase.operation) useCase.blockers.push("operacao-ausente");
+    if (!useCase.path) useCase.blockers.push("caminho-ausente");
+    if (!useCase.profile) useCase.blockers.push("perfil-ausente");
+    if (!useCase.username) useCase.blockers.push("usuario-ausente");
+    if (!useCase.password) useCase.blockers.push("senha-ausente");
+    if (!numberingValid) useCase.blockers.push("numeracao-invalida");
+  }
+
+  const byProfile = new Map();
+  for (const useCase of cases.filter((item) => item.profile)) {
+    const key = normalizeText(useCase.profile).replace(/[^a-z0-9]+/g, "-");
+    const current = byProfile.get(key) || [];
+    current.push(useCase);
+    byProfile.set(key, current);
+  }
+  const inconsistentProfileCaseNumbers = [];
+  for (const profileCases of byProfile.values()) {
+    const credentialSignatures = new Set(
+      profileCases
+        .filter((item) => item.username && item.password)
+        .map((item) => `${item.username}\u0000${item.password}`),
+    );
+    if (credentialSignatures.size <= 1) continue;
+    for (const useCase of profileCases) {
+      useCase.blockers.push("credenciais-conflitantes");
+      inconsistentProfileCaseNumbers.push(useCase.number);
+    }
+  }
+
+  const seen = new Map();
+  for (const useCase of cases) {
+    if (!useCase.operation || !useCase.path || !useCase.profile) continue;
+    const key = [useCase.operation, useCase.path, useCase.profile]
+      .map((value) => normalizeText(value).replace(/[^a-z0-9]+/g, " ").trim())
+      .join("|");
+    if (seen.has(key)) {
+      useCase.duplicateOf = seen.get(key);
+      useCase.blockers.push("caso-duplicado");
+    } else {
+      seen.set(key, useCase.number);
+    }
+  }
+
+  const summaries = cases.map((useCase) => ({
+    number: useCase.number,
+    hasOperation: Boolean(useCase.operation),
+    hasPath: Boolean(useCase.path),
+    hasProfile: Boolean(useCase.profile),
+    hasUsername: Boolean(useCase.username),
+    hasPassword: Boolean(useCase.password),
+    hasMass: Boolean(useCase.mass),
+    hasSpecificData: Boolean(useCase.specificData),
+    hasExpectedResult: Boolean(useCase.expectedResult),
+    hasObservations: Boolean(useCase.observations),
+    duplicateOf: useCase.duplicateOf,
+    blockers: unique(useCase.blockers),
+    ready: useCase.blockers.length === 0,
+  }));
+
+  return {
+    headers,
+    hasUnnumberedHeader,
+    numberingValid,
+    cases,
+    summaries,
+    inconsistentProfileCaseNumbers: unique(inconsistentProfileCaseNumbers),
+  };
+}
+
 function parsePrompt(text) {
   if (!text.trim()) return null;
   const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const normalizedText = normalizeText(text);
-  const steps = lines
-    .filter((line) => /^(\d+[\).:-]|\-|\*)\s+/.test(line))
-    .map((line) => line.replace(/^(\d+[\).:-]|\-|\*)\s+/, ""));
-  const fieldValue = (regex) => {
-    const line = lines.find((candidate) => regex.test(candidate));
-    return line ? line.slice(line.indexOf(":") + 1).trim() : "";
-  };
-  const normalizedFieldValue = (regex) => {
-    const line = lines.find((candidate) => regex.test(normalizeText(candidate)));
-    return line ? line.slice(line.indexOf(":") + 1).trim() : "";
-  };
-  const url = fieldValue(/^url(?:\s*base)?\s*:/i);
-  const user = fieldValue(/^(usuario|usuário|user)\s*:/i);
-  const password = fieldValue(/^(senha|password)\s*:/i);
-  const pathValue = fieldValue(/^(caminho|passo a passo)\s*:/i);
-  const agents = normalizedFieldValue(/agents\.md(?:\s+do\s+modulo)?\s*:/);
-  const source = normalizedFieldValue(/codigo-fonte\s*:/);
+  const parsedCases = parseNumberedUseCases(lines);
+  const firstUseCaseHeaderIndex = lines.findIndex((line) => /^caso de uso(?:\s+\d+)?\s*:/.test(normalizeText(line)));
+  const firstCaseIndex = firstUseCaseHeaderIndex >= 0 ? firstUseCaseHeaderIndex : lines.length;
+  const preamble = lines.slice(0, firstCaseIndex);
+  const url = promptFieldValue(lines, /^url(?:\s+base)?\s*:/);
+  const agents = promptFieldValue(lines, /^agents\.md(?:\s+do\s+modulo)?\s*:/);
+  const source = promptFieldValue(lines, /^codigo-fonte\s*:/);
+  const user = promptFieldValue(preamble, /^(?:usuario|user)\s*:/);
+  const password = promptFieldValue(preamble, /^(?:senha|password)\s*:/);
+  const pathValue = promptFieldValue(preamble, /^(?:caminho|passo a passo)\s*:/);
+  const guideFieldsPresent = lines.some((line) => /^(?:guia de navegacao|abrangencia|secoes\/casos|secoes|casos)\s*:/.test(normalizeText(line)));
+  const separateSectionsPresent = lines.some((line) => /^(?:credenciais|casos de uso)\s*:/.test(normalizeText(line)));
+  const hasNumberedCases = parsedCases.headers.length > 0 || parsedCases.hasUnnumberedHeader;
   const hasMassMode = /modo\s*:\s*geracao de massa de dados/.test(normalizedText);
   const hasImplementationMode = /modo\s*:\s*implantacao/.test(normalizedText);
   const functionalMode = hasMassMode && hasImplementationMode
@@ -207,22 +329,61 @@ function parsePrompt(text) {
   const quantityMatch = quantityLine?.match(/:\s*(\d+)/);
   const quantity = quantityLine ? (quantityMatch ? Number(quantityMatch[1]) : null) : 1;
   const quantityValid = Number.isInteger(quantity) && quantity >= 1;
-  const commonComplete = Boolean(url && user && password && pathValue);
+  const hasPath = Boolean(pathValue);
+  const mixedFormats = hasNumberedCases && hasPath;
+  const requestKind = guideFieldsPresent
+    ? "guia-removido"
+    : (separateSectionsPresent
+      ? "secoes-separadas"
+      : (mixedFormats
+        ? "misto"
+        : (hasNumberedCases ? "lote" : (hasPath ? "individual" : "ausente"))));
+  const readyCases = parsedCases.summaries.filter((item) => item.ready);
+  const blockedCases = parsedCases.summaries.filter((item) => !item.ready);
+  const routeComplete = requestKind === "individual"
+    || (requestKind === "lote" && parsedCases.numberingValid && readyCases.length > 0);
+  const commonCredentialsComplete = Boolean(url && user && password);
+  const globalImplementationComplete = Boolean(url && agents && source);
+  const rawSteps = requestKind === "lote"
+    ? []
+    : lines
+      .filter((line) => /^(\d+[\).:-]|\-|\*)\s+/.test(line))
+      .map((line) => line.replace(/^(\d+[\).:-]|\-|\*)\s+/, ""));
   return {
     functionalMode,
     hasBaseUrl: Boolean(url),
-    hasUsername: Boolean(user),
-    hasPassword: Boolean(password),
-    hasPath: Boolean(pathValue),
+    hasUsername: requestKind === "lote" ? parsedCases.summaries.every((item) => item.hasUsername) : Boolean(user),
+    hasPassword: requestKind === "lote" ? parsedCases.summaries.every((item) => item.hasPassword) : Boolean(password),
+    hasPath: requestKind === "lote" ? parsedCases.summaries.every((item) => item.hasPath) : hasPath,
+    guideFieldsPresent,
+    separateSectionsPresent,
+    mixedFormats,
+    requestKind,
+    routeComplete,
     hasAgents: Boolean(agents),
     hasSource: Boolean(source),
+    useCaseCount: parsedCases.summaries.length,
+    numberingValid: parsedCases.numberingValid,
+    readyUseCaseCount: readyCases.length,
+    blockedUseCaseCount: blockedCases.length,
+    readyUseCaseNumbers: readyCases.map((item) => item.number),
+    blockedUseCases: blockedCases.map((item) => ({ number: item.number, reasons: item.blockers })),
+    duplicateUseCases: parsedCases.summaries
+      .filter((item) => item.duplicateOf != null)
+      .map((item) => ({ number: item.number, duplicateOf: item.duplicateOf })),
+    inconsistentProfileCaseNumbers: parsedCases.inconsistentProfileCaseNumbers,
+    useCases: parsedCases.summaries,
+    allUseCasesComplete: requestKind === "lote" && blockedCases.length === 0,
     quantity,
     quantityValid,
     contractComplete: functionalMode === "massa"
-      ? commonComplete && quantityValid
-      : (functionalMode === "implantacao" && commonComplete && Boolean(agents) && Boolean(source)),
-    stepCount: steps.length,
-    steps: steps.map((step, index) => ({
+      ? commonCredentialsComplete && hasPath && quantityValid
+      : (functionalMode === "implantacao"
+        && globalImplementationComplete
+        && routeComplete
+        && (requestKind !== "individual" || commonCredentialsComplete)),
+    stepCount: rawSteps.length,
+    steps: rawSteps.map((step, index) => ({
       id: index + 1,
       text: sanitizePromptLine(step),
       suggestedChannel: classifyStep(step),
@@ -431,7 +592,15 @@ function buildRiskFlags({ shape, caches, cacheStatus, privateDomainStatus, norma
   }
   if (normalizedInput?.functionalMode === "ausente") riskFlags.push("functional-mode-missing");
   if (normalizedInput?.functionalMode === "contraditorio") riskFlags.push("functional-mode-contradictory");
-  if (shape.hasClientProfiles && !shape.hasClientConfig) riskFlags.push("missing-client-config-loader");
+  if (normalizedInput?.requestKind === "guia-removido") riskFlags.push("guide-mode-removed");
+  if (normalizedInput?.requestKind === "secoes-separadas") riskFlags.push("separate-batch-sections-not-allowed");
+  if (normalizedInput?.requestKind === "misto") riskFlags.push("mixed-use-case-formats");
+  if (normalizedInput?.requestKind === "lote" && !normalizedInput.numberingValid) riskFlags.push("use-case-numbering-invalid");
+  if (normalizedInput?.requestKind === "lote" && normalizedInput.blockedUseCaseCount) riskFlags.push("blocked-use-cases");
+  if (normalizedInput?.requestKind === "lote" && normalizedInput.duplicateUseCases.length) riskFlags.push("duplicate-use-cases");
+  if (normalizedInput?.requestKind === "lote" && normalizedInput.inconsistentProfileCaseNumbers.length) riskFlags.push("credential-profile-conflict");
+  if (normalizedInput?.requestKind === "lote" && normalizedInput.readyUseCaseCount === 0) riskFlags.push("no-ready-use-cases");
+  if (shape.hasClientProfiles || shape.hasClientConfig) riskFlags.push("legacy-client-profile-config");
   if (normalizedInput?.steps?.some((step) => step.suggestedChannel === "mcp")) {
     riskFlags.push("mcp-may-be-needed");
   }
@@ -451,10 +620,17 @@ function chooseRecommendedMode(mode, riskFlags) {
 
 function chooseNextAction({ shape, cacheStatus, riskFlags }) {
   if (riskFlags.includes("functional-mode-missing") || riskFlags.includes("functional-mode-contradictory")) return "pedir-modo-funcional";
+  if (riskFlags.includes("guide-mode-removed")) return "converter-guia-em-casos-de-uso";
+  if (riskFlags.includes("separate-batch-sections-not-allowed")) return "juntar-credenciais-em-cada-caso";
+  if (riskFlags.includes("mixed-use-case-formats")) return "escolher-formato-individual-ou-numerado";
+  if (riskFlags.includes("use-case-numbering-invalid")) return "corrigir-numeracao-dos-casos";
+  if (riskFlags.includes("credential-profile-conflict")) return "corrigir-credenciais-conflitantes";
+  if (riskFlags.includes("no-ready-use-cases")) return "corrigir-casos-bloqueados";
   if (riskFlags.includes("missing-minimum-contract")) return "pedir-contrato-minimo";
   if (!shape.isPlaywrightProject || riskFlags.includes("missing-playwright-config")) return "preparar-projeto-ou-rodar-scaffold";
   if (cacheStatus.status === "risco") return "sanitizar-ou-ignorar-cache-antes-do-mcp";
   if (riskFlags.includes("missing-playwright-dependency")) return "instalar-ou-confirmar-dependencias-playwright";
+  if (riskFlags.includes("blocked-use-cases")) return "processar-casos-prontos-e-relatar-bloqueados";
   if (riskFlags.includes("mcp-may-be-needed")) return "usar-mcp-so-no-proximo-passo-incerto";
   return "usar-cli-cache-e-gerar-incremental";
 }

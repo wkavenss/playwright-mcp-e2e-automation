@@ -20,9 +20,8 @@ Nao tratar `npx playwright install chromium` executado fora da raiz, ou antes da
 Usar Playwright CLI como motor padrao para executar e validar automacoes. Preferir comandos existentes do projeto e saida compacta:
 
 ```bash
-npm run test:e2e:headed
 npm run test:headed
-npx playwright test --headed --reporter=line
+npx playwright test --headed
 ```
 
 Escolher o menor comando que valide o cenario afetado. Quando houver uma spec especifica, executar somente essa spec. Usar Playwright MCP apenas quando o resultado do CLI nao explicar a tela real, o seletor, o campo ou o estado necessario para continuar.
@@ -36,15 +35,25 @@ Para projeto novo, configurar scripts minimos e preservar aliases locais existen
 ```json
 {
   "scripts": {
-    "test:e2e": "playwright test",
-    "test:e2e:headed": "playwright test --headed"
+    "test": "playwright test",
+    "test:headed": "playwright test --headed"
   }
 }
 ```
 
-Quando o usuario nao informar modo de execucao, usar `test:e2e:headed` ou comando equivalente com Chromium headed.
+Quando o usuario nao informar modo de execucao, usar `test:headed` ou comando equivalente com Chromium headed.
 
 Antes de chamar MCP, consultar `../../scripts/optimize-context.mjs <raiz-do-projeto> --mode <modo> --json` quando Node estiver disponivel. Usar o retorno para reaproveitar cache seguro, validar se `.playwright-e2e/cache/` esta ignorado e manter a resposta curta.
+
+## Timeouts E Sincronizacao
+
+- Centralizar o limite das acoes em `actionTimeout`; nao repetir um timeout menor em `click`, `fill`, `check` ou `selectOption` sem requisito funcional documentado.
+- Configurar `timeout: 180_000` no `playwright.config` como margem central dos fluxos longos de implantacao; o valor evita o padrao insuficiente de 30 segundos sem deixar execucao ilimitada.
+- Nao repetir `test.setTimeout` em cada spec. Para uma operacao excepcionalmente longa, preferir `test.slow()`, que triplica o limite central para 540 segundos e comunica a intencao. Usar `test.setTimeout` somente quando houver um limite exato comprovado e registrar a justificativa junto da excecao.
+- Aceitar timeout explicito em `expect.poll` ou assertion quando ele representa o tempo maximo para uma condicao assincrona real, como uma lista dependente carregar.
+- Nao usar `waitForTimeout` como sincronizacao.
+- Para consentimento opcional antes do login, usar espera curta de ate `2_000` ms quando existir recuperacao tardia do clique. Assim, a ausencia do banner nao atrasa cada spec e a aparicao posterior continua protegida.
+- Na recuperacao tardia de overlay, deixar o primeiro clique respeitar `actionTimeout`; recuperar somente quando o overlay estiver realmente visivel e relancar os demais erros.
 
 ## Variaveis E Segredos
 
@@ -52,7 +61,6 @@ Para projeto novo, usar:
 
 ```text
 BASE_URL=
-E2E_CLIENT_PROFILE=referencia
 E2E_WORKERS=1
 E2E_EXAMPLE_USERNAME=
 E2E_EXAMPLE_PASSWORD=
@@ -81,28 +89,18 @@ O utilitario deve mapear o perfil para variaveis de ambiente no formato `E2E_<PE
 
 Configurar Playwright com `workers: process.env.E2E_WORKERS ? Number(process.env.E2E_WORKERS) : 1`. O padrao serial evita conflito de sessao em sistemas legados quando varios perfis do `.env` apontam temporariamente para a mesma conta. Aumentar `E2E_WORKERS` somente quando as contas e massas forem independentes.
 
-Dados pessoais, credenciais e identificadores sensiveis observados na tela nao devem aparecer hardcoded em specs, Page Objects, perfis versionados, asserts, comentarios ou logs. Massas institucionais nao secretas e especificas de cada cliente devem ficar em `config/clientes/<perfil>.json`; URL, perfil selecionado e credenciais continuam no `.env`.
+Dados pessoais, credenciais e identificadores sensiveis observados na tela nao devem aparecer hardcoded em specs, Page Objects, asserts, comentarios ou logs. URL e credenciais continuam no `.env`; massa sintetica fica em runtime.
 
-## Perfis De Dados Por Cliente
+## Dados Portateis E Listas Dinamicas
 
-Para suites de implantacao portateis, usar:
+Nao criar `config/defaults.json`, `config/clientes`, `clientConfig.js` ou `E2E_CLIENT_PROFILE` em projetos novos.
 
-```text
-config/
-├── defaults.json
-└── clientes/
-    ├── referencia.json
-    └── cliente-exemplo.json
-```
-
-- `defaults.json`: valores garantidos pela carga padrao do mesmo codigo-fonte.
-- `clientes/<perfil>.json`: somente valores institucionais nao secretos que dependem de cadastro/escolha do cliente.
-- `E2E_CLIENT_PROFILE`: nome seguro do arquivo ativo, sem extensao.
-- Dados gerados pela spec permanecem em runtime e prevalecem sobre cliente e defaults.
-
-Usar `tests/utils/clientConfig.js` como carregador unico. Cada spec/`describe` declara apenas os caminhos que usa com `obterDadosDaSpec` dentro de `test.beforeAll`, sem fixture `page`. Assim, uma propriedade pendente de outra spec nao bloqueia a execucao selecionada.
-
-Ao descobrir nova massa especifica no ambiente de referencia, usar `update-client-profiles.mjs`: preencher somente `referencia.json`, adicionar `null` aos demais perfis e preservar valores existentes. O preenchimento correto dos clientes e manual; nunca selecionar a primeira opcao arbitrariamente.
+- Dados sinteticos e identificadores devem ser gerados em runtime.
+- Campos de dominio que alterem situacao, status, modalidade, tipo ou resultado devem receber valor intencional.
+- Selects, radios ou listas alimentadas por cadastros anteriores devem escolher a primeira opcao valida, ignorando item vazio, oculto, desabilitado e placeholder.
+- Autocomplete so pode escolher o primeiro item quando a lista abrir sem termo institucional especifico. Nao inventar texto de busca.
+- Lista sem candidato valido bloqueia somente a spec/registro atual e deve informar o rotulo do campo.
+- Infraestrutura antiga de perfis deve ser preservada enquanto houver consumidor e removida somente durante migracao controlada.
 
 ## Evidencias
 
@@ -116,11 +114,11 @@ Quando o usuario pedir `evidencias: falha`, manter artefatos somente em falha:
 
 - `trace: 'retain-on-failure'` ou `trace: 'on-first-retry'`;
 - `screenshot: 'only-on-failure'`;
-- `video: 'retain-on-failure'`.
+- `video: 'off'`, salvo solicitacao explicita de video.
 
 Quando o usuario pedir `evidencias: completo`, habilitar evidencias suficientes para diagnostico e documentar onde ficam relatorio HTML, traces, screenshots e videos.
 
-Com `evidencias: minimo` ou `evidencias: falha`, nao criar nem atualizar README por causa de evidencias e guardar somente trace/screenshot de falhas. Com `evidencias: completo`, documentar comandos, relatorios, traces, screenshots, videos e limitacoes no README.
+Com `evidencias: minimo` ou `evidencias: falha`, nao criar nem atualizar README por causa de evidencias e guardar somente trace/screenshot de falhas. Com `evidencias: completo`, documentar somente comandos e local dos artefatos solicitados.
 
 ## Dados De Teste
 
@@ -128,7 +126,7 @@ Com `evidencias: minimo` ou `evidencias: falha`, nao criar nem atualizar README 
 - Evitar dados reais sensiveis.
 - Nao reaproveitar nomes, usuarios ou identificadores reais vistos na tela como massa fixa.
 - Usar massa externa informada pelo usuario quando o fluxo exigir.
-- Validar formato aceito pela tela para datas, valores, documentos e identificadores.
+- Formatar corretamente datas, valores, documentos e identificadores para produzir entrada valida. Em smoke de implantacao, nao gerar entrada invalida para testar tipo/formato.
 - Gerar datas, periodos, anos, semestres, prazos e vencimentos em runtime; nao hardcodar valores que envelhecem.
 - Para intervalos, calcular a data final a partir da data inicial, usando offset claro e rastreavel.
 - Manter datas como `Date`/ISO ou estrategia equivalente ate a borda de preenchimento; formatar para a tela somente no Page Object/helper.
@@ -137,8 +135,7 @@ Com `evidencias: minimo` ou `evidencias: falha`, nao criar nem atualizar README 
 - Manter massa simples dentro da spec quando usada uma unica vez.
 - Mover massa maior ou reutilizavel para `tests/data`.
 - Mover geradores e helpers reaproveitaveis para `tests/utils`.
-- Classificar massa como `gerada`, `padrao-da-implantacao` ou `especifica-do-cliente` antes de codificar.
-- Nao duplicar em perfis de cliente dados garantidos pelos scripts de implantacao.
+- Classificar massa como `gerada`, `dominio` ou `cadastro-anterior` antes de codificar.
 - Campos com estrela/asterisco azul na label sao obrigatorios e devem ser preenchidos quando fizerem parte do fluxo.
 - Inferir dados obrigatorios secundarios somente quando neutros e sem impacto na regra testada; pedir ao usuario dados que alterem comportamento, perfil, status, tipo, modalidade, permissao ou resultado esperado.
 
@@ -146,10 +143,16 @@ Com `evidencias: minimo` ou `evidencias: falha`, nao criar nem atualizar README 
 
 - Modelar cada fluxo de negocio como uma unica spec/teste, usando a fixture `page` do Playwright Test e mantendo a mesma pagina/contexto durante login, navegacao, preenchimento, avancos e validacao.
 - Nao abrir/fechar navegador manualmente a cada tela e nao dividir as telas de um mesmo cadastro em testes independentes.
-- Validar obrigatorios um por vez dentro do mesmo teste: remover, submeter, registrar, restaurar explicitamente e somente entao passar ao proximo campo. Defaults definidos pelo servidor deixam de existir quando limpos e precisam ser selecionados novamente. Avancar uma unica vez por tela.
-- Exigir evidencia propria para cada obrigatorio. Quando um campo apenas controla outro campo obrigatorio, registrar `dependencia` e nao usar a mensagem do dependente como se fosse do controlador. Manter unicos os descritores `(tela, tipo, campo)` do relatorio.
+- Validar obrigatorios um por vez dentro do mesmo teste: remover, submeter, registrar, restaurar explicitamente e somente entao passar ao proximo campo.
+- Na submissao negativa, limpar a sentinela antes do campo-alvo. O alvo deve ser a ultima alteracao antes de submeter, pois eventos posteriores podem recompor selects dependentes em JSF.
+- Tratar dependencias apenas para restaurar/preencher o fluxo smoke; nao gerar teste negativo separado para o campo controlador.
 - Identificar campos volateis/nao redistribuidos pelo servidor, especialmente senha e upload. Restaura-los apos cada submissao para que um validador short-circuit nao masque o campo-alvo seguinte.
-- Usar `RelatorioValidacoes` para preservar granularidade por campo e gerar Markdown sanitizado em `test-results/implantacao/`; falhar a spec somente depois de escrever o relatorio.
+- Testar botoes do formulario pelo efeito funcional. Permitir reentrada na mesma sessao apos Voltar/Cancelar somente antes de persistencia intermediaria.
+- Remocao ou transicao irreversivel exige alvo criado pela propria spec na execucao atual, `runId` exclusivo, persistencia comprovada, uma unica linha localizada e estado final validado. Sem essas garantias, bloquear somente a operacao dependente.
+- Se a acao destrutiva falhar depois da criacao do alvo, preservar o registro identificado; nao repetir a acao nem executar limpeza automatica em `finally`.
+- Usar `expect.soft` somente nas evidencias recuperaveis de obrigatoriedade e identificar cada campo na mensagem da assertion. Assertions de acesso, navegacao, botoes, sentinela e conclusao permanecem bloqueantes.
+- Antes da persistencia positiva, consultar `testInfo.errors` uma unica vez. Nao criar acumuladores, estados de fluxo ou relatorio customizado para duplicar o runner.
+- Configurar reporters `line` e `html`, com `outputDir: 'test-results/playwright'` para artefatos e HTML em `test-results/html`. Manter trace e screenshot apenas em falhas.
 - Antes de executar uma acao que cria ou altera dado persistente, mapear os campos obrigatorios conhecidos, gerar `runId` unico e definir uma validacao final.
 - Reduzir repeticoes de execucao quando houver criacao de registro. Se uma tentativa parcial gerar dado, reaproveitar esse registro ou limpar somente quando a tela oferecer acao segura e autorizada.
 
@@ -158,13 +161,14 @@ Com `evidencias: minimo` ou `evidencias: falha`, nao criar nem atualizar README 
 - A spec deve rodar do zero pelo CLI em outra maquina com Node, Playwright, Chromium, projeto versionado e `.env` preenchido.
 - Sempre partir de `BASE_URL`/`baseURL`, autenticar pelo fluxo automatizado e usar credenciais via `obterCredenciais(nomePerfil)`.
 - Nao depender de sessao aberta no MCP, navegador ja logado, perfil local do Chrome, `launchPersistentContext`, `storageState` gravado manualmente, cache local, caminhos absolutos ou arquivos fora do projeto.
-- Dados criados pela automacao devem usar `runId` ou prefixo rastreavel. Dados variaveis devem ser calculados em runtime. Dados institucionais preexistentes devem vir de `defaults.json` ou do perfil versionado do cliente; segredos permanecem no `.env`.
+- Dados criados pela automacao devem usar `runId` ou prefixo rastreavel. Dados variaveis devem ser calculados em runtime e listas de cadastros anteriores devem usar o primeiro candidato valido; segredos permanecem no `.env`.
 - Nao deixar `test.only`, `test.skip`, flags temporarias ou ordem manual de execucao no codigo final.
 - Se a reprodutibilidade exigir perfil, permissao ou massa especifica, registrar no resumo o requisito funcional sem expor valores sensiveis.
 
 ## Cache Local
 
 - Usar `.playwright-e2e/cache/` somente para mapas sanitizados de telas, rotas, labels, acoes, seletores escolhidos, validacoes e estrategia de massa.
+- Nao criar cache de lote. Casos concluidos, falhos, bloqueados e nao iniciados pertencem apenas ao resumo da execucao corrente.
 - Nao versionar cache e nao salvar senha, usuario real, nome de pessoa, documento, email, telefone, cookie, token ou storageState.
 - Nao salvar no cache datas concretas que devem ser dinamicas; registrar somente a estrategia, como "inicio = hoje" e "fim = inicio + 30 dias".
 - Tratar cache como sugestao. Confirmar via MCP quando houver falha, tela alterada, seletor ambiguo, permissao diferente ou estado dinamico.

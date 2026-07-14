@@ -135,6 +135,157 @@ function matches(content, regex) {
   return [...content.matchAll(regex)];
 }
 
+function methodBlock(content, methodName) {
+  const startMatch = firstMatch(
+    content,
+    new RegExp(`\\b(?:async\\s+)?${methodName}\\s*\\([^)]*\\)\\s*\\{`, "g"),
+  );
+  if (!startMatch) return null;
+
+  const openBrace = startMatch.index + startMatch[0].lastIndexOf("{");
+  let depth = 0;
+  for (let index = openBrace; index < content.length; index += 1) {
+    if (content[index] === "{") depth += 1;
+    if (content[index] !== "}") continue;
+    depth -= 1;
+    if (depth === 0) {
+      return { index: startMatch.index, text: content.slice(startMatch.index, index + 1) };
+    }
+  }
+  return { index: startMatch.index, text: content.slice(startMatch.index) };
+}
+
+function maskStringsAndComments(content) {
+  let state = "code";
+  let masked = "";
+
+  for (let index = 0; index < content.length; index += 1) {
+    const character = content[index];
+    const next = content[index + 1];
+
+    if (state === "line-comment") {
+      if (character === "\n") {
+        state = "code";
+        masked += "\n";
+      } else {
+        masked += " ";
+      }
+      continue;
+    }
+
+    if (state === "block-comment") {
+      if (character === "*" && next === "/") {
+        masked += "  ";
+        index += 1;
+        state = "code";
+      } else {
+        masked += character === "\n" ? "\n" : " ";
+      }
+      continue;
+    }
+
+    if (state !== "code") {
+      if (character === "\\") {
+        masked += " ";
+        if (next !== undefined) {
+          masked += next === "\n" ? "\n" : " ";
+          index += 1;
+        }
+        continue;
+      }
+      const closing = state === "single" ? "'" : (state === "double" ? '"' : "`");
+      masked += character === "\n" ? "\n" : " ";
+      if (character === closing) state = "code";
+      continue;
+    }
+
+    if (character === "/" && next === "/") {
+      masked += "  ";
+      index += 1;
+      state = "line-comment";
+      continue;
+    }
+    if (character === "/" && next === "*") {
+      masked += "  ";
+      index += 1;
+      state = "block-comment";
+      continue;
+    }
+    if (character === "'" || character === '"' || character === "`") {
+      masked += " ";
+      state = character === "'" ? "single" : (character === '"' ? "double" : "template");
+      continue;
+    }
+    masked += character;
+  }
+
+  return masked;
+}
+
+function maxDecisionDepth(content) {
+  const code = maskStringsAndComments(content);
+  const blockStack = [];
+  let parenDepth = 0;
+  let decisionConditionDepth = null;
+  let waitingForCondition = false;
+  let pendingDecisionBlock = false;
+  let decisionDepth = 0;
+  let maximum = 0;
+
+  for (let index = 0; index < code.length; index += 1) {
+    const character = code[index];
+
+    if (/[A-Za-z_$]/.test(character)) {
+      const wordMatch = /^[A-Za-z_$][A-Za-z0-9_$]*/.exec(code.slice(index));
+      const word = wordMatch?.[0] || "";
+      if (word === "if") waitingForCondition = true;
+      if (word === "else") {
+        const remainder = code.slice(index + word.length);
+        pendingDecisionBlock = !/^\s*if\b/.test(remainder);
+      }
+      index += Math.max(0, word.length - 1);
+      continue;
+    }
+
+    if (character === "(") {
+      parenDepth += 1;
+      if (waitingForCondition) {
+        decisionConditionDepth = parenDepth;
+        waitingForCondition = false;
+      }
+      continue;
+    }
+
+    if (character === ")") {
+      if (decisionConditionDepth === parenDepth) {
+        pendingDecisionBlock = true;
+        decisionConditionDepth = null;
+      }
+      parenDepth = Math.max(0, parenDepth - 1);
+      continue;
+    }
+
+    if (character === "{") {
+      blockStack.push(pendingDecisionBlock);
+      if (pendingDecisionBlock) {
+        decisionDepth += 1;
+        maximum = Math.max(maximum, decisionDepth);
+      }
+      pendingDecisionBlock = false;
+      continue;
+    }
+
+    if (character === "}") {
+      if (blockStack.pop()) decisionDepth = Math.max(0, decisionDepth - 1);
+      continue;
+    }
+
+    if (pendingDecisionBlock && !/\s/.test(character)) pendingDecisionBlock = false;
+  }
+
+  return maximum;
+}
+
 function hasNearby(content, index, pattern, radius = 180) {
   const start = Math.max(0, index - radius);
   const end = Math.min(content.length, index + radius);
@@ -171,6 +322,17 @@ function isAutomationFile(relativePath) {
 
 function normalizeText(text) {
   return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+function namedCalls(content) {
+  return matches(content, /\b([A-Za-z_$][A-Za-z0-9_$]*)\s*\(/g)
+    .map((match) => ({ name: match[1], normalizedName: normalizeText(match[1]), index: match.index }));
+}
+
+function isDestructiveMethodName(name) {
+  const normalized = normalizeText(name);
+  if (/^(?:validar|confirmar)(?:ausencia|estado|status|persistencia|permanencia|existencia|registro)/.test(normalized)) return false;
+  return /(?:remover|excluir|apagar|deletar|aprovar|rejeitar|inativar|arquivar|cancelardefinitivamente|confirmar.*(?:remocao|exclusao|cancelamentodefinitivo))/.test(normalized);
 }
 
 function stringLiterals(content) {
@@ -356,6 +518,13 @@ const conventionalPageObjectFiles = ["tests/pages", "tests/page-objects", "test/
   .filter((file) => codeExtensions.has(path.extname(file)));
 const pageObjectFiles = [...new Set([...changedPageObjectFiles, ...conventionalPageObjectFiles])];
 
+for (const file of files.filter((item) => path.basename(item) === ".gitkeep")) {
+  const outrosArquivos = fs.readdirSync(path.dirname(file)).filter((item) => item !== ".gitkeep");
+  if (outrosArquivos.length) {
+    add("warning", "redundant-gitkeep", relative(file), 1, ".gitkeep e desnecessario em diretorio que ja possui arquivos; remova o marcador.");
+  }
+}
+
 if (specFiles.length && !pageObjectFiles.length) {
   add("error", "page-objects-required", ".", 1, "Specs encontradas sem Page Objects em diretorio pages/page-objects.");
 }
@@ -371,6 +540,25 @@ for (const file of codeFiles) {
   const wait = firstMatch(content, /\bwaitForTimeout\s*\(/g);
   if (wait && !(hasAllowedWaitComment(content, wait.index) && hasFunctionalWaitGuard(content, wait.index))) {
     add("warning", "fixed-timeout", rel, lineNumber(content, wait.index), "Evite waitForTimeout; espere uma condicao observavel ou anote requisito explicito do usuario.");
+  }
+
+  const perSpecTimeout = specFiles.includes(file)
+    ? firstMatch(content, /\btest\.setTimeout\s*\(\s*[0-9_]+\s*\)/g)
+    : null;
+  if (
+    perSpecTimeout
+    && !hasNearby(content, perSpecTimeout.index, /excecao comprovada|exceção comprovada|limite especifico|limite específico|operacao comprovadamente|operação comprovadamente|playwright-e2e-allow-test-timeout/i, 260)
+  ) {
+    add("warning", "redundant-per-spec-timeout", rel, lineNumber(content, perSpecTimeout.index), "Centralize o limite total no playwright.config; prefira test.slow() para fluxo excepcional e use test.setTimeout somente quando um valor exato for comprovado e comentado.");
+  }
+
+  const localActionTimeouts = matches(
+    content,
+    /\.(click|fill|check|uncheck|selectOption)\s*\([^;]{0,300}?\btimeout\s*:\s*([0-9_]+)/g,
+  );
+  for (const timeout of localActionTimeouts) {
+    if (hasNearby(content, timeout.index, /timeout local|limite funcional|requisito explicito|requisito explícito|playwright-e2e-allow-action-timeout/i, 260)) continue;
+    add("warning", "redundant-local-action-timeout", rel, lineNumber(content, timeout.index), `Timeout local em ${timeout[1]} duplica ou reduz o actionTimeout central; remova-o ou documente o requisito funcional.`);
   }
 
   const loadState = firstMatch(content, /\bwaitForLoadState\s*\(\s*["'`](?:domcontentloaded|load|networkidle)["'`]/g);
@@ -394,7 +582,7 @@ for (const file of codeFiles) {
   }
 
   const unfilteredFirst = firstMatch(content, /\.first\s*\(\s*\)/g);
-  if (unfilteredFirst && !hasNearby(content, unfilteredFirst.index, /\.filter\s*\(|hasText|has\s*:/, 160)) {
+  if (unfilteredFirst && !hasNearby(content, unfilteredFirst.index, /\.filter\s*\(|hasText|has\s*:/, 360)) {
     add("warning", "unfiltered-first", rel, lineNumber(content, unfilteredFirst.index), "Evite .first() sem filtro estavel; escopo e criterio funcional devem ficar claros.");
   }
 
@@ -411,6 +599,57 @@ for (const file of codeFiles) {
   const optionalOverlayRace = firstMatch(content, /if\s*\(\s*await\s+[A-Za-z0-9_.$]*(?:cookie|consent|modal|dialog|overlay)[A-Za-z0-9_.$]*\.isVisible\s*\(\s*\)\s*\)\s*(?:\{\s*)?await\s+[A-Za-z0-9_.$]+\.click\s*\(/gi);
   if (optionalOverlayRace) {
     add("warning", "optional-overlay-race", rel, lineNumber(content, optionalOverlayRace.index), "isVisible() retorna imediatamente; para overlay tardio, recupere o clique interceptado, feche o overlay e repita uma vez, relancando erros nao relacionados.");
+  }
+
+  const knownConsent = firstMatch(
+    content,
+    /getByRole\s*\(\s*["']button["'][\s\S]{0,120}?(?:Ciente|Aceitar cookies)|(?:aviso|consentimento|botao)[A-Za-z0-9_]*(?:Cookie|Consent)[A-Za-z0-9_]*/i,
+  );
+  if (knownConsent) {
+    const consentWaits = matches(
+      content,
+      /\bthis\.(?:botaoCiente|[A-Za-z0-9_]*(?:Cookie|Consent)[A-Za-z0-9_]*)[\s\S]{0,80}?\.waitFor\s*\(\s*\{[^}]{0,180}?\btimeout\s*:\s*([0-9_]+)/gi,
+    );
+    for (const consentWait of consentWaits) {
+      const timeout = Number(consentWait[1].replaceAll("_", ""));
+      if (timeout > 2_000) {
+        add("warning", "long-optional-consent-wait", rel, lineNumber(content, consentWait.index), "Consentimento opcional com recuperacao tardia deve usar procura inicial de ate 2000 ms para nao atrasar clientes sem banner.");
+      }
+    }
+
+    const login = methodBlock(content, "realizarLogin");
+    const proactiveNames = content.match(
+      /\b(?:aceitar|fechar|confirmar|accept|dismiss)[A-Za-z0-9_]*(?:Cookie|Consent)[A-Za-z0-9_]*\b/gi,
+    ) || [];
+    const hasCalledProactiveConsent = proactiveNames.some((name) => (
+      content.match(new RegExp(`\\b${name}\\b`, "g")) || []
+    ).length >= 2);
+    const inlineConsentWait = login?.text.search(
+      /\bthis\.(?:botaoCiente|[A-Za-z0-9_]*(?:Cookie|Consent)[A-Za-z0-9_]*)\s*\.\s*waitFor\s*\(/i,
+    ) ?? -1;
+    const inlineConsentClick = login?.text.search(
+      /\bthis\.(?:botaoCiente|[A-Za-z0-9_]*(?:Cookie|Consent)[A-Za-z0-9_]*)\s*\.\s*click\s*\(/i,
+    ) ?? -1;
+    const hasInlineProactiveConsent = inlineConsentWait >= 0 && inlineConsentClick >= inlineConsentWait;
+    if (!hasCalledProactiveConsent && !hasInlineProactiveConsent) {
+      add("warning", "known-consent-not-proactive", rel, lineNumber(content, knownConsent.index), "Consentimento conhecido deve ser tratado proativamente na abertura confirmada pela tela, sem remover a recuperacao tardia.");
+    }
+
+    if (login) {
+      const preenchimentoCredencial = login.text.search(
+        /\.fill\s*\(\s*(?:username|usuario|password|senha)\b/i,
+      );
+      const proactiveMethodCall = login.text.search(
+        /\b(?:aceitar|fechar|confirmar|accept|dismiss)[A-Za-z0-9_]*(?:Cookie|Consent)[A-Za-z0-9_]*\s*\(/i,
+      );
+      const aceiteConsentimento = [proactiveMethodCall, inlineConsentClick]
+        .filter((index) => index >= 0)
+        .sort((a, b) => a - b)[0] ?? -1;
+      if (preenchimentoCredencial >= 0
+        && (aceiteConsentimento < 0 || aceiteConsentimento > preenchimentoCredencial)) {
+        add("error", "consent-after-credentials", rel, lineNumber(content, login.index), "Procure e trate o consentimento antes de preencher usuario ou senha; a ausencia pode continuar sem falhar.");
+      }
+    }
   }
 
   const imageTitleLink = firstMatch(content, /locator\s*\([^)]*["'`][^"'`]*img\[title=/gs);
@@ -473,7 +712,10 @@ for (const file of codeFiles) {
       add("warning", "debugger-statement", rel, lineNumber(content, debuggerStatement.index), "Remova debugger antes de finalizar a automacao.");
     }
 
-    const debugComment = firstMatch(content, /(?:\/\/|\/\*)[^\n]*(?:TODO|FIXME|DEBUG|temporario|erro|falhou|stack|copiado|codegen)/gi);
+    const debugComment = firstMatch(
+      content,
+      /(?:\/\/|\/\*)[^\n]*(?:TODO|FIXME|DEBUG|[Tt]emporario|[Ee]rro|[Ff]alhou|[Ss]tack|[Cc]opiado|[Cc]odegen)/g,
+    );
     if (debugComment) {
       add("warning", "debug-comment", rel, lineNumber(content, debugComment.index), "Evite comentarios de debug, TODO/FIXME ou erro copiado no codigo final.");
     }
@@ -554,13 +796,15 @@ for (const file of specFiles) {
   }
 
   const lines = content.split(/\r?\n/).filter((line) => line.trim()).length;
-  if (lines > 140 && !/\btest\.step\s*\(/.test(content)) {
-    add("warning", "long-spec-without-steps", relative(file), 1, "Spec longa sem test.step; divida o fluxo em passos funcionais para leitura e diagnostico.");
+  if (lines > 140) {
+    add("warning", "long-spec", relative(file), 1, "Spec extensa; mantenha nela apenas a sequencia funcional e mova campos, seletores e interacoes para Page Objects.");
   }
 
-  const createsData = /(?:cadastr|criar|inclu|registr|salvar|submet|confirmar|gerar|adicionar|novo\s)/i.test(content);
+  const createsData = /\b(?:cadastr\w*|criar\w*|inclu\w*|registr\w*|salvar\w*|submet\w*|gerar\w*|adicionar\w*|novo\w*)\s*\(/i.test(content)
+    || /\btest\s*\(\s*["'`][^"'`]*(?:cadastr|criar|incluir|registrar|adicionar|gerar)[^"'`]*["'`]/i.test(content);
   const hasRunId = /\b(?:runId|idExecucao)\b|(?:createRunId|criarIdExecucao)|Date\.now|randomUUID|crypto\.randomUUID|timestamp/i.test(content);
-  if (createsData && !hasRunId) {
+  const evitaColisaoComConsulta = /\bcriarDados[A-Za-z0-9_]*\s*\(\s*[A-Za-z0-9_]*(?:Existentes|Ocupados|Disponiveis)\s*\)/i.test(content);
+  if (createsData && !hasRunId && !evitaColisaoComConsulta) {
     add("warning", "created-data-without-run-id", relative(file), 1, "Fluxo parece criar dados sem runId/massa rastreavel; use helper de massa para evitar duplicidade e lixo funcional.");
   }
 
@@ -585,26 +829,51 @@ for (const file of specFiles) {
   }
 
   const usaPreflight = /\b(?:requireSpecData|obterDadosDaSpec)\s*\(/.test(content);
-  if (usaPreflight && !/\btest\.beforeAll\s*\(/.test(content)) {
-    add("error", "client-data-preflight-scope", relative(file), 1, "Valide obterDadosDaSpec em test.beforeAll/describe selecionado; nao bloqueie specs nao executadas no carregamento global.");
+  if (usaPreflight) {
+    add("warning", "legacy-client-data-profile", relative(file), 1, "Preflight por perfil de cliente pertence ao contrato anterior; migre listas de cadastros anteriores para primeira opcao valida quando o fluxo permitir.");
   }
 
   const testNames = matches(content, /\btest\s*\(\s*["'`]([^"'`]{3,120})["'`]/g);
   const testDefinitions = matches(content, /\btest\s*\(/g);
-  const implantationSpec = usaPreflight
-    && /(?:obrigatori|formato|invalid|implantacao|implantação)/i.test(content);
-  const functionalSteps = matches(content, /\btest\.step\s*\(/g);
-  if (implantationSpec && !functionalSteps.length) {
-    add("warning", "implantation-without-functional-steps", relative(file), 1, "Organize a spec de implantacao em grandes fases com test.step, sem criar uma etapa por campo.");
+  const technicalStepTitle = testNames.find((match) => (
+    /^(?:botao\s+)?(?:avancar|voltar|confirmar|cancelar)$/.test(normalizeText(match[1]).trim())
+  ));
+  if (technicalStepTitle) {
+    add("error", "technical-step-as-spec", relative(file), lineNumber(content, technicalStepTitle.index), "Avancar, Voltar, Confirmar e Cancelar sao etapas do fluxo; nao crie uma spec independente sem objetivo de negocio proprio.");
   }
-  if (functionalSteps.length > 10) {
-    add("warning", "excessive-test-steps", relative(file), lineNumber(content, functionalSteps[10].index), "Ha test.step demais; agrupe por fase funcional em vez de criar uma etapa para cada verificacao.");
+  const implantationSpec = /(?:obrigatori|implantacao|implantação|smoke|obterCredenciais|validarObrigatoriedade|testInfo\.errors)/i.test(content)
+    && /\btest\s*\(/.test(content);
+  const functionalSteps = matches(content, /\btest\.step\s*\(/g);
+  if (implantationSpec && functionalSteps.length) {
+    add("error", "implantation-test-step-noise", relative(file), lineNumber(content, functionalSteps[0].index), "Remova test.step da spec de implantacao; nomes semanticos, ordem direta e assertions ja explicam o smoke e mantem o HTML enxuto.");
+  }
+  const annotation = firstMatch(content, /\b(?:testInfo|test\.info\s*\(\s*\))\.annotations\.push\s*\(/g);
+  if (implantationSpec && annotation) {
+    add("error", "implantation-annotation-noise", relative(file), lineNumber(content, annotation.index), "Remova annotations da spec de implantacao; acoes inseguras ficam fora do smoke e nao precisam virar documentacao no relatorio.");
+  }
+  const describeBlock = firstMatch(content, /\btest\.describe\s*\(/g);
+  if (describeBlock && testDefinitions.length === 1) {
+    add("warning", "single-test-describe", relative(file), lineNumber(content, describeBlock.index), "Remova test.describe sem ganho organizacional; coloque o modulo no titulo do unico test.");
+  }
+  if (implantationSpec && maxDecisionDepth(content) >= 4) {
+    add("warning", "deeply-nested-implantation-flow", relative(file), 1, "Achate o smoke em fases sequenciais; condicionais profundamente aninhadas escondem a historia funcional e o ponto de persistencia.");
+  }
+  const negativeFormatTest = firstMatch(
+    content,
+    /tipo\s*:\s*["'`]formato["'`]|\b(?:valor|data|entrada)[A-Za-z0-9_]*(?:Invalida|Invalido)\b|\bcriarDataImpossivel\b|\bvalidarMensagemFormato/i,
+  );
+  if (implantationSpec && negativeFormatTest) {
+    add("error", "implantation-negative-format-test", relative(file), lineNumber(content, negativeFormatTest.index), "Smoke de implantacao nao deve gerar teste negativo de tipo/formato; mantenha somente o preenchimento valido.");
+  }
+  const hasButtonCoverage = /\b(?:clicar|cancelar|voltar|abrir)[A-Za-z0-9_]*(?:Reabrir)?\s*\(/i.test(content);
+  if (implantationSpec && !hasButtonCoverage) {
+    add("error", "missing-smoke-button-coverage", relative(file), 1, "Smoke de implantacao deve executar e validar os botoes seguros do formulario.");
   }
 
   const commentLines = content.split(/\r?\n/).filter((line) => /^\s*(?:\/\/|\/\*|\*)/.test(line)).length;
   const codeLines = content.split(/\r?\n/).filter((line) => line.trim() && !/^\s*(?:\/\/|\/\*|\*|\*\/)/.test(line)).length;
   if (implantationSpec && commentLines === 0) {
-    add("warning", "implantation-without-explanatory-comments", relative(file), 1, "Comente linhas-chave para explicar preflight, massa, sessao, restauracao, dependencias e persistencia.");
+    add("warning", "implantation-without-explanatory-comments", relative(file), 1, "Comente linhas-chave para explicar massa, sessao, restauracao, botoes e persistencia.");
   }
   if (commentLines >= 12 && commentLines > codeLines * 0.45) {
     add("warning", "excessive-comments", relative(file), 1, "Comentarios ocupam grande parte da spec; remova explicacoes que apenas repetem comandos evidentes.");
@@ -616,7 +885,7 @@ for (const file of specFiles) {
 
   const genericVariables = matches(content, /\b(?:const|let|var)\s+(?:data|access|success|planned|result|item)\b/g);
   if (implantationSpec && genericVariables.length >= 3) {
-    add("warning", "generic-variable-names", relative(file), lineNumber(content, genericVariables[0].index), "Use nomes de dominio naturais, como dadosCurso, acessoFormulario, cadastroConcluido e verificacoesPlanejadas.");
+    add("warning", "generic-variable-names", relative(file), lineNumber(content, genericVariables[0].index), "Use nomes de dominio naturais, como dadosCurso, acessoFormulario e camposObrigatorios.");
   }
 
   const genericHelper = firstMatch(content, /\b(?:async\s+)?function\s+(helper|processar|executarFluxo|runFlow|executeFlow)\s*\(/g);
@@ -651,34 +920,249 @@ for (const file of specFiles) {
       labels.set(label, field);
     }
   }
-  if (implantationSpec && testDefinitions.length > 1) {
-    add("error", "fragmented-implantation-flow", relative(file), lineNumber(content, testDefinitions[1].index), "Mantenha uma unica definicao test para a operacao de implantacao; registre validacoes por campo no RelatorioValidacoes sem repetir login/fluxo.");
+  const fieldContractInSpec = firstMatch(
+    content,
+    /\b(?:const|let)\s+camposObrigatorios\s*=\s*\[[\s\S]{0,12000}?\n\s*\];/gi,
+  );
+  if (implantationSpec && fieldContractInSpec && /\bcontrole\s*:/.test(fieldContractInSpec[0])) {
+    add("error", "required-field-contract-in-spec", relative(file), lineNumber(content, fieldContractInSpec.index), "Mova a colecao campo-locator-valor para o Page Object e mantenha na spec somente as fases e o loop funcional.");
   }
-  if (implantationSpec && !/\b(?:createValidationReport|ValidationReport|RelatorioValidacoes)\b/.test(content)) {
-    add("error", "missing-validation-report", relative(file), 1, "Spec de implantacao deve pre-registrar verificacoes e gerar relatorio Markdown com RelatorioValidacoes.");
+  const mutableRequiredCollection = firstMatch(
+    content,
+    /\blet\s+(camposObrigatorios|requiredFields)\s*=\s*[^;]+;/g,
+  );
+  if (implantationSpec && mutableRequiredCollection) {
+    const collectionName = mutableRequiredCollection[1];
+    const reassignment = firstMatch(
+      content.slice(mutableRequiredCollection.index + mutableRequiredCollection[0].length),
+      new RegExp(`^\\s*${collectionName}\\s*=`, "gm"),
+    );
+    if (reassignment) {
+      add("warning", "recreated-required-collection", relative(file), lineNumber(content, mutableRequiredCollection.index), "Nao reutilize a mesma variavel para o plano e os campos executaveis; use camposPlanejados e camposObrigatorios.");
+    }
+  }
+  const executaObrigatoriedade = /\bvalidarObrigatoriedade\s*\(/.test(content);
+  const conclusaoPositiva = firstMatch(
+    content,
+    /\b(?:concluirCadastro|confirmarOperacao|salvarCadastro|clicarCadastrar|clicarConfirmar)\s*\(/gi,
+  );
+  const relatorioCustomizado = firstMatch(
+    content,
+    /\b(?:RelatorioValidacoes|ValidationReport|createValidationReport|validationReport)\b/gi,
+  );
+  if (relatorioCustomizado) {
+    add("error", "custom-validation-report", relative(file), lineNumber(content, relatorioCustomizado.index), "Use os reporters nativos do Playwright; nao mantenha relatorio customizado nem controle paralelo de resultados na spec.");
+  }
+  const inventarioManual = firstMatch(
+    content,
+    /\b(?:verificacoesPlanejadas|validacoesPlanejadas|planoDeValidacoes|verificationPlan)\b/gi,
+  );
+  if (inventarioManual) {
+    add("error", "manual-verification-inventory", relative(file), lineNumber(content, inventarioManual.index), "Remova o inventario manual da spec; nomes de testes, assertions e reporter nativo ja registram os resultados.");
+  }
+  const estadoManualDoFluxo = firstMatch(
+    content,
+    /\b(?:let|var)\s+(?:fluxoAcessivel|cadastroConcluido|validacoesBloqueantesAprovadas)\b/gi,
+  );
+  if (estadoManualDoFluxo) {
+    add("error", "manual-implantation-flow-state", relative(file), lineNumber(content, estadoManualDoFluxo.index), "Deixe navegacao e botoes falharem naturalmente; use testInfo.errors somente para impedir a persistencia depois de falhas soft de obrigatoriedade.");
+  }
+  const metadadosDoLote = firstMatch(
+    content,
+    /\b(?:casoDeUso|casosProntos|casosBloqueados|statusDoLote|resultadoDoLote|credenciaisPorCaso|perfilDoCaso|numeroDoCaso)\b/gi,
+  );
+  if (metadadosDoLote) {
+    add("error", "batch-orchestration-in-spec", relative(file), lineNumber(content, metadadosDoLote.index), "O lote pertence ao processamento do prompt; cada spec deve conter somente a historia funcional de um caso de uso.");
+  }
+  const guardaFalhasSoft = firstMatch(
+    content,
+    /\b(?:testInfo|test\.info\s*\(\s*\))\.errors(?:\.length)?\b/gi,
+  );
+  if (
+    implantationSpec
+    && executaObrigatoriedade
+    && conclusaoPositiva
+    && (!guardaFalhasSoft || guardaFalhasSoft.index > conclusaoPositiva.index)
+  ) {
+    add("error", "unsafe-positive-after-soft-required-failure", relative(file), lineNumber(content, conclusaoPositiva.index), "Antes da conclusao positiva, interrompa a spec quando testInfo.errors contiver falha soft de obrigatoriedade.");
+  }
+  if (implantationSpec && testDefinitions.length > 1) {
+    add("error", "fragmented-implantation-flow", relative(file), lineNumber(content, testDefinitions[1].index), "Mantenha uma unica definicao test para a operacao de implantacao; use uma sequencia direta e expect.soft sem repetir login ou navegador.");
+  }
+  const sharedCaseSetup = firstMatch(
+    content,
+    /\btest\.beforeAll\s*\([\s\S]{0,1800}?\b(?:realizarLogin|autenticar|criar|cadastrar|registrar|salvar|submeter)[A-Za-z0-9_]*\s*\(/gi,
+  );
+  if (sharedCaseSetup) {
+    add("error", "shared-use-case-state", relative(file), lineNumber(content, sharedCaseSetup.index), "Cada spec deve criar login, sessao e massa proprios; nao prepare estado funcional compartilhado em beforeAll.");
   }
   const repeatedLoginHook = firstMatch(content, /\btest\.beforeEach\s*\([\s\S]{0,1200}?\b(?:login|autenticar|realizarLogin|openCreateForm|abrirFormularioCadastro|acessarFluxo)\s*\(/gi);
-  if (implantationSpec && testDefinitions.length > 1 && repeatedLoginHook) {
+  if (implantationSpec && repeatedLoginHook) {
     add("error", "repeated-login-per-validation", relative(file), lineNumber(content, repeatedLoginHook.index), "Nao autentique/reentre no fluxo em beforeEach para validacoes da mesma operacao; use uma unica sessao no teste completo.");
   }
   const flowEntries = matches(content, /\b(?:openCreateForm|abrirFormularioCadastro|acessarFluxo|abrirFluxo|entrarNoFluxo)\s*\(/gi);
-  if (implantationSpec && flowEntries.length > 1) {
-    add("error", "reentered-transactional-flow", relative(file), lineNumber(content, flowEntries[1].index), "A spec entra no fluxo mais de uma vez; autentique e navegue uma unica vez, avancando do estado atual.");
+  const controlledReentry = /(?:reentr|cancelar|voltar|botao|botão)/i.test(content);
+  if (implantationSpec && flowEntries.length > 1 && !controlledReentry) {
+    add("warning", "unexplained-flow-reentry", relative(file), lineNumber(content, flowEntries[1].index), "Reentrada no fluxo deve existir somente para validar Voltar/Cancelar na mesma sessao e antes de persistencia.");
   }
   const fragmentedNames = testNames.filter((match) => /(?:tela|passo|etapa|screen|pagina|page)\s*\d?/i.test(match[1] || ""));
   if (testNames.length >= 2 && fragmentedNames.length >= 2) {
-    add("warning", "fragmented-flow-tests", relative(file), lineNumber(content, fragmentedNames[0].index), "Fluxo parece dividido por telas/passos; prefira um unico test com test.step para manter sessao e evitar dados duplicados.");
+    add("warning", "fragmented-flow-tests", relative(file), lineNumber(content, fragmentedNames[0].index), "Fluxo parece dividido por telas/passos; prefira um unico test sequencial para manter sessao e evitar dados duplicados.");
+  }
+
+  const calls = namedCalls(content);
+  const destructiveCall = calls.find((call) => isDestructiveMethodName(call.name));
+  if (destructiveCall) {
+    const creationCall = calls.find((call) => (
+      call.index < destructiveCall.index
+      && /^(?:criar|cadastrar|incluir|preparar)/.test(call.normalizedName)
+      && !/(?:idexecucao|runid|dados|data)/.test(call.normalizedName)
+    ));
+    const persistenceCall = calls.find((call) => (
+      call.index < destructiveCall.index
+      && /(?:confirmar|validar|localizar).*(?:persistencia|persistido|existencia|registro|alvo)/.test(call.normalizedName)
+    ));
+    const finalStateCall = calls.find((call) => (
+      call.index > destructiveCall.index
+      && /(?:confirmar|validar).*(?:ausencia|estadofinal|statusfinal|remocao|exclusao|inativo|aprovado|rejeitado|cancelado)/.test(call.normalizedName)
+    ));
+    const cancelCall = calls.find((call) => (
+      call.index < destructiveCall.index
+      && /cancelar.*(?:remocao|exclusao|transicao)/.test(call.normalizedName)
+    ));
+    const permanenceAfterCancel = cancelCall && calls.find((call) => (
+      call.index > cancelCall.index
+      && call.index < destructiveCall.index
+      && /(?:confirmar|validar).*(?:permanencia|persistencia|existencia)/.test(call.normalizedName)
+    ));
+    const sharedTarget = firstMatch(content, /\btest\.beforeAll\s*\(|\b(?:dados|registro|alvo)(?:Compartilhado|Shared)\b|process\.env\.[A-Z0-9_]*(?:RECORD|REGISTRO|ALVO|TARGET)_?ID\b/gi);
+
+    if (!hasRunId) {
+      add("error", "unsafe-destructive-without-run-id", relative(file), lineNumber(content, destructiveCall.index), "Acao destrutiva exige runId exclusivo da execucao atual para comprovar propriedade do alvo.");
+    }
+    if (!creationCall) {
+      add("error", "unsafe-destructive-without-created-target", relative(file), lineNumber(content, destructiveCall.index), "A propria spec deve criar pela interface o alvo destrutivo antes da acao.");
+    }
+    if (!persistenceCall) {
+      add("error", "unsafe-destructive-without-persistence-proof", relative(file), lineNumber(content, destructiveCall.index), "Comprove persistencia e localizacao unica do alvo antes da acao destrutiva.");
+    }
+    if (!finalStateCall) {
+      add("error", "unsafe-destructive-without-final-state", relative(file), lineNumber(content, destructiveCall.index), "Valide ausencia ou novo estado depois da acao destrutiva.");
+    }
+    if (cancelCall && !permanenceAfterCancel) {
+      add("error", "destructive-cancel-without-permanence-proof", relative(file), lineNumber(content, cancelCall.index), "Depois de cancelar a acao destrutiva, comprove que o alvo permanece antes de reabrir e confirmar.");
+    }
+    if (sharedTarget) {
+      add("error", "destructive-shared-target", relative(file), lineNumber(content, sharedTarget.index), "Spec destrutiva nao pode depender de alvo preparado por hook, ambiente ou outra spec.");
+    }
   }
 }
 
 for (const file of pageObjectFiles) {
   const content = fs.readFileSync(file, "utf8");
-  const pageObjectLines = content.split(/\r?\n/).filter((line) => line.trim()).length;
   const methodCount = matches(content, /^\s*(?:async\s+)?[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\)\s*\{/gm)
     .filter((match) => !/constructor\s*\(/.test(match[0]))
     .length;
-  if (pageObjectLines > 260 || methodCount > 35) {
-    add("warning", "bloated-page-object", relative(file), 1, "Page Object grande demais; considere dividir por area funcional ou remover metodos sem uso.");
+  if (methodCount > 35) {
+    add("warning", "bloated-page-object", relative(file), 1, "Page Object acumula muitos metodos; verifique responsabilidades misturadas e metodos sem consumidor, sem usar apenas quantidade de linhas como criterio.");
+  }
+
+  const requiredDescriptors = methodBlock(content, "obterCamposObrigatorios");
+  if (requiredDescriptors) {
+    const descriptorCount = matches(requiredDescriptors.text, /\{\s*campo\s*:/g).length;
+    const descriptorLines = requiredDescriptors.text.split(/\r?\n/).filter((line) => line.trim()).length;
+    if (descriptorCount >= 8 && descriptorLines > descriptorCount * 5) {
+      add("warning", "verbose-required-descriptors", relative(file), lineNumber(content, requiredDescriptors.index), "Colecao de obrigatorios excessivamente vertical; mantenha propriedades nomeadas, mas use um objeto completo por linha quando ele continuar legivel.");
+    }
+  }
+
+  const sentinelWrapper = methodBlock(content, "obterCampoSentinela");
+  if (sentinelWrapper) {
+    const sentinelUses = matches(content, /\b(?:this\.)?obterCampoSentinela\s*\(/g).length;
+    if (sentinelUses === 2 && sentinelWrapper.text.split(/\r?\n/).filter((line) => line.trim()).length <= 10) {
+      add("warning", "single-use-sentinel-wrapper", relative(file), lineNumber(content, sentinelWrapper.index), "Escolha curta da sentinela usada somente por validarObrigatoriedade deve ficar junto da operacao, sem metodo intermediario.");
+    }
+  }
+
+  const duplicatedConfirmation = methodBlock(content, "clicarComConfirmacao");
+  if (duplicatedConfirmation && /\bthis\.clicarConfirmandoUmaVez\s*\(/.test(duplicatedConfirmation.text)) {
+    add("warning", "duplicated-confirmation-recovery", relative(file), lineNumber(content, duplicatedConfirmation.index), "Clique com confirmacao deve registrar o dialogo e reutilizar clicarComRecuperacaoDeCookies, sem manter outro fluxo de aceite e repeticao.");
+  }
+
+  const reentryWrappers = matches(content, /\basync\s+(reabrir[A-Z][A-Za-z0-9_]*)\s*\(/g);
+  for (const wrapper of reentryWrappers) {
+    const methodName = wrapper[1];
+    const internalCalls = matches(content, new RegExp(`\\bthis\\.${methodName}\\s*\\(`, "g")).length;
+    const allUses = codeFiles.reduce((total, codeFile) => {
+      const code = fs.readFileSync(codeFile, "utf8");
+      return total + matches(code, new RegExp(`\\b${methodName}\\s*\\(`, "g")).length;
+    }, 0);
+    const block = methodBlock(content, methodName);
+    const blockLines = block?.text.split(/\r?\n/).filter((line) => line.trim()).length || 0;
+    if (internalCalls === 1 && allUses === 2 && blockLines <= 10) {
+      add("warning", "single-use-navigation-wrapper", relative(file), lineNumber(content, wrapper.index), `Metodo ${methodName} apenas encadeia navegacao para um unico consumidor interno; incorpore-o sem alterar a API usada pela spec.`);
+    }
+  }
+
+  const reportCoupling = firstMatch(content, /\b(?:RelatorioValidacoes|ValidationReport|testInfo|test\.step)\b/g);
+  if (reportCoupling) {
+    add("error", "page-object-runner-coupling", relative(file), lineNumber(content, reportCoupling.index), "Page Object nao deve conhecer relatorio customizado, testInfo ou test.step; mantenha a orquestracao na spec.");
+  }
+
+  const hiddenScenario = firstMatch(
+    content,
+    /\b(?:async\s+)?(?:executar|realizar|validar)(?:Smoke(?:Completo)?|FluxoCompleto|CenarioCompleto)\s*\(/gi,
+  );
+  if (hiddenScenario) {
+    add("error", "hidden-complete-scenario", relative(file), lineNumber(content, hiddenScenario.index), "Nao esconda todo o smoke em um metodo do Page Object; exponha operacoes por fase e mantenha a historia funcional na spec.");
+  }
+
+  const immediateFlowVisibility = firstMatch(
+    content,
+    /\basync\s+(?:formulario|tela)[A-Za-z0-9_]*EstaVisivel\s*\([^)]*\)\s*\{[\s\S]{0,500}?\.isVisible\s*\(\s*\)\s*\.catch/gi,
+  );
+  if (immediateFlowVisibility) {
+    add("warning", "immediate-flow-visibility", relative(file), lineNumber(content, immediateFlowVisibility.index), "Depois de submissao ou navegacao, aguarde um campo estavel com waitFor; isVisible() imediato pode confundir atualizacao temporaria do DOM com saida do fluxo.");
+  }
+
+  const requiredValidation = methodBlock(content, "validarObrigatoriedade");
+  if (requiredValidation) {
+    const enviaFormulario = /\b(?:submeter|salvar|confirmar|cadastrar|clicarCadastrar|clicarConfirmar)\s*\(/i.test(requiredValidation.text);
+    const usaSentinela = /\b(?:sentinela|barreiraPersistencia|protecaoTransacional)\b/i.test(requiredValidation.text);
+    const restauraSempre = /\bfinally\s*\{/.test(requiredValidation.text);
+    const usaAssertionSoft = /\bexpect\.soft\s*\(|\bsoftExpect\s*\(/.test(requiredValidation.text);
+    if (enviaFormulario && !usaSentinela) {
+      add("error", "unsafe-required-submission", relative(file), lineNumber(content, requiredValidation.index), "Validacao negativa que submete o formulario deve manter um campo-sentinela obrigatorio vazio para impedir persistencia acidental.");
+    }
+    if (enviaFormulario && !restauraSempre) {
+      add("error", "required-validation-without-finally", relative(file), lineNumber(content, requiredValidation.index), "Restaure alvo, sentinela e campos volateis em finally, inclusive quando a mensagem esperada estiver ausente.");
+    }
+    if (enviaFormulario && !usaAssertionSoft) {
+      add("error", "required-validation-without-soft-assertion", relative(file), lineNumber(content, requiredValidation.index), "Use expect.soft nas evidencias atribuiveis ao campo para continuar os demais obrigatorios; mantenha hard assertions apenas nas protecoes de fluxo e persistencia.");
+    }
+  }
+
+  for (const methodName of ["concluirCadastro", "salvarEValidar", "confirmarEValidar", "cadastrarEValidar"]) {
+    const combinedMethod = methodBlock(content, methodName);
+    if (!combinedMethod) continue;
+    const submits = /\b(?:submeter|salvar|confirmar|cadastrar|clicarCadastrar|clicarConfirmar)\s*\(/i.test(combinedMethod.text);
+    const validatesSuccess = /\bvalidarMensagemSucesso\s*\(/.test(combinedMethod.text);
+    if (submits && validatesSuccess) {
+      add("error", "combined-submit-success", relative(file), lineNumber(content, combinedMethod.index), "Separe a submissao da validacao da mensagem; a spec deve mostrar claramente a acao e o resultado observado.");
+      break;
+    }
+  }
+
+  const locatorDeclarations = matches(
+    content,
+    /\bthis\.([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*(?:this\.page|page)\s*\.\s*(?:locator|getByRole|getByLabel|getByText|getByPlaceholder|getByTestId)\s*\(/g,
+  );
+  for (const declaration of locatorDeclarations) {
+    const name = declaration[1];
+    const uses = matches(content, new RegExp(`\\bthis\\.${name}\\b`, "g"));
+    if (uses.length === 1) {
+      add("warning", "unused-page-object-locator", relative(file), lineNumber(content, declaration.index), `Locator ${name} foi declarado, mas nao possui consumidor no Page Object.`);
+    }
   }
 
   const genericMethod = firstMatch(content, /\b(?:async\s+)?(?:clickButton\d*|fillInput\d*|goNext)\s*\(/g);
@@ -703,7 +1187,23 @@ for (const file of pageObjectFiles) {
 
   const institutionalLocation = firstMatch(content, /(?:estado|municipio|state|city)[\s\S]{0,160}?selectOption\s*\(\s*\{\s*label\s*:\s*["'`][^"'`]+["'`]/gi);
   if (institutionalLocation) {
-    add("warning", "institutional-location-hardcoded", relative(file), lineNumber(content, institutionalLocation.index), "Estado ou municipio fixo no Page Object reduz portabilidade; use defaults/perfil da spec.");
+    add("warning", "institutional-location-hardcoded", relative(file), lineNumber(content, institutionalLocation.index), "Estado ou municipio fixo reduz portabilidade; quando vier de cadastro anterior, selecione o primeiro candidato valido.");
+  }
+
+  const blindFirstOption = firstMatch(content, /selectOption\s*\(\s*\{\s*index\s*:\s*0\s*\}/g);
+  if (blindFirstOption) {
+    add("error", "blind-first-option", relative(file), lineNumber(content, blindFirstOption.index), "Nao selecione index 0: filtre vazio, placeholder, oculto e desabilitado antes de escolher o primeiro candidato valido.");
+  }
+
+  const destructiveMethods = matches(content, /^\s*(?:async\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\([^)]*\)\s*\{/gm)
+    .filter((match) => isDestructiveMethodName(match[1]));
+  for (const method of destructiveMethods) {
+    const block = methodBlock(content, method[1]);
+    if (!block) continue;
+    const positionalTarget = firstMatch(block.text, /\.(?:first|nth)\s*\(/g);
+    if (positionalTarget) {
+      add("error", "unsafe-destructive-row-scope", relative(file), lineNumber(content, block.index + positionalTarget.index), `Metodo destrutivo ${method[1]} nao pode escolher alvo por first/nth; filtre pelo runId completo e comprove uma unica linha.`);
+    }
   }
 
   const escapedStableJsfId = firstMatch(content, /locator\s*\(\s*["'`]#[A-Za-z0-9_]+\\\\:/g);
@@ -716,9 +1216,9 @@ for (const file of pageObjectFiles) {
     if (!/\.first\s*\(\s*\)/.test(lines[index])) continue;
     const windowText = lines.slice(Math.max(0, index - 4), index + 1).join("\n");
     const looksLikeCollection = /sugest|suggest|autocomplete|op[cç][aã]o|option|linha|row|table|lista|list/i.test(windowText);
-    const hasTextFilter = /\.filter\s*\(\s*\{[^}]*hasText|locator\s*\([^)]*\{[^}]*hasText/si.test(windowText);
-    if (looksLikeCollection && !hasTextFilter) {
-      add("warning", "unfiltered-first-collection", relative(file), index + 1, "Evite .first() em sugestoes/listagens sem filtrar pelo texto esperado.");
+    const hasSafeFilter = /\.filter\s*\(|hasText|:not\s*\(\s*\[disabled\]|disabled|hidden|placeholder|selecione|escolha|candidat|op[cç][aã]o\s+v[aá]lida/i.test(windowText);
+    if (looksLikeCollection && !hasSafeFilter) {
+      add("warning", "unfiltered-first-collection", relative(file), index + 1, "Antes de .first(), filtre candidatos por texto intencional ou exclua vazio, placeholder, oculto e desabilitado.");
       break;
     }
   }
@@ -746,14 +1246,7 @@ if (fs.existsSync(envExamplePath)) {
 
 const clientProfilesDir = path.join(root, "config", "clientes");
 if (fs.existsSync(clientProfilesDir)) {
-  const clientConfigPath = path.join(root, "tests", "utils", "clientConfig.js");
-  if (!fs.existsSync(clientConfigPath)) {
-    add("error", "missing-client-config-loader", "tests/utils/clientConfig.js", 1, "Perfis de cliente exigem carregador unico com preflight por spec.");
-  }
-  const envExample = fs.existsSync(envExamplePath) ? fs.readFileSync(envExamplePath, "utf8") : "";
-  if (!/^E2E_CLIENT_PROFILE=/m.test(envExample)) {
-    add("error", "missing-client-profile-env", ".env.example", 1, "Declare E2E_CLIENT_PROFILE no .env.example.");
-  }
+  add("warning", "legacy-client-profiles", "config/clientes", 1, "Perfis por cliente pertencem ao contrato anterior. Preserve enquanto houver consumidor e migre de forma controlada para primeira opcao valida.");
   const profileFiles = [path.join(root, "config", "defaults.json"), ...walk(clientProfilesDir)]
     .filter((file) => path.extname(file) === ".json" && fs.existsSync(file));
   for (const file of profileFiles) {
@@ -817,10 +1310,19 @@ if (!configFile) {
 } else {
   const config = fs.readFileSync(configFile, "utf8");
   const rel = relative(configFile);
+  if (!/^\s*timeout\s*:\s*[0-9_]+\s*,?/m.test(config)) {
+    add("warning", "missing-central-test-timeout", rel, 1, "Configure o limite total central em timeout no playwright.config; o padrao do plugin e 180_000 ms.");
+  }
+  if (!/\bactionTimeout\s*:\s*[0-9_]+/.test(config)) {
+    add("warning", "missing-central-action-timeout", rel, 1, "Configure actionTimeout central no playwright.config; o padrao do plugin e 15_000 ms.");
+  }
   if (!/headless\s*:\s*false/.test(config)) add("warning", "headed-default", rel, 1, "O padrao do plugin e Chromium headed (headless: false).");
   if (!/viewport\s*:\s*null/.test(config)) add("error", "native-maximized-viewport", rel, 1, "Use viewport: null para que o viewport acompanhe a janela Chromium maximizada.");
   if (!/--start-maximized/.test(config)) add("error", "maximized-launch", rel, 1, "Inclua --start-maximized em launchOptions para execucao headed.");
-  const hasCdpMaximize = codeFiles.some((file) => /Browser\.setWindowBounds[\s\S]{0,200}?maximized/.test(fs.readFileSync(file, "utf8")));
+  const arquivosDeFixture = walk(path.join(root, "tests", "fixtures"))
+    .filter((file) => codeExtensions.has(path.extname(file)));
+  const hasCdpMaximize = [...new Set([...codeFiles, ...arquivosDeFixture])]
+    .some((file) => /Browser\.setWindowBounds[\s\S]{0,200}?maximized/.test(fs.readFileSync(file, "utf8")));
   if (!hasCdpMaximize) add("error", "missing-cdp-maximize", rel, 1, "Adicione fixture/helper CDP com Browser.setWindowBounds=maximized para estabilizar a maximização entre sistemas operacionais.");
   if (!/trace\s*:\s*["'](?:retain-on-first-failure|retain-on-failure)["']/.test(config)) {
     add("error", "failure-trace-required", rel, 1, "Use trace: 'retain-on-first-failure' ou 'retain-on-failure' para diagnosticar falhas sem guardar artefatos de sucesso.");
@@ -830,6 +1332,9 @@ if (!configFile) {
   }
   if (!/video\s*:\s*["']off["']/.test(config)) {
     add("warning", "video-default", rel, 1, "Mantenha video: 'off' por padrao; habilite somente quando indispensavel.");
+  }
+  if (!/reporter\s*:\s*["']html["']|\[\s*["']html["']/.test(config)) {
+    add("error", "missing-html-reporter", rel, 1, "Configure o reporter HTML nativo do Playwright para mostrar diretamente specs aprovadas e reprovadas.");
   }
 }
 

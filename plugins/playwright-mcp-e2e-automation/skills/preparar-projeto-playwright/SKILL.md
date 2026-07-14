@@ -21,8 +21,10 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 8. Gerar `tests/utils/authProfiles.js` com `obterCredenciais(nomePerfil)` e `tests/utils/testData.js` somente com `criarIdExecucao`.
 9. Nao gerar perfis por cliente, relatorio, formulario legado, Page Object vazio ou utilitario preventivo no modo basico.
 10. Manter `.playwright-e2e/cache/`, `.playwright-e2e/private-domain/` e manifestos locais fora do versionamento para mapas/contexto local sanitizados.
-11. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto> --changed`; se nao houver Git, usar `--files <arquivos>` ou `--manifest .playwright-e2e/changed-files.json`.
-12. Informar arquivos criados, dependencias instaladas e comandos disponiveis.
+11. Configurar `timeout: 180_000` para o teste completo e `actionTimeout: 15_000` para as acoes no `playwright.config`.
+12. Nao gerar `test.setTimeout` nas specs nem timeouts locais menores em `click`, `fill`, `check` ou `selectOption` sem requisito funcional documentado.
+13. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto> --changed`; se nao houver Git, usar `--files <arquivos>` ou `--manifest .playwright-e2e/changed-files.json`.
+14. Informar arquivos criados, dependencias instaladas e comandos disponiveis.
 
 ## Padrao Gerado
 
@@ -31,7 +33,8 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Chromium headed e maximizado por padrao, com `viewport: null`, `--start-maximized` e fixture CDP.
 - `workers: 1` por padrao, com override por `E2E_WORKERS`, para evitar conflito de sessao quando perfis locais usam a mesma conta.
 - `trace: 'retain-on-first-failure'`, `screenshot: 'only-on-failure'` e `video: 'off'` por padrao.
-- Scripts `test:e2e` e `test:e2e:headed`.
+- Scripts `test` e `test:headed`.
+- Reporters nativos `line` e `html`, com o HTML em `test-results/html` e abertura manual.
 - Variaveis `BASE_URL`, `E2E_WORKERS` e credenciais por perfil, como `E2E_EXAMPLE_USERNAME`/`E2E_EXAMPLE_PASSWORD`.
 - `.playwright-e2e/cache/`, `.playwright-e2e/private-domain/`, `.playwright-e2e/changed-files.json` e `.playwright-e2e/error-context.md` ignorados para dados locais sanitizados.
 
