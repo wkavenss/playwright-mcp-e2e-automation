@@ -12,7 +12,7 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 ## Fluxo
 
 1. Identificar a raiz do projeto e os arquivos afetados: specs, Page Objects, dados, fixtures e utils.
-2. Executar `node ../../scripts/quality-gate.mjs <raiz-do-projeto> --changed` a partir desta skill. Se o usuario pedir a suite inteira, omitir `--changed`; usar `--verbose` somente quando o resumo por regra nao explicar a correcao.
+2. Executar `node ../../scripts/quality-gate.mjs <raiz-do-projeto> --contract <implantacao|massa|revisao> --changed` a partir desta skill. Em implantacao, informar tambem `--case-kind <tipo>`. Se o usuario pedir a suite inteira, omitir `--changed`; usar `--verbose` somente quando o resumo por regra nao explicar a correcao.
 3. Ler somente o primeiro exemplo de cada regra do gate e os arquivos claramente relacionados ao fluxo. Quando houver achados repetidos, corrigir por tipo de problema e usar busca pontual para cobrir as demais ocorrencias.
 4. Corrigir apenas achados objetivos e proximos do escopo.
 5. Nao abrir MCP, salvo quando codigo e logs nao explicarem seletor, tela ou estado real indispensavel.
@@ -47,13 +47,16 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Remover `test.describe` de arquivo com um unico teste quando nao houver configuracao, hook ou contexto adicional; incorporar o modulo ao titulo do `test`.
 - Achatar `if/else` encadeados em fases sequenciais. Remover estados manuais como `fluxoAcessivel` e `cadastroConcluido` quando apenas repetirem o resultado das assertions.
 - Em smoke de implantacao, usar falha imediata em acesso, navegacao, botoes e conclusao. Usar `expect.soft` nas evidencias recuperaveis de obrigatoriedade e uma unica consulta a `testInfo.errors` antes da persistencia positiva.
-- Remover `test.step`, annotations, `RelatorioValidacoes`, plano manual, Markdown e `try/finally` da spec quando somente duplicarem erros e evidencias que o Playwright ja registra.
+- Preservar `test.step` somente quando nomear operacoes de negocio distintas sobre a mesma massa. Remover etapas tecnicas ou aninhadas, annotations, `RelatorioValidacoes`, plano manual, Markdown e `try/finally` da spec quando somente duplicarem o runner.
 - Em specs originadas de um lote, remover numero/status do caso, mapas de credenciais, listas de casos e qualquer orquestracao do prompt. Cada arquivo deve continuar parecendo uma automacao individual.
 - Identificar cada obrigatorio pela mensagem da assertion no Page Object, mantendo um unico loop na spec.
-- Separar submissao e resultado: clique em um metodo e mensagem de sucesso em outro. Remover `concluirCadastro()` que apenas combina essas duas operacoes.
+- Permitir que um metodo semantico submeta e valide o resultado imediato. Dividir apenas metodos que escondam varias fases de negocio independentes.
 - Quando os descritores planejados ainda nao possuem massa, usar `camposPlanejados`; reservar `camposObrigatorios` para os descritores completos. Nao sobrescrever a mesma colecao com dois significados.
 - Remover locators e metodos sem consumidor comprovado.
 - Reduzir `.nth()`, `.first()` sem filtragem explicita de candidato valido, XPath sem justificativa, ID gerado e seletor estrutural fragil.
+- Em autocomplete, trocar nome presumido por pesquisa direta do valor especifico ou `%%%` quando ele estiver ausente. Normalizar resultados, exigir correspondencia exata para valor solicitado, bloquear homonimos ambiguos, filtrar antes do primeiro candidato e confirmar o valor do input.
+- Remover do projeto metodos de localizar/retomar/remover tentativa, ledger, locks, caches, scripts npm, fixtures e specs de limpeza que existam apenas para o processo de geracao do Codex. Preservar metodos de Remover quando representarem caso de uso real.
+- Consolidar specs que cadastram repetidamente a mesma entidade em um ciclo funcional quando consulta, alteracao e remocao puderem reutilizar o mesmo `runId`, sem `beforeAll` ou estado entre specs.
 - Corrigir indice escondido em `evaluate`, ID JSF gerado, ID JSF estavel com escape manual e `waitForTimeout` sem anotacao padronizada. Aceitar `[id="form:campo"]` direto no Page Object.
 - Remover timeout local redundante de `click`, `fill`, `check` e `selectOption` quando `actionTimeout` ja fornecer o limite. Preservar limite local somente para condicao funcional documentada.
 - Mover `test.setTimeout` repetido nas specs para `timeout: 180_000` no `playwright.config`. Para operacao excepcionalmente longa, preferir `test.slow()`; manter valor local somente quando houver limite exato comprovado e comentado.

@@ -1,6 +1,6 @@
 {
   "name": "playwright-mcp-e2e-automation",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "Playwright CLI and MCP toolkit for synthetic data generation and deployment smoke tests in legacy web systems.",
   "author": {
     "name": "wkavenss"
@@ -10,7 +10,7 @@
   "interface": {
     "displayName": "Playwright MCP E2E",
     "shortDescription": "Massa e smoke de implantacao com Playwright",
-    "longDescription": "Automatize dois fluxos com Playwright: gerar massa ou executar smoke de implantacao. A implantacao aceita um caminho individual ou varios casos de uso numerados, gera uma spec simples e independente por caso pronto e testa transicoes irreversiveis somente sobre dados sinteticos da propria spec.",
+    "longDescription": "Automatize dois fluxos com Playwright: gerar massa ou executar smoke de implantacao. A implantacao aceita um caminho individual ou varios casos numerados, agrupa operacoes compativeis em ciclos simples para reduzir massa e usa autocompletes portateis sem nomes pessoais hardcoded.",
     "developerName": "wkavenss",
     "category": "Developer tools",
     "capabilities": [

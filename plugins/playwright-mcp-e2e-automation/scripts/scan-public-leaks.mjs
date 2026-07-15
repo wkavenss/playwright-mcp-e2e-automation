@@ -11,6 +11,7 @@ const jsonOutput = args.includes("--json");
 const ignoredDirs = new Set([".git", "node_modules", "playwright-report", "test-results", "blob-report"]);
 const extensions = new Set([".md", ".js", ".mjs", ".cjs", ".json", ".yaml", ".yml"]);
 const blockedTerms = [
+  ["S", "I", "G", "s"].join(""),
   ["S", "I", "G", "A", "A"].join(""),
   ["S", "I", "P", "A", "C"].join(""),
   ["S", "I", "G", "R", "H"].join(""),
@@ -42,6 +43,18 @@ const findings = [];
 for (const file of walk(root).filter((item) => extensions.has(path.extname(item)))) {
   const rel = relative(file);
   if (/(?:^|[/\\])\.playwright-e2e[/\\]private-domain(?:[/\\]|$)/.test(rel)) continue;
+  for (const term of blockedTerms) {
+    const regex = new RegExp(`\\b${term}\\b`, "i");
+    const pathMatch = regex.exec(rel);
+    if (pathMatch) {
+      findings.push({
+        file: rel,
+        line: 1,
+        term,
+        message: "Termo explicito de dominio privado encontrado no caminho de arquivo publico.",
+      });
+    }
+  }
   const content = fs.readFileSync(file, "utf8");
   for (const term of blockedTerms) {
     const regex = new RegExp(`\\b${term}\\b`, "i");

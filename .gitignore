@@ -1,5 +1,4 @@
 .DS_Store
-.playwright-e2e/cache/
 .playwright-e2e/private-domain/
 test-results/
 playwright-report/

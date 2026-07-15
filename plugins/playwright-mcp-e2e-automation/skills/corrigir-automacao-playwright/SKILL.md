@@ -12,13 +12,13 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 ## Fluxo
 
 1. Localizar o teste afetado, Page Objects relacionados e comando de execucao.
-2. Consultar cache local sanitizado e executar somente o menor cenario que reproduza a falha.
+2. Consultar codigo, Page Objects e logs curtos, executando somente o menor cenario que reproduza a falha.
 3. Classificar a causa: seletor, navegacao, sincronizacao, autenticacao, massa, permissao, regra funcional, ambiente ou captcha/MFA.
 4. Se a primeira falha for locator/strict/hidden/attached/timeout/menu JSF, executar `../../scripts/parse-error-context.mjs <raiz-do-projeto> --input <error-context.md|log> --json`; se couber probe, validar locators com `../../scripts/repair-probe.mjs <raiz-do-projeto> --manifest <probes.json> --json` ou na pagina MCP preservada antes de repetir a spec inteira.
 5. Usar Playwright MCP apenas na tela necessaria para confirmar estado real e seletor; em JSF/RichFaces, manter a mesma sessao/pagina, preferir `legacy-jsf-map.mjs`/manifest unico quando houver HTML/snapshot e nao usar varios `node -e` independentes por tela/seletor.
 6. Alterar a menor superficie possivel, mantendo seletores e interacoes nos Page Objects.
 7. Executar novamente apenas o cenario afetado em Chromium headed, salvo pedido contrario, e somente depois de uma correcao objetiva.
-8. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto> --changed` a partir desta skill; se nao houver Git, usar `--files <arquivos>` ou `--manifest .playwright-e2e/changed-files.json`.
+8. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto> --contract <implantacao|massa|revisao> --changed` a partir desta skill; em implantacao, informar tambem `--case-kind <tipo>`. Se nao houver Git, usar `--files <arquivos>` ou `--manifest .playwright-e2e/changed-files.json`.
 9. Ler somente o primeiro exemplo de cada regra relevante; se houver repeticoes, cobrir as demais por busca pontual com `rg`, sem abrir todos os arquivos. Usar `--verbose` apenas quando o agrupamento nao explicar a correcao.
 10. Resumir causa, criterios preservados, arquivos alterados e resultado sem copiar logs longos.
 
@@ -38,7 +38,8 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Nao corrigir falha copiando erro cru, stack trace, timeout, texto de `body` inteiro ou mensagem transitoria para comentario, fixture, constante ou assert.
 - Nao hardcodar nomes reais de pessoas, usuarios, servidores/funcionarios, documentos, matriculas, emails ou telefones observados na tela.
 - Nao corrigir falha temporal trocando uma data vencida por outra data fixa; substituir por gerador dinamico ou parametro local quando a regra exigir data oficial.
-- Nao reexecutar submissao que cria/altera dado persistente sem antes verificar se a tentativa anterior ja criou registro. Reutilizar ou limpar somente quando for seguro e autorizado.
+- Nao reexecutar submissao que cria/altera dado persistente sem antes verificar se a tentativa anterior ja criou registro. Reutilizar ou limpar diretamente pelo navegador somente durante a correcao e quando for seguro e autorizado; nao gerar metodo, fixture, ledger, lock, cache, setup, teardown ou spec de limpeza.
+- Em autocomplete, pesquisar diretamente um valor informado e exigir correspondencia exata. Sem valor informado, usar `%%%`, filtrar candidatos e selecionar o primeiro elegivel. Remover nomes presumidos, `.nth()` e tentativas sucessivas.
 - Em remocao ou transicao irreversivel, preservar o contrato de propriedade: alvo criado pela propria spec na execucao atual, `runId` exclusivo, persistencia anterior e linha unica comprovadas, acao escopada e estado final validado. Nao "corrigir" escolhendo primeira linha, registro preexistente, massa de outra spec ou prefixo generico.
 - Se a falha destrutiva ocorrer depois da criacao do alvo, preservar o registro identificado. Nao repetir a acao nem adicionar limpeza automatica em `finally` para fazer o teste passar.
 - Em validacao negativa de obrigatoriedade, usar campo-sentinela obrigatorio para impedir persistencia caso a regra sob teste falhe; restaurar alvo e sentinela em `finally`. Nao executar a conclusao positiva quando uma verificacao bloqueante falhar.
@@ -55,7 +56,7 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Nas obrigatoriedades recuperaveis, usar `expect.soft` somente na evidencia do campo-alvo. Manter assertions normais na sentinela e na ausencia de sucesso, restaurando alvo e sentinela em `finally`.
 - Remover `RelatorioValidacoes`, `fluxoAcessivel`, `cadastroConcluido` e inventarios duplicados quando apenas replicarem o runner. Depois do loop, usar uma unica barreira `if (testInfo.errors.length > 0) return` antes da persistencia positiva.
 - Remover da spec numero/status do lote, mapas de casos ou credenciais e `verificacoesPlanejadas`; essas informacoes pertencem ao processamento do prompt, nao ao teste individual.
-- Remover `test.step`, annotations e documentacao de limitacoes das specs de implantacao. Identificar o campo diretamente na mensagem da assertion.
+- Preservar `test.step` quando identificar operacoes de negocio distintas sobre o mesmo registro. Remover etapas de clique, preenchimento, espera, campo individual, aninhamento e annotations.
 - Remover locator ou metodo sem consumidor comprovado. Nao preservar codigo preventivo apenas porque esta no Page Object.
 - Preservar reprodutibilidade por CLI: nao corrigir usando sessao local ja autenticada, perfil persistente, `storageState` manual, caminhos absolutos, `test.only/skip` ou massa escondida fora do projeto.
 - Cache local pode orientar a correcao, mas nao substituir confirmacao real quando seletor, tela ou estado estiverem incertos.

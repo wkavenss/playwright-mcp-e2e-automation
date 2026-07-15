@@ -12,10 +12,10 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 ## Fluxo
 
 1. Identificar specs, Page Objects, fixtures, dados, configuracao e scripts de execucao.
-2. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto>` a partir desta skill para realizar auditoria, sintaxe e JSON em modo leitura.
+2. Executar `../../scripts/quality-gate.mjs <raiz-do-projeto> --contract revisao` a partir desta skill para realizar auditoria, sintaxe e JSON em modo leitura. Quando o pedido declarar implantacao ou massa, usar o contrato explicito correspondente; em implantacao, informar tambem o tipo do caso.
 3. Usar o resumo agrupado por regra; ler somente o primeiro exemplo de cada regra e abrir detalhes completos apenas com `--verbose` quando o agrupamento nao bastar.
 4. Confirmar ou descartar repeticoes com busca pontual (`rg`), sem leitura ampla de arquivos.
-5. Avaliar resultado funcional, isolamento, massa, sincronizacao, seletores, cache local, segredos, dados sensiveis hardcoded, higiene de codigo e manutencao.
+5. Avaliar resultado funcional, isolamento, massa, sincronizacao, seletores, segredos, dados sensiveis hardcoded, higiene de codigo e manutencao.
 6. Quando util e seguro, executar o menor teste relevante; nao navegar por funcionalidades nao solicitadas.
 7. Apresentar achados primeiro, por severidade, com arquivo e linha. Depois registrar duvidas e risco residual.
 
@@ -36,7 +36,7 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Specs de implantacao devem apresentar fases sequenciais e poucos niveis de decisao. Arvores de `if`, estados `fluxoAcessivel`/`cadastroConcluido` e relatorio particular tendem a duplicar o runner e esconder a historia funcional.
 - Acesso, navegacao, botoes e conclusao devem falhar imediatamente. Evidencias recuperaveis de obrigatoriedade podem usar `expect.soft`; a sentinela e a ausencia de sucesso permanecem assertions normais.
 - Depois do loop de obrigatorios, deve existir uma unica barreira baseada em `testInfo.errors` antes da persistencia. Sem essa barreira, uma falha suave pode reprovar o teste e ainda criar um registro.
-- O Page Object deve separar `clicarCadastrar()`/`clicarConfirmar()` de `validarMensagemSucesso()`; um metodo que submete e valida ambos esconde duas responsabilidades.
+- Um metodo semantico pode submeter e validar o resultado imediato da mesma operacao. Reprovar somente quando uma chamada esconder varias fases de negocio independentes, como criar, consultar e remover.
 - Colecao de obrigatorios nao deve ser inicializada como plano e depois sobrescrita com dados reais na mesma variavel. Usar nomes distintos, como `camposPlanejados` e `camposObrigatorios`.
 - Locator e metodo declarados sem consumidor comprovado aumentam a superficie de manutencao e devem ser removidos.
 - Locators semanticos e escopados devem prevalecer sobre CSS estrutural e XPath.
@@ -54,14 +54,17 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Fluxos de negocio que atravessam varias telas devem preservar uma unica sessao de navegador dentro do mesmo `test`; dividir cada tela em um teste independente ou abrir/fechar navegador manualmente aumenta fragilidade e pode gerar dados duplicados.
 - Validacoes de obrigatoriedade e botoes da mesma operacao devem permanecer no mesmo `test`; login em `beforeEach` para um teste por campo e defeito de isolamento transacional.
 - Submissoes negativas devem usar campo-sentinela obrigatorio e restauracao em `finally`, para que uma regra ausente nao persista o cadastro. A evidencia do alvo deve usar `expect.soft` para permitir os demais campos na mesma sessao.
-- Cada obrigatorio deve ser identificado na mensagem da assertion. `test.step`, annotations, inventario e Markdown proprio sao ruido em uma spec de implantacao com um unico fluxo.
+- Cada obrigatorio deve ser identificado na mensagem da assertion. `test.step` e util somente para operacoes de negocio distintas no mesmo ciclo; etapas por campo, clique ou espera, annotations, inventario e Markdown proprio sao ruido.
 - Em `MODO: Implantacao`, teste negativo de tipo/formato esta fora do smoke e deve ser removido. Formato valido continua podendo orientar o preenchimento.
 - Chromium headed deve abrir maximizado, com viewport nativo e fallback CDP quando o projeto seguir o padrao do plugin.
 - A suite deve ser reprodutivel por outra pessoa com o mesmo perfil funcional e `.env` preenchido; dependencias de sessao local, perfil persistente, `storageState` manual, caminhos absolutos, `test.only/skip` ou massa escondida fora do projeto sao defeitos.
-- `.playwright-e2e/cache/` deve estar ignorado e conter somente mapas sanitizados; cache com senha, cookies, tokens, storageState, nomes reais, usuarios, documentos, emails ou telefones e defeito.
+- `.playwright-e2e/cache/`, ledger ou lock de tentativa nao pertencem ao projeto entregue; registrar como infraestrutura de geracao indevida.
 - `.playwright-e2e/private-domain/`, quando existir, deve estar ignorado e nunca deve ter conteudo copiado para arquivos publicos/versionados.
 - Testes devem evitar dependencia de ordem e dados compartilhados imprevisiveis. Remocao ou transicao irreversivel so e segura quando a mesma spec cria o alvo na execucao atual, comprova persistencia e unicidade pelo `runId`, escopa a acao e valida ausencia ou novo estado.
 - Reprovar acao destrutiva sobre primeira linha, `.first()`/`.nth()` sem filtro exato, prefixo generico, massa preexistente ou alvo preparado por outra spec. Falha depois da criacao deve preservar o registro para diagnostico, sem limpeza automatica.
+- Reprovar nomes pessoais hardcoded como consulta de autocomplete, `%%%` usado apesar de existir valor especifico, correspondencia parcial, homonimo escolhido por posicao, `.nth()` e ausencia de confirmacao do valor final.
+- Reprovar `localizarTentativa`, `retomarTentativa`, `removerTentativa`, ledger, lock, cache de tentativa, script npm, setup/teardown ou spec tecnica de limpeza no projeto entregue.
+- Identificar casos compativeis que recriam a mesma entidade em specs separadas; recomendar um ciclo com uma massa principal quando cadastrar, consultar, alterar e remover puderem ocorrer na mesma sessao.
 - Cada `CAMINHO`, individual ou em bloco `CASO DE USO <n>`, limita uma unica operacao. Explorar funcionalidade vizinha e defeito de escopo; etapas tecnicas do mesmo fluxo nao viram specs.
 - O lote pertence ao processamento do prompt. Reprovar spec com numero/status do caso, mapa de credenciais, `RelatorioValidacoes`, `verificacoesPlanejadas` ou controle manual como `fluxoAcessivel`.
 - Para listas de cadastros anteriores, revisar se a primeira opcao realmente valida exclui placeholder, vazio, oculto e desabilitado. Campos de dominio devem manter valor intencional.

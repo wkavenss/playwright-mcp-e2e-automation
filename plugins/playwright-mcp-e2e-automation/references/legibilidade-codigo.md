@@ -6,9 +6,11 @@ Use esta referencia ao criar ou refatorar automacoes para leitores com pouca exp
 
 A spec conta a historia funcional. O Page Object conhece a tela. O Playwright registra o resultado.
 
-Uma spec de implantacao deve ser uma sequencia direta de chamadas. Nao criar estado manual, `test.step`, annotations ou relatorio particular para explicar o que nomes claros e assertions ja demonstram.
+Uma spec de implantacao deve ser uma sequencia direta de chamadas. Usar `test.step` apenas para operacoes de negocio distintas que compartilham a mesma massa e precisam aparecer separadamente no HTML, como criar, visualizar, emitir e remover. Nao criar etapa para clique, preenchimento, espera, campo individual ou botao isolado; nao aninhar etapas. Nao criar estado manual, annotations ou relatorio particular.
 
-Quando o prompt contiver varios casos de uso, o lote termina antes do codigo gerado: cada caso pronto recebe sua propria spec, com a mesma estrutura simples de uma solicitacao individual. Numero do caso, status do lote, credenciais dos outros casos, bloqueios e inventario de verificacoes nunca entram na spec.
+Quando o prompt contiver varios casos, agrupar somente os que formarem um ciclo natural sobre a mesma entidade, perfil e massa. O ciclo reutiliza uma unica massa principal. A spec continua simples e recebe apenas a historia funcional do ciclo. Numero do caso, status do lote, credenciais dos outros casos, bloqueios e inventario nunca entram no codigo.
+
+Operacoes independentes podem usar testes separados. Nunca usar `test.describe.serial`, variavel global ou `beforeAll` funcional para fazer um teste depender da massa de outro.
 
 ## Responsabilidades
 
@@ -30,6 +32,8 @@ No Page Object:
 Quando houver muitos descritores, usar um objeto completo por linha quando ele continuar legivel; quebrar somente o descritor que realmente precisar de comentario ou propriedade longa. Manter `campo`, `rotulo`, `controle`, `tipo` e `valorValido` visiveis; nao trocar propriedades nomeadas por factory posicional apenas para reduzir linhas.
 
 Nao criar `BasePage`, camada `flows`, fabrica trivial, helper de ID, Page Object acoplado ao runner ou metodo `executarSmokeCompleto`.
+
+Recuperacao usada pelo Codex enquanto gera a automacao nao pertence ao projeto. Nao criar `localizarTentativa`, `retomarTentativa`, `removerTentativa`, ledger, lock, cache, fixture, setup, teardown ou spec tecnica de limpeza. Um metodo `removerRegistro` permanece valido quando Remover for caso de uso real.
 
 ## Fluxo De Falhas
 
@@ -71,7 +75,7 @@ Uma spec destrutiva continua com a historia visivel: criar o alvo da execucao, c
 - Centralizar timeouts de acao na configuracao. Nao espalhar limites menores em `click` ou `selectOption`; manter timeout local apenas para uma condicao funcional especifica e explicada, como `expect.poll` de lista dinamica.
 - Centralizar tambem o limite total em `timeout: 180_000` no `playwright.config`. Em spec excepcionalmente grande, preferir `test.slow()`; nao repetir `test.setTimeout` sem necessidade exata comprovada e comentada.
 - Em consentimento opcional com recuperacao tardia, limitar a procura inicial a `2_000` ms para nao atrasar clientes que nao exibem o banner.
-- Separar submissao e resultado: `clicarCadastrar()` age; `validarMensagemSucesso()` comprova.
+- Um metodo semantico pode submeter e comprovar o resultado imediato. Nao esconder varias operacoes de negocio em uma unica chamada.
 - Remover locator, metodo, exportacao, `.gitkeep` redundante ou utilitario sem consumidor.
 - Nao dividir um Page Object apenas pela quantidade de linhas. Separar outra pagina/componente somente quando houver responsabilidade independente ou reuso real; uma facade criada apenas para manter a spec igual aumenta a navegacao mental.
 - Nao extrair helper generico de select somente para reduzir dois blocos semelhantes. A extracao passa a valer quando houver reuso recorrente ou uma regra compartilhada que precise de uma unica fonte de verdade.

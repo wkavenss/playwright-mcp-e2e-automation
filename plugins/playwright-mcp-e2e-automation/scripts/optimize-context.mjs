@@ -6,14 +6,11 @@ import path from "node:path";
 const root = path.resolve(process.argv[2] || process.cwd());
 const args = process.argv.slice(3);
 const jsonOutput = args.includes("--json");
-const initCache = args.includes("--init-cache");
 const readStdin = args.includes("--stdin");
 const inputIndex = args.indexOf("--input");
 const modeIndex = args.indexOf("--mode");
 const requestedMode = modeIndex >= 0 ? args[modeIndex + 1] : "padrao";
-const cacheDir = path.join(root, ".playwright-e2e", "cache");
 const privateDomainDir = path.join(root, ".playwright-e2e", "private-domain");
-const cacheFiles = ["screens.json", "flows.json", "auth.json"];
 const privateDomainFiles = ["glossary.json", "legacy-patterns.json", "flow-hints.md", "selector-recipes.md"];
 const ignoredDirs = new Set([".git", "node_modules", "playwright-report", "test-results", "blob-report"]);
 const codeExtensions = new Set([".js", ".cjs", ".mjs", ".ts", ".tsx"]);
@@ -140,23 +137,6 @@ function recommendedCommand(packageJson, specFiles) {
   const specArg = specFiles.length === 1 ? ` ${specFiles[0]}` : "";
   if (preferredScript) return `npm run ${preferredScript}${specArg ? ` --${specArg}` : ""}`;
   return `npx playwright test${specArg} --headed --reporter=line`;
-}
-
-function ensureCache() {
-  fs.mkdirSync(cacheDir, { recursive: true });
-  for (const file of cacheFiles) {
-    const target = path.join(cacheDir, file);
-    if (!fs.existsSync(target)) fs.writeFileSync(target, "{}\n", "utf8");
-  }
-}
-
-function gitignoreAllowsCache() {
-  const gitignorePath = path.join(root, ".gitignore");
-  if (!fs.existsSync(gitignorePath)) return false;
-  return fs.readFileSync(gitignorePath, "utf8")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .some((line) => line === ".playwright-e2e/cache/" || line === ".playwright-e2e/" || line === ".playwright-e2e/cache");
 }
 
 function gitignoreAllowsPrivateDomain() {
@@ -458,7 +438,7 @@ function classifyStep(step) {
   if (/(instalar|dependencia|scaffold|executar|rodar teste|validar teste|lint|typecheck|relatorio|trace)/.test(text)) return "cli";
   if (/(dom completo|html completo|screenshot sem necessidade|log completo|readme sem pedido)/.test(text)) return "remover";
   if (/(tela|campo|botao|menu|modal|autocomplete|tabela|mensagem|permissao|estado visual|seletor)/.test(text)) return "mcp";
-  return "cache";
+  return "cli";
 }
 
 function detectProjectShape(packageJson) {
@@ -501,28 +481,12 @@ function detectProjectShape(packageJson) {
     hasClientProfiles: existingDirectory("config/clientes"),
     hasTestData: Boolean(existingFile("tests/utils/testData.js")),
     hasEnvExample: Boolean(existingFile(".env.example")),
-    hasCacheDir: fs.existsSync(cacheDir),
-    isPlaywrightProject: hasPlaywrightDependency || hasPlaywrightConfig || hasE2eDirectory || pageObjectFiles.length > 0 || fs.existsSync(cacheDir),
+    hasGenerationCache: existingDirectory(".playwright-e2e/cache"),
+    isPlaywrightProject: hasPlaywrightDependency || hasPlaywrightConfig || hasE2eDirectory || pageObjectFiles.length > 0,
     specCount: specFiles.length,
     pageObjectCount: pageObjectFiles.length,
     firstSpecFiles: specFiles.slice(0, 3),
     firstPageObjectFiles: pageObjectFiles.slice(0, 3),
-  };
-}
-
-function detectCacheStatus(caches, cacheIgnored) {
-  const existing = caches.filter((cache) => cache.exists);
-  const invalid = caches.filter((cache) => cache.error);
-  const sensitive = caches.filter((cache) => cache.sensitive.length);
-  const status = !existing.length
-    ? "ausente"
-    : (invalid.length || sensitive.length || !cacheIgnored ? "risco" : "ok");
-  return {
-    status,
-    files: existing.length,
-    ignoredByGit: cacheIgnored,
-    invalidJson: invalid.length,
-    sensitiveFindings: sensitive.reduce((total, cache) => total + cache.sensitive.length, 0),
   };
 }
 
@@ -565,23 +529,18 @@ function likelyFilesToRead(shape) {
     shape.hasTestData ? "tests/utils/testData.js" : null,
     ...shape.firstSpecFiles,
     ...shape.firstPageObjectFiles,
-    ...cacheFiles
-      .map((name) => path.join(".playwright-e2e/cache", name))
-      .filter((file) => fs.existsSync(path.join(root, file))),
     ...privateDomainFiles
       .map((name) => path.join(".playwright-e2e/private-domain", name))
       .filter((file) => fs.existsSync(path.join(root, file))),
   ]).slice(0, 10);
 }
 
-function buildRiskFlags({ shape, caches, cacheStatus, privateDomainStatus, normalizedInput, rawInput, criteriaWarnings }) {
+function buildRiskFlags({ shape, privateDomainStatus, normalizedInput, rawInput, criteriaWarnings }) {
   const riskFlags = [];
-  if (cacheStatus.files && !cacheStatus.ignoredByGit) riskFlags.push("cache-not-ignored");
+  if (shape.hasGenerationCache) riskFlags.push("generation-cache-in-project");
   if (privateDomainStatus.exists && !privateDomainStatus.ignoredByGit) riskFlags.push("private-domain-not-ignored");
   if (privateDomainStatus.foundFiles.length) riskFlags.push("private-domain-available");
   if (privateDomainStatus.invalidJson.length) riskFlags.push("private-domain-invalid-json");
-  if (cacheStatus.invalidJson) riskFlags.push("cache-invalid-json");
-  if (cacheStatus.sensitiveFindings) riskFlags.push("cache-sensitive-data");
   if (shape.isPlaywrightProject && !shape.hasPlaywrightConfig) riskFlags.push("missing-playwright-config");
   if (shape.isPlaywrightProject && !shape.hasPlaywrightDependency) riskFlags.push("missing-playwright-dependency");
   if (shape.specCount > 0 && !shape.hasPageObjects) riskFlags.push("specs-without-page-objects");
@@ -606,7 +565,6 @@ function buildRiskFlags({ shape, caches, cacheStatus, privateDomainStatus, norma
   }
   if (scanSensitive(rawInput).length) riskFlags.push("input-has-sensitive-data");
   if (criteriaWarnings.length) riskFlags.push("preserve-user-criteria");
-  if (caches.some((cache) => cache.error || cache.sensitive.length)) riskFlags.push("ignore-or-sanitize-cache");
   return unique(riskFlags);
 }
 
@@ -618,7 +576,7 @@ function chooseRecommendedMode(mode, riskFlags) {
   return "padrao";
 }
 
-function chooseNextAction({ shape, cacheStatus, riskFlags }) {
+function chooseNextAction({ shape, riskFlags }) {
   if (riskFlags.includes("functional-mode-missing") || riskFlags.includes("functional-mode-contradictory")) return "pedir-modo-funcional";
   if (riskFlags.includes("guide-mode-removed")) return "converter-guia-em-casos-de-uso";
   if (riskFlags.includes("separate-batch-sections-not-allowed")) return "juntar-credenciais-em-cada-caso";
@@ -628,37 +586,21 @@ function chooseNextAction({ shape, cacheStatus, riskFlags }) {
   if (riskFlags.includes("no-ready-use-cases")) return "corrigir-casos-bloqueados";
   if (riskFlags.includes("missing-minimum-contract")) return "pedir-contrato-minimo";
   if (!shape.isPlaywrightProject || riskFlags.includes("missing-playwright-config")) return "preparar-projeto-ou-rodar-scaffold";
-  if (cacheStatus.status === "risco") return "sanitizar-ou-ignorar-cache-antes-do-mcp";
+  if (riskFlags.includes("generation-cache-in-project")) return "remover-infraestrutura-de-tentativas-do-projeto";
   if (riskFlags.includes("missing-playwright-dependency")) return "instalar-ou-confirmar-dependencias-playwright";
   if (riskFlags.includes("blocked-use-cases")) return "processar-casos-prontos-e-relatar-bloqueados";
   if (riskFlags.includes("mcp-may-be-needed")) return "usar-mcp-so-no-proximo-passo-incerto";
-  return "usar-cli-cache-e-gerar-incremental";
+  return "usar-cli-e-gerar-incremental";
 }
-
-if (initCache) ensureCache();
 
 const rawInput = readInput();
 const normalizedInput = parsePrompt(rawInput);
 const requiredUserCriteria = extractRequiredUserCriteria(rawInput);
 const criteriaWarnings = buildCriteriaWarnings(requiredUserCriteria);
 const packageJson = readPackageJson();
-const caches = cacheFiles.map((name) => {
-  const file = path.join(cacheDir, name);
-  const data = readJsonIfExists(file);
-  const sensitive = data.value ? scanSensitive(data.value, name) : [];
-  return {
-    name,
-    exists: data.exists,
-    validJson: data.exists ? !data.error : null,
-    error: data.error,
-    sensitive,
-  };
-});
 const projectShape = detectProjectShape(packageJson);
-const cacheIgnored = gitignoreAllowsCache();
-const cacheStatus = detectCacheStatus(caches, cacheIgnored);
 const privateDomainStatus = detectPrivateDomainStatus();
-const riskFlags = buildRiskFlags({ shape: projectShape, caches, cacheStatus, privateDomainStatus, normalizedInput, rawInput, criteriaWarnings });
+const riskFlags = buildRiskFlags({ shape: projectShape, privateDomainStatus, normalizedInput, rawInput, criteriaWarnings });
 const recommendedMode = chooseRecommendedMode(requestedMode, riskFlags);
 const command = recommendedCommand(packageJson, projectShape.firstSpecFiles);
 
@@ -667,28 +609,23 @@ const summary = {
   mode: requestedMode,
   recommendedMode,
   recommendedCommand: command,
-  cacheDir: path.relative(root, cacheDir),
-  cacheIgnored,
-  cacheStatus,
   privateDomainStatus,
-  caches,
   projectShape,
   likelyFilesToRead: likelyFilesToRead(projectShape),
   riskFlags,
   requiredUserCriteria,
   criteriaWarnings,
-  nextAction: chooseNextAction({ shape: projectShape, cacheStatus, riskFlags }),
+  nextAction: chooseNextAction({ shape: projectShape, riskFlags }),
   normalizedInput,
   rules: {
-    defaultChannel: "cli/cache before mcp",
+    defaultChannel: "cli before mcp",
     mcpOnlyWhen: ["tela-nao-mapeada", "seletor-ambiguo", "estado-real-incerto", "falha-nao-explicada-pelo-cli"],
-    neverCache: ["senha", "cookies", "tokens", "storageState", "nomes-reais", "usuarios", "documentos", "emails", "telefones"],
+    projectCache: "nao criar; remover cache legado depois de extrair somente contexto seguro indispensavel",
     privateDomain: "usar apenas quando existir localmente; nao copiar valores privados para arquivos versionados",
   },
 };
 
-const hasErrors = caches.some((cache) => cache.error || cache.sensitive.length)
-  || (cacheStatus.files > 0 && !cacheIgnored)
+const hasErrors = projectShape.hasGenerationCache
   || privateDomainStatus.invalidJson.length
   || (privateDomainStatus.exists && !privateDomainStatus.ignoredByGit);
 
@@ -698,7 +635,6 @@ if (jsonOutput) {
   console.log(`Modo: ${requestedMode} -> ${recommendedMode}`);
   console.log(`Projeto Playwright: ${projectShape.isPlaywrightProject ? "sim" : "nao"}`);
   console.log(`Comando sugerido: ${summary.recommendedCommand}`);
-  console.log(`Cache: ${summary.cacheStatus.status} (${summary.cacheDir})`);
   console.log(`Riscos: ${riskFlags.length ? riskFlags.join(", ") : "nenhum"}`);
   console.log(`Proximo passo: ${summary.nextAction}`);
 }

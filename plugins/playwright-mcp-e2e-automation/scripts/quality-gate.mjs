@@ -12,6 +12,8 @@ const args = rawArgs[0] && !rawArgs[0].startsWith("--") ? rawArgs.slice(1) : raw
 const changedOnly = args.includes("--changed");
 const jsonOutput = args.includes("--json");
 const verboseOutput = args.includes("--verbose");
+const contract = flagValues("--contract")[0] || "revisao";
+const caseKind = flagValues("--case-kind")[0] || (contract === "implantacao" ? "formulario" : "auto");
 const ignoredDirs = new Set([".git", "node_modules", "playwright-report", "test-results", "blob-report"]);
 const nodeCheckExtensions = new Set([".js", ".cjs", ".mjs"]);
 const tsExtensions = new Set([".ts", ".tsx"]);
@@ -58,10 +60,34 @@ function flagValues(flag) {
   return values;
 }
 
+function repeatedFlagValues(flag) {
+  const values = [];
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] !== flag) continue;
+    for (let cursor = index + 1; cursor < args.length && !args[cursor].startsWith("--"); cursor += 1) {
+      values.push(args[cursor]);
+      index = cursor;
+    }
+  }
+  return values;
+}
+
+const excludedPatterns = repeatedFlagValues("--exclude").map((value) => value.replaceAll("\\", "/").replace(/^\.\//, ""));
+
+function globRegex(pattern) {
+  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replaceAll("**", "\0").replaceAll("*", "[^/]*").replaceAll("\0", ".*");
+  return new RegExp(`^${escaped}(?:/.*)?$`);
+}
+
+function isExcluded(file) {
+  const rel = path.relative(root, file).replaceAll("\\", "/");
+  return excludedPatterns.some((pattern) => rel === pattern || rel.startsWith(`${pattern}/`) || globRegex(pattern).test(rel));
+}
+
 function scopedFile(file) {
   const absolute = path.resolve(root, file);
   if (!absolute.startsWith(root + path.sep) && absolute !== root) return null;
-  return fs.existsSync(absolute) && fs.statSync(absolute).isFile() ? absolute : null;
+  return fs.existsSync(absolute) && fs.statSync(absolute).isFile() && !isExcluded(absolute) ? absolute : null;
 }
 
 function manifestFiles(file) {
@@ -131,6 +157,9 @@ function runAudit() {
   if (explicitFiles.length) args.push("--files", ...explicitFiles.map(relative));
   if (manifestArg || autoManifestArg) args.push("--manifest", manifestArg || autoManifestArg);
   if (changedOnly) args.push("--changed");
+  args.push("--contract", contract);
+  if (caseKind !== "auto") args.push("--case-kind", caseKind);
+  for (const pattern of excludedPatterns) args.push("--exclude", pattern);
   args.push("--json");
   const result = spawnSync(process.execPath, args, { encoding: "utf8" });
   try {
@@ -243,7 +272,8 @@ const manifestArg = flagValues("--manifest")[0];
 const explicitFiles = explicitScopeFiles();
 const autoManifestArg = selectedManifest();
 const hasExplicitScope = flagValues("--files").length > 0 || Boolean(manifestArg || autoManifestArg);
-const files = explicitFiles.length ? explicitFiles : (hasExplicitScope ? [] : (changedOnly ? changedFiles() : walk(root)));
+const discoveredFiles = hasExplicitScope ? [] : (changedOnly ? changedFiles() : walk(root));
+const files = (explicitFiles.length ? explicitFiles : discoveredFiles).filter((file) => !isExcluded(file));
 const audit = runAudit();
 const leaks = runLeakCheck();
 const syntax = checkNodeSyntax(files);
@@ -263,7 +293,7 @@ const topFindings = findings.slice(0, 15).map((item) => ({
 const failed = Boolean(scopeError) || !audit.ok || !leaks.ok || (audit.summary.errors || 0) > 0 || syntaxFailures.length > 0 || jsonFailures.length > 0;
 
 const auditSummary = {
-  ok: audit.ok,
+  ok: audit.ok && (audit.summary.errors || 0) === 0,
   errors: audit.summary.errors || 0,
   warnings: audit.summary.warnings || 0,
   scannedFiles: audit.summary.scannedFiles || 0,
@@ -277,6 +307,8 @@ if (verboseOutput) {
 const summary = {
   root,
   mode: explicitFiles.length ? "files" : (changedOnly ? "changed" : "full"),
+  contract,
+  caseKind,
   ok: !failed,
   audit: auditSummary,
   syntax: {

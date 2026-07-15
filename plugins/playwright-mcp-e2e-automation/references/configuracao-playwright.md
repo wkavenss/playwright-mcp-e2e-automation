@@ -43,7 +43,7 @@ Para projeto novo, configurar scripts minimos e preservar aliases locais existen
 
 Quando o usuario nao informar modo de execucao, usar `test:headed` ou comando equivalente com Chromium headed.
 
-Antes de chamar MCP, consultar `../../scripts/optimize-context.mjs <raiz-do-projeto> --mode <modo> --json` quando Node estiver disponivel. Usar o retorno para reaproveitar cache seguro, validar se `.playwright-e2e/cache/` esta ignorado e manter a resposta curta.
+Antes de chamar MCP, consultar `../../scripts/optimize-context.mjs <raiz-do-projeto> --mode <modo> --json` quando Node estiver disponivel. Usar o retorno para ler somente os arquivos relevantes e manter a resposta curta; nao inicializar cache no projeto.
 
 ## Timeouts E Sincronizacao
 
@@ -71,7 +71,6 @@ Se o projeto ja usar outro mecanismo, preservar o padrao. Quando o usuario forne
 - gravar valores reais somente em `.env`;
 - criar `.env.example` com nomes e valores vazios/ficticios;
 - garantir `.env` no `.gitignore`;
-- garantir `.playwright-e2e/cache/` no `.gitignore`;
 - garantir `.playwright-e2e/private-domain/` no `.gitignore` quando houver overlay privado local;
 - usar `obterCredenciais(nomePerfil)` nas specs e `process.env` somente dentro do utilitario;
 - nao repetir segredos em README, logs, traces, screenshots ou resposta final.
@@ -141,20 +140,24 @@ Com `evidencias: minimo` ou `evidencias: falha`, nao criar nem atualizar README 
 
 ## Sessao E Dados Persistidos
 
-- Modelar cada fluxo de negocio como uma unica spec/teste, usando a fixture `page` do Playwright Test e mantendo a mesma pagina/contexto durante login, navegacao, preenchimento, avancos e validacao.
+- Modelar cada operacao isolada ou ciclo compativel como uma unica spec/teste, usando a fixture `page` e mantendo a mesma pagina/contexto durante login, navegacao, preenchimento, avancos e validacao.
+- Dentro de um ciclo compativel, usar `test.step` somente para operacoes de negocio que precisem ser identificadas separadamente no HTML. Operacoes independentes usam testes independentes; nao compartilhar massa por modo serial ou hooks funcionais.
+- Quando cadastrar, consultar, alterar e remover puderem reutilizar a mesma entidade, preferir um ciclo com uma massa principal. Nao compartilhar estado entre specs nem preparar massa em `beforeAll`.
 - Nao abrir/fechar navegador manualmente a cada tela e nao dividir as telas de um mesmo cadastro em testes independentes.
 - Validar obrigatorios um por vez dentro do mesmo teste: remover, submeter, registrar, restaurar explicitamente e somente entao passar ao proximo campo.
 - Na submissao negativa, limpar a sentinela antes do campo-alvo. O alvo deve ser a ultima alteracao antes de submeter, pois eventos posteriores podem recompor selects dependentes em JSF.
 - Tratar dependencias apenas para restaurar/preencher o fluxo smoke; nao gerar teste negativo separado para o campo controlador.
 - Identificar campos volateis/nao redistribuidos pelo servidor, especialmente senha e upload. Restaura-los apos cada submissao para que um validador short-circuit nao masque o campo-alvo seguinte.
-- Testar botoes do formulario pelo efeito funcional. Permitir reentrada na mesma sessao apos Voltar/Cancelar somente antes de persistencia intermediaria.
+- Testar botoes do formulario pelo efeito funcional. Permitir reentrada apos Voltar/Cancelar somente na mesma sessao e sem criar outro registro, ou quando o mesmo `runId` puder continuar.
 - Remocao ou transicao irreversivel exige alvo criado pela propria spec na execucao atual, `runId` exclusivo, persistencia comprovada, uma unica linha localizada e estado final validado. Sem essas garantias, bloquear somente a operacao dependente.
 - Se a acao destrutiva falhar depois da criacao do alvo, preservar o registro identificado; nao repetir a acao nem executar limpeza automatica em `finally`.
 - Usar `expect.soft` somente nas evidencias recuperaveis de obrigatoriedade e identificar cada campo na mensagem da assertion. Assertions de acesso, navegacao, botoes, sentinela e conclusao permanecem bloqueantes.
 - Antes da persistencia positiva, consultar `testInfo.errors` uma unica vez. Nao criar acumuladores, estados de fluxo ou relatorio customizado para duplicar o runner.
+- Executar o auditor com contexto explicito: `quality-gate.mjs <raiz> --contract implantacao --case-kind <formulario|consulta|relatorio|remocao|transicao>`. Usar `--contract massa` para geracao e `--contract revisao` para auditoria generica.
 - Configurar reporters `line` e `html`, com `outputDir: 'test-results/playwright'` para artefatos e HTML em `test-results/html`. Manter trace e screenshot apenas em falhas.
 - Antes de executar uma acao que cria ou altera dado persistente, mapear os campos obrigatorios conhecidos, gerar `runId` unico e definir uma validacao final.
-- Reduzir repeticoes de execucao quando houver criacao de registro. Se uma tentativa parcial gerar dado, reaproveitar esse registro ou limpar somente quando a tela oferecer acao segura e autorizada.
+- Reduzir repeticoes de execucao quando houver criacao. Se uma tentativa parcial gerar dado, o Codex deve reaproveitar o registro ou removê-lo diretamente pelo navegador somente quando a tela oferecer acao segura e autorizada.
+- Recuperacao da geracao nao entra no projeto: nao criar metodos de tentativa, ledger, lock, cache, script npm, fixture, setup, teardown ou spec tecnica de limpeza.
 
 ## Reprodutibilidade
 
@@ -164,15 +167,6 @@ Com `evidencias: minimo` ou `evidencias: falha`, nao criar nem atualizar README 
 - Dados criados pela automacao devem usar `runId` ou prefixo rastreavel. Dados variaveis devem ser calculados em runtime e listas de cadastros anteriores devem usar o primeiro candidato valido; segredos permanecem no `.env`.
 - Nao deixar `test.only`, `test.skip`, flags temporarias ou ordem manual de execucao no codigo final.
 - Se a reprodutibilidade exigir perfil, permissao ou massa especifica, registrar no resumo o requisito funcional sem expor valores sensiveis.
-
-## Cache Local
-
-- Usar `.playwright-e2e/cache/` somente para mapas sanitizados de telas, rotas, labels, acoes, seletores escolhidos, validacoes e estrategia de massa.
-- Nao criar cache de lote. Casos concluidos, falhos, bloqueados e nao iniciados pertencem apenas ao resumo da execucao corrente.
-- Nao versionar cache e nao salvar senha, usuario real, nome de pessoa, documento, email, telefone, cookie, token ou storageState.
-- Nao salvar no cache datas concretas que devem ser dinamicas; registrar somente a estrategia, como "inicio = hoje" e "fim = inicio + 30 dias".
-- Tratar cache como sugestao. Confirmar via MCP quando houver falha, tela alterada, seletor ambiguo, permissao diferente ou estado dinamico.
-- Se o cache contiver dado sensivel, descartar o trecho e corrigir o cache antes de continuar.
 
 ## Overlay Privado Local
 

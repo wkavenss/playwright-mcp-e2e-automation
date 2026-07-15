@@ -15,6 +15,8 @@ Reaproveitar o mapa quando voltar para a mesma tela na mesma execucao.
 
 Manter a mesma sessao/pagina durante a exploracao do fluxo sempre que possivel. Nao fechar e reabrir navegador a cada tela para "descobrir" o proximo passo; isso perde estado, aumenta custo e pode gerar registros parciais ou duplicados.
 
+Fixar um `runId` antes da primeira persistencia possivel. Se houver falha parcial, inspecionar e continuar o mesmo registro; uma remocao segura pode ser feita diretamente nesta sessao pelo Codex, mas nao deve virar metodo, fixture, ledger, lock, cache ou spec de limpeza no projeto.
+
 Ao abrir a sessao MCP headed, redimensionar a janela uma unica vez para a area disponivel da tela. Autenticar uma vez e confirmar cada tela conforme ela for alcancada; telas futuras nao podem ser confirmadas no DOM antes da navegacao real.
 
 Nao validar seletores em scripts Playwright temporarios enquanto a tela ainda estiver sendo mapeada. Primeiro acumular o mapa minimo na sessao MCP continua; depois gerar codigo e validar o fluxo por CLI no menor escopo util.
@@ -45,6 +47,7 @@ Nao capturar nem colar DOM completo, HTML completo, screenshots ou listas integr
 - Considerar atributos HTML, legenda visual, mensagem de validacao e regra de tela apenas quando o marcador visual de obrigatoriedade nao existir ou quando houver falha funcional real.
 - Para cada campo usado: registrar label, tipo, obrigatoriedade, valor usado, seletor escolhido e validacao esperada.
 - Classificar valores como gerados, de dominio ou cadastro anterior. Para cadastro anterior, confirmar que a tela expoe ao menos uma opcao valida sem valor institucional fixo.
+- Em autocomplete com dado especifico, pesquisar diretamente o valor e exigir correspondencia exata. Sem dado especifico, usar `%%%` e escolher somente depois de filtrar candidatos invalidos.
 - Registrar valores usados de forma sanitizada. Dados pessoais, usuarios, documentos, emails e telefones devem aparecer como tipo de dado ou variavel generica, nunca como valor real.
 - Nao submeter formulario incompleto apenas para observar validacoes de campos obrigatorios.
 - Diferenciar acoes intermediarias de finais: salvar, avancar, enviar, confirmar, cancelar ou excluir.

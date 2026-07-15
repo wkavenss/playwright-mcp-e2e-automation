@@ -30,7 +30,18 @@ Nao usar `.nth()`, indice numerico, posicao visual ou `.first()` sem filtro. Par
 
 Concentrar no Page Object um metodo reutilizado pela tela. Em `<select>`, ler as opcoes, normalizar texto/valor, remover marcadores decorativos das extremidades (por exemplo, `-- SELECIONE --`), ignorar `disabled`, `hidden`, valor vazio e labels iniciadas por `Selecione`/`Escolha`, selecionar o primeiro candidato restante e confirmar o valor final. Nao excluir valor `0` ou `-1` isoladamente quando o texto nao indicar placeholder.
 
-Em lista dependente, aguardar que um candidato valido apareca depois da selecao do campo pai. Em autocomplete, abrir a lista e escolher o primeiro item visivel somente quando isso nao exigir termo institucional especifico. Se nenhum candidato surgir, falhar com o rotulo do campo; nao inventar busca nem tentar a segunda opcao do campo pai.
+Em lista dependente, aguardar que um candidato valido apareca depois da selecao do campo pai.
+
+Em autocomplete de aplicações legadas compatíveis:
+
+- com valor especifico, pesquisar diretamente esse valor, normalizar os resultados e exigir uma unica correspondencia exata;
+- sem valor especifico, consultar `%%%`, excluir vazio, desabilitado, oculto, placeholder e mensagem sem resultado, e escolher o primeiro candidato restante;
+- para papeis diferentes, excluir o primeiro valor da segunda selecao;
+- diante de homonimos, exigir matricula, unidade ou codigo complementar e nunca escolher por posicao;
+- nao usar nome presumido, `.nth()`, indice fixo, termo sucessivo ou `.first()` antes da filtragem;
+- depois do clique, confirmar o valor real do input.
+
+Se nenhum candidato surgir, falhar com o rotulo do campo sem inventar outra busca.
 
 Essa regra vale somente para massa de `cadastro-anterior`. Situacao, Status, Modalidade e outros campos de dominio continuam com valor intencional.
 
@@ -75,7 +86,7 @@ byTextareaIdSuffix(suffix) {
 - Nao criar `byId`, `localizarPorId` ou helper generico que apenas encapsule `page.locator`.
 - Criar getters/metodos semanticos, como `localCursoInput`, `objetivosTextarea` e `preencherObjetivosImportancia`.
 - Se usar sufixo `id$` em campo critico, validar unicidade antes de preencher: `await expect(campo).toHaveCount(1)`.
-- Em autocomplete de cadastro anterior, excluir mensagens vazias/sem resultado e itens desabilitados antes de `.first()`; quando a escolha representar dominio, filtrar pelo texto intencional.
+- Em autocomplete de cadastro anterior sem valor especifico, excluir mensagens vazias/sem resultado e itens desabilitados antes de escolher o primeiro candidato; com valor especifico, pesquisar diretamente e comparar o texto normalizado por igualdade.
 - Depois de clicar em sugestao de autocomplete, preferir o valor real do input via `await campo.inputValue()` em vez do texto completo da linha.
 - Para campos visiveis, usar `await expect(campo).toBeEditable()` e `fill`; reservar `evaluate`/eventos para editor JSF oculto com comentario curto.
 - Ao preencher editor JSF oculto via setter nativo, disparar `input` e `change` com `{ bubbles: true }`, e finalizar com `toHaveValue`.
@@ -141,6 +152,8 @@ Page Objects devem representar acoes funcionais, como `realizarLogin`, `acessarF
 Em smoke com muitos campos, a colecao campo-locator-valor pertence ao Page Object. A spec recebe os descritores para manter o loop visivel, mas nao acessa `controle` diretamente. O Page Object pode usar o descritor para preencher e restaurar; nao deve conhecer o runner nem executar o smoke inteiro.
 
 Um fluxo de negocio atravessando varias telas deve ficar em um unico `test`, com chamadas sequenciais e nomes funcionais. Nao criar um `test` por tela quando as telas dependem da mesma sessao, do mesmo cadastro ou do mesmo estado transacional.
+
+Quando esse fluxo contiver operacoes de negocio diferentes sobre o mesmo registro, nomear cada operacao com `test.step` no mesmo nivel. Etapas tecnicas e campos individuais permanecem como chamadas normais.
 
 Obrigatorios e botoes da mesma operacao tambem ficam nesse unico `test`. Usar um loop de obrigatorios por tela e, em cada submissao negativa, manter vazio um campo-sentinela com validacao conhecida. O Page Object confirma a evidencia atribuivel ao alvo com `expect.soft` e restaura alvo e sentinela em `finally`. A sentinela continua protegida por assertion normal, pois uma regra quebrada no alvo nao pode transformar o teste negativo em cadastro real. Testes negativos de tipo/formato nao pertencem ao smoke de implantacao.
 

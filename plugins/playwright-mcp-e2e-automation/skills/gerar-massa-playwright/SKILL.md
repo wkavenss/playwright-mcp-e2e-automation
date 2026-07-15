@@ -24,12 +24,13 @@ Gravar credenciais reais somente em `.env`, manter `.env` ignorado e criar `.env
 5. Gerar dados sinteticos, unicos e rastreaveis em runtime. Nao usar dados pessoais reais.
 6. Para cada registro, preencher obrigatorios, concluir a operacao, validar mensagem de sucesso e localizar o registro na listagem ou consulta correspondente.
 7. Nao criar cenarios de campo ausente, formato invalido, permissao ou outras regras negativas.
-8. Para lista alimentada por cadastros anteriores, selecionar a primeira opcao valida: normalizar marcadores como `-- SELECIONE --`, ignorar item desabilitado, oculto, vazio ou placeholder e confirmar a selecao. Nao inventar termo para autocomplete nem tentar candidatos sucessivos.
-9. Quando houver consentimento conhecido de cookies, procura-lo por no maximo `2_000` ms, aceita-lo quando presente e manter recuperacao para aparicao tardia.
-10. Manter valores intencionais para campos de dominio que alterem situacao, status, modalidade, tipo ou resultado; nunca aplicar a primeira opcao cegamente nesses campos.
-11. Se uma lista dinamica nao apresentar candidato valido, parar o registro atual e informar exatamente o campo sem massa disponivel.
+8. Para lista alimentada por cadastros anteriores, selecionar a primeira opcao valida: normalizar marcadores como `-- SELECIONE --`, ignorar item desabilitado, oculto, vazio ou placeholder e confirmar a selecao.
+9. Em autocomplete, pesquisar diretamente quando o usuario fornecer um valor e exigir correspondencia exata. Sem valor especifico, consultar `%%%`, filtrar os candidatos e selecionar o primeiro elegivel. Nao usar nome presumido, indice fixo ou tentativa e erro.
+10. Quando houver consentimento conhecido de cookies, procura-lo por no maximo `2_000` ms, aceita-lo quando presente e manter recuperacao para aparicao tardia.
+11. Manter valores intencionais para campos de dominio que alterem situacao, status, modalidade, tipo ou resultado; nunca aplicar a primeira opcao cegamente nesses campos.
+12. Se uma lista dinamica nao apresentar candidato valido, parar o registro atual e informar exatamente o campo sem massa disponivel.
 12. Executar o menor comando em Chromium headed maximizado. Em falha de locator/sincronizacao, usar `parse-error-context.mjs` e a pagina MCP preservada; usar `repair-probe.mjs` somente quando nao reabrir um fluxo transacional.
-13. Executar `node ../../scripts/quality-gate.mjs <raiz-do-projeto> --changed`, com `--files` ou `--manifest` fora de Git.
+13. Executar `node ../../scripts/quality-gate.mjs <raiz-do-projeto> --contract massa --changed`, com `--files` ou `--manifest` fora de Git.
 
 ## Regras
 
@@ -46,7 +47,7 @@ Gravar credenciais reais somente em `.env`, manter `.env` ignorado e criar `.env
 - Evitar `.nth()`, posicao, XPath e IDs JSF dinamicos.
 - Manter uma sessao continua por registro, navegador maximizado e `workers: 1` por padrao.
 - Nao remover nem alterar dados preexistentes.
-- Antes de repetir submissao persistente, verificar se a tentativa anterior ja criou o registro.
+- Antes de repetir submissao persistente, verificar se a tentativa anterior ja criou o registro. Recuperar ou remover diretamente pelo navegador somente enquanto o Codex gera a automacao; nao adicionar metodos de tentativa, ledger, lock, cache, setup, teardown ou spec de limpeza ao projeto.
 - Considerar concluido somente quando a quantidade solicitada estiver persistida no ambiente real.
 
 Carregar `../../references/configuracao-playwright.md`, `../../references/seletores-page-objects.md` ou `../../references/diagnostico-e-evidencias.md` somente quando o risco correspondente surgir.

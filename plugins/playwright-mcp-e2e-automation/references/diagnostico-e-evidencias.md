@@ -45,7 +45,7 @@ Se houver captcha, MFA, bloqueio de automacao, indisponibilidade, permissao insu
 
 Em producao ou ambiente real, nao executar criacao, alteracao, submissao, aprovacao, exclusao ou acao irreversivel sem autorizacao explicita e dados seguros. Em spec destrutiva aprovada, o alvo deve ter sido criado integralmente pela propria spec na execucao atual e localizado de forma unica pelo `runId`.
 
-Se a falha aconteceu depois de uma acao que pode ter criado dado persistente, nao repetir a submissao cegamente. Em fluxo comum, primeiro verificar se o registro foi criado e reutilizar o dado rastreavel quando possivel. Em remocao ou transicao irreversivel, preservar o alvo identificado e nao executar tentativa de limpeza automatica: o residuo e a evidencia necessaria para diagnostico seguro.
+Se a falha aconteceu depois de uma acao que pode ter criado dado persistente, nao repetir a submissao cegamente. Primeiro verificar o `runId` e continuar o mesmo registro. Durante a criacao/correcao, o Codex pode remover diretamente esse registro pelo navegador quando a operacao for segura e autorizada; essa acao nao pode gerar metodo, ledger, lock, cache, setup, teardown ou spec de limpeza. Em falha da propria operacao destrutiva, preservar o alvo para diagnostico e nao repetir.
 
 ## Resumo Completo
 

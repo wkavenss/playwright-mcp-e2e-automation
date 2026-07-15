@@ -10,6 +10,8 @@ const root = path.resolve(rootArg);
 const args = rawArgs[0] && !rawArgs[0].startsWith("--") ? rawArgs.slice(1) : rawArgs;
 const jsonOutput = args.includes("--json");
 const changedOnly = args.includes("--changed");
+const allowedContracts = new Set(["implantacao", "massa", "revisao"]);
+const allowedCaseKinds = new Set(["auto", "formulario", "consulta", "relatorio", "remocao", "transicao"]);
 const ignoredDirs = new Set([".git", "node_modules", "playwright-report", "test-results", "blob-report"]);
 const codeExtensions = new Set([".js", ".cjs", ".mjs", ".ts", ".tsx"]);
 const defaultChangedManifest = ".playwright-e2e/changed-files.json";
@@ -61,10 +63,43 @@ function flagValues(flag) {
   return values;
 }
 
+function repeatedFlagValues(flag) {
+  const values = [];
+  for (let index = 0; index < args.length; index += 1) {
+    if (args[index] !== flag) continue;
+    for (let cursor = index + 1; cursor < args.length && !args[cursor].startsWith("--"); cursor += 1) {
+      values.push(args[cursor]);
+      index = cursor;
+    }
+  }
+  return values;
+}
+
+const contract = flagValues("--contract")[0] || "revisao";
+const caseKind = flagValues("--case-kind")[0] || (contract === "implantacao" ? "formulario" : "auto");
+const excludedPatterns = repeatedFlagValues("--exclude").map((value) => value.replaceAll("\\", "/").replace(/^\.\//, ""));
+
+if (!allowedContracts.has(contract)) {
+  add("error", "invalid-audit-contract", ".", 1, "Use --contract implantacao, massa ou revisao.");
+}
+if (!allowedCaseKinds.has(caseKind)) {
+  add("error", "invalid-case-kind", ".", 1, "Use --case-kind formulario, consulta, relatorio, remocao ou transicao.");
+}
+
+function globRegex(pattern) {
+  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replaceAll("**", "\0").replaceAll("*", "[^/]*").replaceAll("\0", ".*");
+  return new RegExp(`^${escaped}(?:/.*)?$`);
+}
+
+function isExcluded(file) {
+  const rel = path.relative(root, file).replaceAll("\\", "/");
+  return excludedPatterns.some((pattern) => rel === pattern || rel.startsWith(`${pattern}/`) || globRegex(pattern).test(rel));
+}
+
 function scopedFile(file) {
   const absolute = path.resolve(root, file);
   if (!absolute.startsWith(root + path.sep) && absolute !== root) return null;
-  return fs.existsSync(absolute) && fs.statSync(absolute).isFile() ? absolute : null;
+  return fs.existsSync(absolute) && fs.statSync(absolute).isFile() && !isExcluded(absolute) ? absolute : null;
 }
 
 function manifestFiles(file) {
@@ -153,6 +188,30 @@ function methodBlock(content, methodName) {
     }
   }
   return { index: startMatch.index, text: content.slice(startMatch.index) };
+}
+
+function methodBlocks(content) {
+  const declarations = matches(content, /^\s*(?:async\s+)?([A-Za-z_$][A-Za-z0-9_$]*)\s*\([^)]*\)\s*\{/gm);
+  return declarations
+    .map((declaration) => {
+      const block = methodBlock(content, declaration[1]);
+      return block ? { ...block, name: declaration[1] } : null;
+    })
+    .filter(Boolean);
+}
+
+function callBlockAt(content, startIndex) {
+  const masked = maskStringsAndComments(content);
+  const openBrace = masked.indexOf("{", startIndex);
+  if (openBrace < 0) return null;
+  let depth = 0;
+  for (let index = openBrace; index < masked.length; index += 1) {
+    if (masked[index] === "{") depth += 1;
+    if (masked[index] !== "}") continue;
+    depth -= 1;
+    if (depth === 0) return { index: startIndex, text: content.slice(startIndex, index + 1) };
+  }
+  return { index: startIndex, text: content.slice(startIndex) };
 }
 
 function maskStringsAndComments(content) {
@@ -332,7 +391,13 @@ function namedCalls(content) {
 function isDestructiveMethodName(name) {
   const normalized = normalizeText(name);
   if (/^(?:validar|confirmar)(?:ausencia|estado|status|persistencia|permanencia|existencia|registro)/.test(normalized)) return false;
-  return /(?:remover|excluir|apagar|deletar|aprovar|rejeitar|inativar|arquivar|cancelardefinitivamente|confirmar.*(?:remocao|exclusao|cancelamentodefinitivo))/.test(normalized);
+  return /(?:remover|excluir|apagar|deletar|aprovar|rejeitar|inativar|arquivar|cancelardefinitivamente|(?:abrir|acionar|executar|realizar).*(?:remocao|exclusao)|confirmar.*(?:remocao|exclusao|cancelamentodefinitivo))/.test(normalized);
+}
+
+function isFormActionMethodName(name) {
+  const normalized = normalizeText(name);
+  if (/^(?:validar|verificar|obter|localizar|preencher|selecionar)/.test(normalized)) return false;
+  return /^(?:clicar|cancelar|voltar|avancar|submeter|salvar|cadastrar|alterar|confirmar|finalizar|incluir|adicionar)/.test(normalized);
 }
 
 function stringLiterals(content) {
@@ -366,6 +431,9 @@ function hasLikelyPersonName(value) {
 }
 
 function hasSensitiveLiteral(value) {
+  const safeSynthetic = /@example\.(?:test|invalid)\b/i.test(value)
+    || /\(\s*00\s*\)\s*\d{4,5}-?\d{4}/.test(value);
+  if (safeSynthetic) return false;
   return /\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b/.test(value)
     || /\b\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}\b/.test(value)
     || /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i.test(value)
@@ -385,69 +453,6 @@ function hasFixedDateLiteral(value) {
   if (isTemporalPlaceholder(text)) return false;
   return /\b(?:0[1-9]|[12]\d|3[01])[/-](?:0[1-9]|1[0-2])[/-](?:19|20)\d{2}\b/.test(text)
     || /\b(?:19|20)\d{2}[/-](?:0[1-9]|1[0-2])[/-](?:0[1-9]|[12]\d|3[01])\b/.test(text);
-}
-
-function hasFixedTemporalScalar(value) {
-  const text = String(value).trim();
-  if (isTemporalPlaceholder(text)) return false;
-  return hasFixedDateLiteral(text)
-    || /^(?:19|20)\d{2}(?:[./-][12])?$/.test(text);
-}
-
-function isTemporalKey(value) {
-  return /(?:data|date|inicio|fim|termino|vencimento|prazo|validade|ano|year|semestre|periodo|period|letivo|deadline|start|end)/i.test(value);
-}
-
-function sensitiveCacheReasons(value, key = "") {
-  const reasons = [];
-  if (typeof value === "string" || typeof value === "number") {
-    if (hasSensitiveLiteral(String(value))) reasons.push("dado-pessoal");
-    if (/(bearer\s+|set-cookie|connect\.sid|localStorage|sessionStorage)/i.test(String(value))) reasons.push("estado-autenticado");
-  }
-  if (/(password|senha|passwd|token|cookie|secret|storage|session|usuario|username)/i.test(key)) reasons.push("chave-sensivel");
-  return [...new Set(reasons)];
-}
-
-function scanTemporalCacheValue(value, location = "$", findings = []) {
-  if (value == null) return findings;
-  if (typeof value === "string" || typeof value === "number") {
-    const text = String(value);
-    if (hasFixedDateLiteral(text) || (isTemporalKey(location) && hasFixedTemporalScalar(text))) {
-      findings.push({ location, value: text });
-    }
-    return findings;
-  }
-  if (Array.isArray(value)) {
-    value.forEach((item, index) => scanTemporalCacheValue(item, `${location}[${index}]`, findings));
-    return findings;
-  }
-  if (typeof value === "object") {
-    for (const [key, nested] of Object.entries(value)) {
-      scanTemporalCacheValue(nested, `${location}.${key}`, findings);
-    }
-  }
-  return findings;
-}
-
-function scanCacheValue(value, location = "$", findings = []) {
-  if (value == null) return findings;
-  if (typeof value === "string" || typeof value === "number") {
-    const reasons = sensitiveCacheReasons(value);
-    if (reasons.length) findings.push({ location, reasons });
-    return findings;
-  }
-  if (Array.isArray(value)) {
-    value.forEach((item, index) => scanCacheValue(item, `${location}[${index}]`, findings));
-    return findings;
-  }
-  if (typeof value === "object") {
-    for (const [key, nested] of Object.entries(value)) {
-      const keyReasons = sensitiveCacheReasons("", key);
-      if (keyReasons.length) findings.push({ location: `${location}.${key}`, reasons: keyReasons });
-      scanCacheValue(nested, `${location}.${key}`, findings);
-    }
-  }
-  return findings;
 }
 
 function scanClientProfileValue(value, location = "$", findings = []) {
@@ -479,15 +484,6 @@ function scanClientProfileValue(value, location = "$", findings = []) {
   return findings;
 }
 
-function isCacheIgnored() {
-  const gitignorePath = path.join(root, ".gitignore");
-  if (!fs.existsSync(gitignorePath)) return false;
-  return fs.readFileSync(gitignorePath, "utf8")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .some((line) => line === ".playwright-e2e/cache/" || line === ".playwright-e2e/" || line === ".playwright-e2e/cache");
-}
-
 function hasPlaywrightDependency() {
   const packagePath = path.join(root, "package.json");
   if (!fs.existsSync(packagePath)) return false;
@@ -509,13 +505,16 @@ function hasDirectory(relativePath) {
 
 const scopedFiles = explicitScopeFiles();
 const hasExplicitScope = flagValues("--files").length > 0 || Boolean(flagValues("--manifest")[0] || selectedManifest());
-const files = scopedFiles.length ? scopedFiles : (hasExplicitScope ? [] : (changedOnly ? changedFiles() : walk(root)));
+const discoveredFiles = hasExplicitScope ? [] : (changedOnly ? changedFiles() : walk(root));
+const files = (scopedFiles.length ? scopedFiles : discoveredFiles).filter((file) => !isExcluded(file));
 const codeFiles = files.filter((file) => codeExtensions.has(path.extname(file)));
 const specFiles = codeFiles.filter((file) => /(?:\.spec|\.test)\.[cm]?[jt]sx?$/.test(file));
 const changedPageObjectFiles = codeFiles.filter((file) => /(?:^|[/\\])(?:pages?|page-objects?)(?:[/\\])/i.test(file));
-const conventionalPageObjectFiles = ["tests/pages", "tests/page-objects", "test/pages", "page-objects"]
-  .flatMap((directory) => walk(path.join(root, directory)))
-  .filter((file) => codeExtensions.has(path.extname(file)));
+const conventionalPageObjectFiles = hasExplicitScope
+  ? []
+  : ["tests/pages", "tests/page-objects", "test/pages", "page-objects"]
+    .flatMap((directory) => walk(path.join(root, directory)))
+    .filter((file) => codeExtensions.has(path.extname(file)) && !isExcluded(file));
 const pageObjectFiles = [...new Set([...changedPageObjectFiles, ...conventionalPageObjectFiles])];
 
 for (const file of files.filter((item) => path.basename(item) === ".gitkeep")) {
@@ -525,7 +524,7 @@ for (const file of files.filter((item) => path.basename(item) === ".gitkeep")) {
   }
 }
 
-if (specFiles.length && !pageObjectFiles.length) {
+if (["implantacao", "massa"].includes(contract) && specFiles.length && !pageObjectFiles.length) {
   add("error", "page-objects-required", ".", 1, "Specs encontradas sem Page Objects em diretorio pages/page-objects.");
 }
 
@@ -533,6 +532,73 @@ for (const file of codeFiles) {
   const content = fs.readFileSync(file, "utf8");
   const rel = relative(file);
   const automationFile = isAutomationFile(rel);
+  const generationAttemptMethod = firstMatch(content, /\b(?:localizar|retomar|remover)Tentativa\s*\(/g);
+  if (automationFile && generationAttemptMethod) {
+    add("error", "generation-attempt-method-in-project", rel, lineNumber(content, generationAttemptMethod.index), "Tentativas incompletas pertencem ao trabalho temporario do Codex; nao entregue metodos de localizar, retomar ou remover tentativa no projeto.");
+  }
+
+  const technicalCleanupHook = firstMatch(
+    content,
+    /\b(?:test\.)?(?:afterEach|afterAll)\s*\([\s\S]{0,900}?\b(?:remover|excluir|limpar)(?:Massa|Tentativa|Registro|Dados)[A-Za-z0-9_]*\s*\(/gi,
+  );
+  if (automationFile && technicalCleanupHook) {
+    add("error", "generation-cleanup-hook-in-project", rel, lineNumber(content, technicalCleanupHook.index), "Nao entregue teardown tecnico para apagar massa ou tentativas; remocao permanece no teste somente quando for o caso de uso funcional.");
+  }
+
+  const blocks = methodBlocks(content);
+  const autocompleteBlocks = blocks.filter((block) => (
+    /autocomplete|sugest(?:ao|ão|oes|ões)/i.test(block.name)
+    || /listbox|getByRole\s*\(\s*["'`]option|["'`]%%%["'`]/i.test(block.text)
+  ));
+  if (automationFile) {
+    for (const block of autocompleteBlocks) {
+      const hardcodedDefault = firstMatch(
+        block.text,
+        /\b(?:consulta|termo(?:Busca)?|valorBusca)\s*=\s*["'`]((?!%%%)[^"'`]+)["'`]/gi,
+      );
+      const hardcodedFill = firstMatch(
+        block.text,
+        /\.fill\s*\(\s*["'`]((?!%%%)[A-Za-zÀ-ÿ][^"'`]*)["'`]\s*\)/gi,
+      );
+      const hardcodedQuery = hardcodedDefault || hardcodedFill;
+      if (hardcodedQuery) {
+        add("error", "autocomplete-hardcoded-person-query", rel, lineNumber(content, block.index + hardcodedQuery.index), "Nao fixe termo pessoal em autocomplete. Pesquise o valor especifico recebido por parametro ou use %%% quando qualquer candidato elegivel servir.");
+      }
+
+      const positionalCandidate = firstMatch(block.text, /\.nth\s*\(|\bindiceInicial\b/gi);
+      if (positionalCandidate) {
+        add("error", "autocomplete-positional-candidate", rel, lineNumber(content, block.index + positionalCandidate.index), "Nao escolha sugestao de autocomplete por indice; filtre candidatos elegiveis e selecione por valor exato ou primeiro candidato valido.");
+      }
+
+      const hasSpecificValueContract = /\bvalorEspecifico\b/.test(block.text);
+      const wildcardQuery = firstMatch(block.text, /["'`]%%%["'`]/g);
+      const conditionalQuery = /valorEspecifico\s*(?:\?\.|\.)?\s*trim\s*\(\s*\)\s*(?:\|\||\?)[\s\S]{0,100}?["'`]%%%["'`]/.test(block.text);
+      if (hasSpecificValueContract && wildcardQuery && !conditionalQuery) {
+        add("error", "autocomplete-ignores-specific-value", rel, lineNumber(content, block.index + wildcardQuery.index), "Quando houver valor especifico, pesquise-o diretamente. Use %%% somente quando nenhum valor foi solicitado.");
+      }
+
+      const hasExactNormalizedMatch = /normaliz\w*\s*\([^)]*\)\s*===\s*(?:normaliz\w*\s*\(|[A-Za-z_$][\w$]*(?:Normalizad[oa])\b)/i.test(block.text);
+      if (hasSpecificValueContract && !hasExactNormalizedMatch) {
+        add("error", "autocomplete-without-exact-match", rel, lineNumber(content, block.index), "Valor especifico de autocomplete exige correspondencia exata apos normalizacao; correspondencia parcial pode selecionar outra pessoa.");
+      }
+
+      const selectsSuggestion = /\.click\s*\(|\.press\s*\(\s*["'`]Enter/i.test(block.text);
+      const confirmsSelectedValue = /toHaveValue\s*\(|inputValue\s*\(\s*\)[\s\S]{0,180}?(?:===|!==|toBe|toEqual)/i.test(block.text);
+      if (selectsSuggestion && !confirmsSelectedValue) {
+        add("error", "autocomplete-without-value-confirmation", rel, lineNumber(content, block.index), "Depois de escolher a sugestao, confirme o valor efetivamente assumido pelo campo no mesmo metodo.");
+      }
+    }
+
+    const relatedAutocomplete = blocks.find((block) => (
+      /coordenador/i.test(`${block.name} ${block.text}`)
+      && /vice(?:Coordenador)?/i.test(`${block.name} ${block.text}`)
+      && /sugest|autocomplete|selecionar|preencher/i.test(`${block.name} ${block.text}`)
+    ));
+    if (relatedAutocomplete && !/(?:valorExcluido|valorExcluído|distint|diferent)/i.test(relatedAutocomplete.text)) {
+      add("error", "related-autocomplete-without-distinct-candidates", rel, lineNumber(content, relatedAutocomplete.index), "Papeis relacionados, como Coordenador e Vice, devem rejeitar o mesmo candidato e comprovar dois valores distintos.");
+    }
+  }
+
   const trivialFactory = firstMatch(content, /function\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{\s*return\s+new\s+[A-Za-z_$][\w$]*\s*\([^;]*\);?\s*\}/gs);
   if (automationFile && trivialFactory) {
     add("warning", "trivial-factory", rel, lineNumber(content, trivialFactory.index), "Fabrica que apenas chama new adiciona uma camada sem ganho; instancie a classe diretamente.");
@@ -652,9 +718,9 @@ for (const file of codeFiles) {
     }
   }
 
-  const imageTitleLink = firstMatch(content, /locator\s*\([^)]*["'`][^"'`]*img\[title=/gs);
-  if (imageTitleLink) {
-    add("warning", "image-title-link-selector", rel, lineNumber(content, imageTitleLink.index), "Evite acoplar link/botao a img[title]; tente getByRole ou seletor acessivel antes.");
+  const imageTitleLink = firstMatch(content, /(?:this\.)?page\.locator\s*\([^)]*["'`][^"'`]*img\[title=/gs);
+  if (imageTitleLink && !hasNearby(content, imageTitleLink.index, /toHaveCount\s*\(\s*1\s*\)|getByRole\s*\(/, 360)) {
+    add("warning", "image-title-link-selector", rel, lineNumber(content, imageTitleLink.index), "Fallback img[title] deve ficar escopado e unico; tente getByRole antes de usar o seletor legado na pagina inteira.");
   }
 
   const idSuffixSelector = firstMatch(content, /\[\s*id\$\s*=/g);
@@ -720,7 +786,9 @@ for (const file of codeFiles) {
       add("warning", "debug-comment", rel, lineNumber(content, debugComment.index), "Evite comentarios de debug, TODO/FIXME ou erro copiado no codigo final.");
     }
 
-    const rawErrorLiteral = firstMatch(content, /["'`][^"'`\n]*(?:TimeoutError|strict mode violation|locator\(|waiting for|Error:|Target page|Execution context was destroyed|Cannot read properties|net::ERR|stack trace)[^"'`\n]*["'`]/gi);
+    const rawErrorLiteral = stringLiterals(content).find((literal) => (
+      /(?:TimeoutError|strict mode violation|locator\(|waiting for|Error:|Target page|Execution context was destroyed|Cannot read properties|net::ERR|stack trace)/i.test(literal.value)
+    ));
     if (rawErrorLiteral) {
       add("warning", "raw-error-literal", rel, lineNumber(content, rawErrorLiteral.index), "Nao copie erro bruto/stack trace para string, assert, comentario ou fixture.");
     }
@@ -728,13 +796,6 @@ for (const file of codeFiles) {
     const sensitiveLiterals = stringLiterals(content).filter((literal) => hasSensitiveLiteral(literal.value)).slice(0, 3);
     for (const sensitiveLiteral of sensitiveLiterals) {
       add("warning", "possible-sensitive-literal", rel, lineNumber(content, sensitiveLiteral.index), "Possivel dado pessoal/institucional hardcoded; use massa neutra, process.env ou fixture local ignorada.");
-    }
-
-    const literalFills = matches(content, /\.fill\s*\(\s*["'`]([^"'`\n]{3,})["'`]/g)
-      .filter((match) => !/^(?:example|change-me|placeholder|valor|texto|teste)$/i.test(match[1] || ""))
-      .slice(0, 3);
-    for (const literalFill of literalFills) {
-      add("warning", "literal-fill-value", rel, lineNumber(content, literalFill.index), "fill com literal fixo; prefira massa gerada, parametro do Page Object, process.env ou fixture local.");
     }
 
     const fixedDateLiterals = stringLiterals(content).filter((literal) => hasFixedDateLiteral(literal.value)).slice(0, 3);
@@ -802,10 +863,25 @@ for (const file of specFiles) {
 
   const createsData = /\b(?:cadastr\w*|criar\w*|inclu\w*|registr\w*|salvar\w*|submet\w*|gerar\w*|adicionar\w*|novo\w*)\s*\(/i.test(content)
     || /\btest\s*\(\s*["'`][^"'`]*(?:cadastr|criar|incluir|registrar|adicionar|gerar)[^"'`]*["'`]/i.test(content);
-  const hasRunId = /\b(?:runId|idExecucao)\b|(?:createRunId|criarIdExecucao)|Date\.now|randomUUID|crypto\.randomUUID|timestamp/i.test(content);
+  const hasRunId = /\b(?:runId|idExecucao)\b|(?:createRunId|criarIdExecucao|criar(?:Proposta|Tipo|Curso|Calendario|Calendário)[A-Za-z0-9_]*)\s*\(|Date\.now|randomUUID|crypto\.randomUUID|timestamp/i.test(content);
   const evitaColisaoComConsulta = /\bcriarDados[A-Za-z0-9_]*\s*\(\s*[A-Za-z0-9_]*(?:Existentes|Ocupados|Disponiveis)\s*\)/i.test(content);
   if (createsData && !hasRunId && !evitaColisaoComConsulta) {
     add("warning", "created-data-without-run-id", relative(file), 1, "Fluxo parece criar dados sem runId/massa rastreavel; use helper de massa para evitar duplicidade e lixo funcional.");
+  }
+
+  const mainDataDeclarations = matches(
+    content,
+    /\b(?:const|let)\s+[A-Za-z_$][\w$]*\s*=\s*(?:await\s+)?(criar(?:Dados|Proposta|Tipo|Curso|Calendario|Calendário|Rascunho)[A-Za-z0-9_]*)\s*\(/g,
+  );
+  const factories = new Map();
+  for (const declaration of mainDataDeclarations) {
+    const factory = normalizeText(declaration[1]);
+    const previous = factories.get(factory);
+    if (previous) {
+      add("error", "multiple-main-data-in-lifecycle", relative(file), lineNumber(content, declaration.index), `O gerador ${declaration[1]} foi chamado mais de uma vez no mesmo ciclo; reutilize a massa principal entre as etapas.`);
+      break;
+    }
+    factories.set(factory, declaration);
   }
 
   const genericName = firstMatch(content, /\btest\s*\(\s*["'`](?:teste\s*\d+|validar cadastro|fluxo completo|automacao tela|automação tela)["'`]/gi);
@@ -841,11 +917,19 @@ for (const file of specFiles) {
   if (technicalStepTitle) {
     add("error", "technical-step-as-spec", relative(file), lineNumber(content, technicalStepTitle.index), "Avancar, Voltar, Confirmar e Cancelar sao etapas do fluxo; nao crie uma spec independente sem objetivo de negocio proprio.");
   }
-  const implantationSpec = /(?:obrigatori|implantacao|implantação|smoke|obterCredenciais|validarObrigatoriedade|testInfo\.errors)/i.test(content)
-    && /\btest\s*\(/.test(content);
-  const functionalSteps = matches(content, /\btest\.step\s*\(/g);
-  if (implantationSpec && functionalSteps.length) {
-    add("error", "implantation-test-step-noise", relative(file), lineNumber(content, functionalSteps[0].index), "Remova test.step da spec de implantacao; nomes semanticos, ordem direta e assertions ja explicam o smoke e mantem o HTML enxuto.");
+  const implantationSpec = contract === "implantacao" && /\btest\s*\(/.test(content);
+  const functionalSteps = matches(content, /\btest\.step\s*\(\s*["'`]([^"'`]+)["'`]/g);
+  for (const step of functionalSteps) {
+    const title = normalizeText(step[1]).trim();
+    const technicalTitle = /^(?:clicar|clique|preencher|selecionar|digitar|aguardar|esperar|localizar|botao|button|avancar|voltar|confirmar|cancelar|cadastrar)$/i.test(title)
+      || /^(?:clicar|preencher|selecionar|digitar|aguardar|esperar|localizar)\b/i.test(title);
+    if (implantationSpec && technicalTitle) {
+      add("error", "technical-test-step", relative(file), lineNumber(content, step.index), "Use test.step somente para uma etapa de negocio identificavel no relatorio, nao para clique, preenchimento ou botao isolado.");
+    }
+    const block = callBlockAt(content, step.index);
+    if (implantationSpec && block && /\btest\.step\s*\(/.test(block.text.slice(step[0].length))) {
+      add("error", "nested-test-step", relative(file), lineNumber(content, step.index), "Nao aninhe test.step; mantenha as etapas funcionais no mesmo nivel para o relatorio continuar direto.");
+    }
   }
   const annotation = firstMatch(content, /\b(?:testInfo|test\.info\s*\(\s*\))\.annotations\.push\s*\(/g);
   if (implantationSpec && annotation) {
@@ -865,15 +949,29 @@ for (const file of specFiles) {
   if (implantationSpec && negativeFormatTest) {
     add("error", "implantation-negative-format-test", relative(file), lineNumber(content, negativeFormatTest.index), "Smoke de implantacao nao deve gerar teste negativo de tipo/formato; mantenha somente o preenchimento valido.");
   }
-  const hasButtonCoverage = /\b(?:clicar|cancelar|voltar|abrir)[A-Za-z0-9_]*(?:Reabrir)?\s*\(/i.test(content);
-  if (implantationSpec && !hasButtonCoverage) {
+  const hasButtonCoverage = namedCalls(content).some((call) => isFormActionMethodName(call.name));
+  if (implantationSpec && caseKind === "formulario" && !hasButtonCoverage) {
     add("error", "missing-smoke-button-coverage", relative(file), 1, "Smoke de implantacao deve executar e validar os botoes seguros do formulario.");
+  }
+  const hasConsultationCoverage = /\b(?:consultar|pesquisar|buscar|filtrar)[A-Za-z0-9_]*\s*\(/i.test(content)
+    && /\b(?:validar|confirmar|expect)\w*\s*\(/i.test(content);
+  if (implantationSpec && caseKind === "consulta" && !hasConsultationCoverage) {
+    add("error", "missing-consultation-coverage", relative(file), 1, "Consulta deve executar o filtro ou busca e validar o resultado observado.");
+  }
+  const hasReportCoverage = /\b(?:emitir|gerar|baixar|imprimir|abrirImpressao)[A-Za-z0-9_]*\s*\(/i.test(content)
+    && /waitForEvent\s*\(\s*["'`]download|\b(?:validar|confirmar)[A-Za-z0-9_]*\s*\(/i.test(content);
+  if (implantationSpec && caseKind === "relatorio" && !hasReportCoverage) {
+    add("error", "missing-report-coverage", relative(file), 1, "Relatorio deve executar a emissao e comprovar o artefato ou a visualizacao resultante.");
+  }
+  const hasDestructiveCoverage = namedCalls(content).some((call) => isDestructiveMethodName(call.name));
+  if (implantationSpec && ["remocao", "transicao"].includes(caseKind) && !hasDestructiveCoverage) {
+    add("error", "missing-destructive-operation", relative(file), 1, "O caso destrutivo deve executar a remocao ou transicao e validar o estado final do alvo criado pela propria spec.");
   }
 
   const commentLines = content.split(/\r?\n/).filter((line) => /^\s*(?:\/\/|\/\*|\*)/.test(line)).length;
   const codeLines = content.split(/\r?\n/).filter((line) => line.trim() && !/^\s*(?:\/\/|\/\*|\*|\*\/)/.test(line)).length;
-  if (implantationSpec && commentLines === 0) {
-    add("warning", "implantation-without-explanatory-comments", relative(file), 1, "Comente linhas-chave para explicar massa, sessao, restauracao, botoes e persistencia.");
+  if (implantationSpec && commentLines === 0 && lines > 80) {
+    add("warning", "implantation-without-explanatory-comments", relative(file), 1, "Spec extensa sem explicacao das decisoes nao obvias; comente somente massa, restauracao ou barreira de persistencia que nao estejam claras pelos nomes.");
   }
   if (commentLines >= 12 && commentLines > codeLines * 0.45) {
     add("warning", "excessive-comments", relative(file), 1, "Comentarios ocupam grande parte da spec; remova explicacoes que apenas repetem comandos evidentes.");
@@ -986,8 +1084,9 @@ for (const file of specFiles) {
   ) {
     add("error", "unsafe-positive-after-soft-required-failure", relative(file), lineNumber(content, conclusaoPositiva.index), "Antes da conclusao positiva, interrompa a spec quando testInfo.errors contiver falha soft de obrigatoriedade.");
   }
-  if (implantationSpec && testDefinitions.length > 1) {
-    add("error", "fragmented-implantation-flow", relative(file), lineNumber(content, testDefinitions[1].index), "Mantenha uma unica definicao test para a operacao de implantacao; use uma sequencia direta e expect.soft sem repetir login ou navegador.");
+  const serialTests = firstMatch(content, /\btest\.describe\.serial\s*\(|\btest\.describe\.configure\s*\(\s*\{\s*mode\s*:\s*["'`]serial["'`]/g);
+  if (implantationSpec && testDefinitions.length > 1 && serialTests) {
+    add("error", "dependent-serial-tests", relative(file), lineNumber(content, serialTests.index), "Nao use modo serial para compartilhar massa entre testes; mantenha o ciclo transacional em um test com etapas funcionais ou torne os testes independentes.");
   }
   const sharedCaseSetup = firstMatch(
     content,
@@ -1063,9 +1162,6 @@ for (const file of pageObjectFiles) {
   const methodCount = matches(content, /^\s*(?:async\s+)?[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\)\s*\{/gm)
     .filter((match) => !/constructor\s*\(/.test(match[0]))
     .length;
-  if (methodCount > 35) {
-    add("warning", "bloated-page-object", relative(file), 1, "Page Object acumula muitos metodos; verifique responsabilidades misturadas e metodos sem consumidor, sem usar apenas quantidade de linhas como criterio.");
-  }
 
   const requiredDescriptors = methodBlock(content, "obterCamposObrigatorios");
   if (requiredDescriptors) {
@@ -1142,17 +1238,6 @@ for (const file of pageObjectFiles) {
     }
   }
 
-  for (const methodName of ["concluirCadastro", "salvarEValidar", "confirmarEValidar", "cadastrarEValidar"]) {
-    const combinedMethod = methodBlock(content, methodName);
-    if (!combinedMethod) continue;
-    const submits = /\b(?:submeter|salvar|confirmar|cadastrar|clicarCadastrar|clicarConfirmar)\s*\(/i.test(combinedMethod.text);
-    const validatesSuccess = /\bvalidarMensagemSucesso\s*\(/.test(combinedMethod.text);
-    if (submits && validatesSuccess) {
-      add("error", "combined-submit-success", relative(file), lineNumber(content, combinedMethod.index), "Separe a submissao da validacao da mensagem; a spec deve mostrar claramente a acao e o resultado observado.");
-      break;
-    }
-  }
-
   const locatorDeclarations = matches(
     content,
     /\bthis\.([A-Za-z_$][A-Za-z0-9_$]*)\s*=\s*(?:this\.page|page)\s*\.\s*(?:locator|getByRole|getByLabel|getByText|getByPlaceholder|getByTestId)\s*\(/g,
@@ -1206,11 +1291,6 @@ for (const file of pageObjectFiles) {
     }
   }
 
-  const escapedStableJsfId = firstMatch(content, /locator\s*\(\s*["'`]#[A-Za-z0-9_]+\\\\:/g);
-  if (escapedStableJsfId) {
-    add("warning", "escaped-jsf-id", relative(file), lineNumber(content, escapedStableJsfId.index), "Troque o ID JSF escapado por locator direto [id=\"form:campo\"] no Page Object.");
-  }
-
   const lines = content.split(/\r?\n/);
   for (let index = 0; index < lines.length; index += 1) {
     if (!/\.first\s*\(\s*\)/.test(lines[index])) continue;
@@ -1242,6 +1322,21 @@ if (fs.existsSync(envExamplePath)) {
       add("error", "credential-in-env-example", ".env.example", index + 1, `${match[1]} deve ficar vazio ou usar placeholder seguro.`);
     }
   });
+}
+
+const packagePath = path.join(root, "package.json");
+if (fs.existsSync(packagePath)) {
+  try {
+    const packageJson = JSON.parse(fs.readFileSync(packagePath, "utf8"));
+    const generationAttemptScript = Object.entries(packageJson.scripts || {}).find(([name, command]) => (
+      /(?:tentativa|cleanup|limpar-massa|remover-residuo)/i.test(`${name} ${command}`)
+    ));
+    if (generationAttemptScript) {
+      add("error", "generation-attempt-script-in-project", "package.json", 1, `Script ${generationAttemptScript[0]} pertence a recuperacao temporaria da geracao e nao deve integrar o projeto entregue.`);
+    }
+  } catch {
+    // JSON invalido sera reportado pelos validadores de projeto.
+  }
 }
 
 const clientProfilesDir = path.join(root, "config", "clientes");
@@ -1276,27 +1371,7 @@ const hasPlaywrightProjectShape = specFiles.length > 0
   || ["tests/e2e", "test/e2e", "e2e", "playwright"].some(hasDirectory);
 
 if (fs.existsSync(cacheDir)) {
-  if (!isCacheIgnored()) {
-    add("error", "cache-not-ignored", ".gitignore", 1, ".playwright-e2e/cache/ existe, mas nao esta ignorado.");
-  }
-  for (const file of walk(cacheDir).filter((item) => path.extname(item) === ".json")) {
-    const rel = relative(file);
-    let parsed;
-    try {
-      parsed = JSON.parse(fs.readFileSync(file, "utf8"));
-    } catch {
-      add("error", "invalid-cache-json", rel, 1, "Cache local deve ser JSON valido.");
-      continue;
-    }
-    const sensitive = scanCacheValue(parsed, rel);
-    if (sensitive.length) {
-      add("error", "sensitive-cache-data", rel, 1, "Cache local contem dado sensivel ou chave sensivel; remova/sanitize antes de reutilizar.");
-    }
-    const temporal = scanTemporalCacheValue(parsed, rel);
-    if (temporal.length) {
-      add("warning", "fixed-temporal-cache-data", rel, 1, "Cache local contem data/periodo concreto; guarde somente a estrategia dinamica de massa.");
-    }
-  }
+  add("error", "generation-cache-in-project", ".playwright-e2e/cache", 1, "Cache, ledger e lock de tentativas pertencem ao trabalho temporario do Codex e nao devem existir no projeto Playwright entregue.");
 }
 
 const configFile = files.find((file) => /playwright\.config\.[cm]?[jt]s$/.test(file))
@@ -1341,6 +1416,8 @@ if (!configFile) {
 const summary = {
   root,
   mode: scopedFiles.length ? "files" : (changedOnly ? "changed" : "full"),
+  contract,
+  caseKind,
   scannedFiles: codeFiles.length,
   errors: findings.filter((item) => item.severity === "error").length,
   warnings: findings.filter((item) => item.severity === "warning").length,
