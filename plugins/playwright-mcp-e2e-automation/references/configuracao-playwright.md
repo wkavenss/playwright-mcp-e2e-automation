@@ -72,19 +72,20 @@ Se o projeto ja usar outro mecanismo, preservar o padrao. Quando o usuario forne
 - criar `.env.example` com nomes e valores vazios/ficticios;
 - garantir `.env` no `.gitignore`;
 - garantir `.playwright-e2e/private-domain/` no `.gitignore` quando houver overlay privado local;
-- usar `obterCredenciais(nomePerfil)` nas specs e `process.env` somente dentro do utilitario;
+- ler `obterCredenciais(nomePerfil)` somente no bootstrap de autenticacao, nunca dentro do teste reportado, e usar `process.env` somente dentro do utilitario;
 - nao repetir segredos em README, logs, traces, screenshots ou resposta final.
 
-Credenciais devem ser separadas por perfil funcional. Criar/usar `tests/utils/authProfiles.js`:
+Credenciais devem ser separadas por perfil funcional. Criar/usar `tests/utils/authProfiles.js` no `globalSetup`, com trace desabilitado:
 
 ```javascript
 const { obterCredenciais } = require('../utils/authProfiles');
 
 const credenciais = obterCredenciais('docente');
 await loginPage.realizarLogin(credenciais.username, credenciais.password);
+await page.context().storageState({ path: caminhoAuthTemporario('docente', specId) });
 ```
 
-O utilitario deve mapear o perfil para variaveis de ambiente no formato `E2E_<PERFIL>_USERNAME` e `E2E_<PERFIL>_PASSWORD`, convertendo hifens e espacos para `_`. Exemplos: `docente` -> `E2E_DOCENTE_USERNAME`; `coord-graduacao` -> `E2E_COORD_GRADUACAO_USERNAME`. Nao usar `process.env.E2E_USERNAME` ou `process.env.E2E_PASSWORD` em specs novas.
+O utilitario deve mapear o perfil para variaveis de ambiente no formato `E2E_<PERFIL>_USERNAME` e `E2E_<PERFIL>_PASSWORD`, convertendo hifens e espacos para `_`. Exemplos: `docente` -> `E2E_DOCENTE_USERNAME`; `coord-graduacao` -> `E2E_COORD_GRADUACAO_USERNAME`. Nao usar `process.env.E2E_USERNAME` ou `process.env.E2E_PASSWORD` em specs novas. Salvar um `storageState` temporario por perfil/spec em `test-results/auth/`, configurar `test.use({ storageState })` e iniciar a spec confirmando que a sessao esta autenticada. Nao reutilizar estado manual ou versionado.
 
 Configurar Playwright com `workers: process.env.E2E_WORKERS ? Number(process.env.E2E_WORKERS) : 1`. O padrao serial evita conflito de sessao em sistemas legados quando varios perfis do `.env` apontam temporariamente para a mesma conta. Aumentar `E2E_WORKERS` somente quando as contas e massas forem independentes.
 
@@ -95,7 +96,7 @@ Dados pessoais, credenciais e identificadores sensiveis observados na tela nao d
 Nao criar `config/defaults.json`, `config/clientes`, `clientConfig.js` ou `E2E_CLIENT_PROFILE` em projetos novos.
 
 - Dados sinteticos e identificadores devem ser gerados em runtime.
-- Campos de dominio que alterem situacao, status, modalidade, tipo ou resultado devem receber valor intencional.
+- Campos de dominio que alterem situacao, status, modalidade, tipo ou resultado devem receber valor intencional rastreado ate o produtor funcional no codigo ou na tela. Registrar no contrato `field`, `producerValue`, `resultValue`, `sourceEvidence` e `filterStrategy`; nao inferir o tipo pelo nome da operacao.
 - Selects, radios ou listas alimentadas por cadastros anteriores devem escolher a primeira opcao valida, ignorando item vazio, oculto, desabilitado e placeholder.
 - Autocomplete so pode escolher o primeiro item quando a lista abrir sem termo institucional especifico. Nao inventar texto de busca.
 - Lista sem candidato valido bloqueia somente a spec/registro atual e deve informar o rotulo do campo.
@@ -118,6 +119,10 @@ Quando o usuario pedir `evidencias: falha`, manter artefatos somente em falha:
 Quando o usuario pedir `evidencias: completo`, habilitar evidencias suficientes para diagnostico e documentar onde ficam relatorio HTML, traces, screenshots e videos.
 
 Com `evidencias: minimo` ou `evidencias: falha`, nao criar nem atualizar README por causa de evidencias e guardar somente trace/screenshot de falhas. Com `evidencias: completo`, documentar somente comandos e local dos artefatos solicitados.
+
+Em implantacao, o contrato de QA prevalece sobre a captura generica: cada operacao produz exatamente um JSON sanitizado e uma captura recortada/mascarada do checkpoint final. O runner `npm run test:qa` executa cada spec com reporter `blob` em arquivo proprio, faz um unico `merge-reports` para `test-results/html` e verifica as contagens declaradas em `tests/qa/implantation-contract.json`.
+
+Executar o scanner depois do lote sobre HTML, blobs, traces, logs e anexos. Senha, token, secret, cookie e parametros de autenticacao sao bloqueantes; o diagnostico informa somente a chave e o caminho do artefato, nunca o valor detectado. Traces de falha podem permanecer no lote local, mas nao entram no HTML distribuido.
 
 ## Dados De Teste
 
@@ -162,7 +167,7 @@ Com `evidencias: minimo` ou `evidencias: falha`, nao criar nem atualizar README 
 ## Reprodutibilidade
 
 - A spec deve rodar do zero pelo CLI em outra maquina com Node, Playwright, Chromium, projeto versionado e `.env` preenchido.
-- Sempre partir de `BASE_URL`/`baseURL`, autenticar pelo fluxo automatizado e usar credenciais via `obterCredenciais(nomePerfil)`.
+- Sempre partir de `BASE_URL`/`baseURL`, autenticar no `globalSetup` sem trace e usar credenciais via `obterCredenciais(nomePerfil)` somente nesse bootstrap.
 - Nao depender de sessao aberta no MCP, navegador ja logado, perfil local do Chrome, `launchPersistentContext`, `storageState` gravado manualmente, cache local, caminhos absolutos ou arquivos fora do projeto.
 - Dados criados pela automacao devem usar `runId` ou prefixo rastreavel. Dados variaveis devem ser calculados em runtime e listas de cadastros anteriores devem usar o primeiro candidato valido; segredos permanecem no `.env`.
 - Nao deixar `test.only`, `test.skip`, flags temporarias ou ordem manual de execucao no codigo final.

@@ -77,6 +77,7 @@ function repeatedFlagValues(flag) {
 
 const contract = flagValues("--contract")[0] || "revisao";
 const caseKind = flagValues("--case-kind")[0] || (contract === "implantacao" ? "formulario" : "auto");
+const caseContractArg = flagValues("--case-contract")[0] || "";
 const excludedPatterns = repeatedFlagValues("--exclude").map((value) => value.replaceAll("\\", "/").replace(/^\.\//, ""));
 
 if (!allowedContracts.has(contract)) {
@@ -537,6 +538,56 @@ for (const file of codeFiles) {
     add("error", "generation-attempt-method-in-project", rel, lineNumber(content, generationAttemptMethod.index), "Tentativas incompletas pertencem ao trabalho temporario do Codex; nao entregue metodos de localizar, retomar ou remover tentativa no projeto.");
   }
 
+  const unsafeRecovery = firstMatch(
+    content,
+    /process\.env\.[A-Z0-9_]*(?:RECUPER|RETOM)[A-Z0-9_]*|\b(?:alvo|registro|proposta|curso|massa|tentativa)(?:Recuperacao|Recuperação|Retomada)|\b(?:recuperar|retomar)(?:Alvo|Registro|Proposta|Curso|Massa|Tentativa)/gi,
+  );
+  if (automationFile && unsafeRecovery) {
+    add("error", "unsafe-recovery-branch", rel, lineNumber(content, unsafeRecovery.index), "Nao entregue ramificacao de retomada ou recuperacao de massa; uma nova execucao deve criar um novo alvo.");
+  }
+
+  if (specFiles.includes(file)) {
+    const authInsideTest = firstMatch(content, /\.(?:realizarLogin|fazerLogin|login|authenticate)\s*\(|\.fill\s*\([^\n]*(?:PASSWORD|SENHA|password|senha)/g);
+    if (authInsideTest) {
+      add("error", "auth-inside-reported-test", rel, lineNumber(content, authInsideTest.index), "Mova login e preenchimento de credenciais para globalSetup sem trace e use storageState temporario por perfil/spec.");
+    }
+
+    const destructiveCall = firstMatch(content, /\.((?:aprovar|prorrogar|remover|excluir|transicionar|alterarStatus)[A-Za-z0-9_]*)\s*\(\s*([^),\n]+)/gi);
+    if (destructiveCall) {
+      const argumento = destructiveCall[2].trim();
+      const identificador = /^([A-Za-z_$][A-Za-z0-9_$]*)$/.exec(argumento)?.[1];
+      const criadoNaExecucao = identificador && new RegExp(
+        `\\b(?:const|let)\\s+${identificador}\\s*=\\s*await\\s+(?:test\\.step\\s*\\(|[^;\\n]*(?:criar|cadastrar|submeter)[A-Za-z0-9_]*\\s*\\()`,
+        "i",
+      ).test(content);
+      if (!criadoNaExecucao) {
+        add("error", "destructive-target-not-created-in-run", rel, lineNumber(content, destructiveCall.index), "Passe para a transicao o mesmo objeto retornado pela criacao desta execucao; nome solto, propriedade ou massa anterior nao comprovam origem.");
+      }
+    }
+  }
+
+  for (const block of methodBlocks(content).filter((item) => /obrigator|required/i.test(item.name))) {
+    const genericRequired = firstMatch(block.text, /getByText\s*\(\s*\/([^/\n]+)\/[gimuy]*\)(?:\.first\s*\(\s*\))?/g);
+    if (!genericRequired) continue;
+    const expressao = genericRequired[1];
+    const canMatchLabel = !/(?:obrigat|required|inv[aá]lid|nao informado|não informado)/i.test(expressao)
+      || (/^(?:Campo|\.?\*)?\s*obrigat/i.test(expressao) && /\.first\s*\(/.test(genericRequired[0]));
+    if (canMatchLabel) {
+      add("error", "required-message-can-match-label", rel, lineNumber(content, block.index + genericRequired.index), "Restrinja a assertion ao container de mensagens e exija campo + regra; texto que tambem casa com rotulo gera falso positivo.");
+    }
+  }
+
+  const copyFlow = /Cadastrar Novo Curso|curso existente|copiar[A-Za-z0-9_]*|copy[A-Za-z0-9_]*|aproveitar[A-Za-z0-9_]*Proposta/i.test(content);
+  const specImplementsCopyInline = !specFiles.includes(file)
+    || /getBy(?:Text|Role)|locator\s*\([^\n]*(?:copia|Aproveitar Dados|Cadastrar Novo Curso)/i.test(content);
+  if ((specFiles.includes(file) || pageObjectFiles.includes(file)) && copyFlow && specImplementsCopyInline) {
+    const provesOrigin = /origem|source/i.test(content) && /nome|codigo|c[oó]digo/i.test(content);
+    const provesReset = /dataInicio|dataFim/i.test(content) && /numeroVagas|quantidadeVagas|vagas/i.test(content) && /toHaveValue\s*\(\s*["'](?:0)?["']\s*\)/.test(content);
+    if (!provesOrigin || !provesReset) {
+      add("error", "copy-existing-without-field-proof", rel, 1, "Copia deve capturar a origem exata e provar campos herdados e reinicializados; titulo do formulario nao basta.");
+    }
+  }
+
   const technicalCleanupHook = firstMatch(
     content,
     /\b(?:test\.)?(?:afterEach|afterAll)\s*\([\s\S]{0,900}?\b(?:remover|excluir|limpar)(?:Massa|Tentativa|Registro|Dados)[A-Za-z0-9_]*\s*\(/gi,
@@ -950,21 +1001,21 @@ for (const file of specFiles) {
     add("error", "implantation-negative-format-test", relative(file), lineNumber(content, negativeFormatTest.index), "Smoke de implantacao nao deve gerar teste negativo de tipo/formato; mantenha somente o preenchimento valido.");
   }
   const hasButtonCoverage = namedCalls(content).some((call) => isFormActionMethodName(call.name));
-  if (implantationSpec && caseKind === "formulario" && !hasButtonCoverage) {
+  if (implantationSpec && !caseContractArg && caseKind === "formulario" && !hasButtonCoverage) {
     add("error", "missing-smoke-button-coverage", relative(file), 1, "Smoke de implantacao deve executar e validar os botoes seguros do formulario.");
   }
   const hasConsultationCoverage = /\b(?:consultar|pesquisar|buscar|filtrar)[A-Za-z0-9_]*\s*\(/i.test(content)
     && /\b(?:validar|confirmar|expect)\w*\s*\(/i.test(content);
-  if (implantationSpec && caseKind === "consulta" && !hasConsultationCoverage) {
+  if (implantationSpec && !caseContractArg && caseKind === "consulta" && !hasConsultationCoverage) {
     add("error", "missing-consultation-coverage", relative(file), 1, "Consulta deve executar o filtro ou busca e validar o resultado observado.");
   }
   const hasReportCoverage = /\b(?:emitir|gerar|baixar|imprimir|abrirImpressao)[A-Za-z0-9_]*\s*\(/i.test(content)
     && /waitForEvent\s*\(\s*["'`]download|\b(?:validar|confirmar)[A-Za-z0-9_]*\s*\(/i.test(content);
-  if (implantationSpec && caseKind === "relatorio" && !hasReportCoverage) {
+  if (implantationSpec && !caseContractArg && caseKind === "relatorio" && !hasReportCoverage) {
     add("error", "missing-report-coverage", relative(file), 1, "Relatorio deve executar a emissao e comprovar o artefato ou a visualizacao resultante.");
   }
   const hasDestructiveCoverage = namedCalls(content).some((call) => isDestructiveMethodName(call.name));
-  if (implantationSpec && ["remocao", "transicao"].includes(caseKind) && !hasDestructiveCoverage) {
+  if (implantationSpec && !caseContractArg && ["remocao", "transicao"].includes(caseKind) && !hasDestructiveCoverage) {
     add("error", "missing-destructive-operation", relative(file), 1, "O caso destrutivo deve executar a remocao ou transicao e validar o estado final do alvo criado pela propria spec.");
   }
 
@@ -1277,7 +1328,15 @@ for (const file of pageObjectFiles) {
 
   const blindFirstOption = firstMatch(content, /selectOption\s*\(\s*\{\s*index\s*:\s*0\s*\}/g);
   if (blindFirstOption) {
-    add("error", "blind-first-option", relative(file), lineNumber(content, blindFirstOption.index), "Nao selecione index 0: filtre vazio, placeholder, oculto e desabilitado antes de escolher o primeiro candidato valido.");
+    const metodo = methodBlocks(content).find((block) => (
+      block.index <= blindFirstOption.index && block.index + block.text.length >= blindFirstOption.index
+    ));
+    const limpezaIntencional = metodo
+      && /(?:buscar|descobrir|limpar|reset)/i.test(metodo.name)
+      && /\.uncheck\s*\(/.test(metodo.text);
+    if (!limpezaIntencional) {
+      add("error", "blind-first-option", relative(file), lineNumber(content, blindFirstOption.index), "Nao selecione index 0 como candidato. O indice zero so e aceito para limpar filtro explicitamente antes de uma busca correlacionada.");
+    }
   }
 
   const destructiveMethods = matches(content, /^\s*(?:async\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\([^)]*\)\s*\{/gm)
@@ -1303,6 +1362,101 @@ for (const file of pageObjectFiles) {
     }
   }
 }
+
+function validarContratoDeCasos() {
+  if (!caseContractArg) return;
+  const absolute = path.resolve(root, caseContractArg);
+  if (!fs.existsSync(absolute)) {
+    add("error", "incomplete-qa-batch", relative(absolute), 1, "Contrato de casos nao encontrado.");
+    return;
+  }
+  let caseContract;
+  try {
+    caseContract = JSON.parse(fs.readFileSync(absolute, "utf8"));
+  } catch (error) {
+    add("error", "incomplete-qa-batch", relative(absolute), 1, `Contrato de casos invalido: ${error.message}.`);
+    return;
+  }
+  const specs = Array.isArray(caseContract.specs) ? caseContract.specs : [];
+  const operations = specs.flatMap((spec) => Array.isArray(spec.operations) ? spec.operations : []);
+  if (specs.length !== caseContract.expectedTests || operations.length !== caseContract.expectedOperations) {
+    add("error", "incomplete-qa-batch", relative(absolute), 1, "expectedTests/expectedOperations devem coincidir com todas as specs e operacoes declaradas.");
+  }
+
+  const contractFiles = specs.map((spec) => spec.file.replaceAll("\\", "/"));
+  if (hasExplicitScope) {
+    const selected = new Set(codeFiles.map((file) => relative(file).replaceAll("\\", "/")));
+    const missingFromScope = contractFiles.filter((file) => !selected.has(file));
+    if (missingFromScope.length) {
+      add("error", "incomplete-qa-batch", relative(absolute), 1, `O escopo executado omitiu ${missingFromScope.length} spec(s) do contrato.`);
+    }
+  }
+
+  const pageSources = pageObjectFiles.map((file) => fs.readFileSync(file, "utf8")).join("\n");
+  const evidenceBases = new Set();
+  for (const spec of specs) {
+    const specPath = path.resolve(root, spec.file);
+    if (!fs.existsSync(specPath)) {
+      add("error", "incomplete-qa-batch", spec.file, 1, "Spec declarada no contrato nao existe.");
+      continue;
+    }
+    const specContent = fs.readFileSync(specPath, "utf8");
+    const implementation = `${specContent}\n${pageSources}`;
+    const callsEvidence = matches(specContent, /\banexarEvidenciaQa\s*\(/g).length;
+    if (callsEvidence !== spec.operations.length) {
+      add("error", "missing-qa-evidence", spec.file, 1, `Esperado um par JSON + captura para cada uma das ${spec.operations.length} operacoes.`);
+    }
+    for (const operation of spec.operations) {
+      const requiredActions = Array.isArray(operation.requiredActions) ? operation.requiredActions : [];
+      for (const action of requiredActions) {
+        if (!new RegExp(`\\b${String(action).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(implementation)) {
+          add("error", "missing-operation-action", spec.file, 1, `A operacao ${operation.id || operation.title} nao implementa a acao obrigatoria ${action}.`);
+        }
+      }
+      const requiredProofs = Array.isArray(operation.requiredProofs) ? operation.requiredProofs : [];
+      for (const proof of requiredProofs) {
+        if (!new RegExp(`\\b${String(proof).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(specContent)) {
+          add("error", "missing-operation-action", spec.file, 1, `A operacao ${operation.id || operation.title} nao registra a prova obrigatoria ${proof}.`);
+        }
+      }
+      if (!/\banexarEvidenciaQa\s*\(/.test(specContent) || (operation.title && !specContent.includes(operation.title))) {
+        add("error", "missing-qa-evidence", spec.file, 1, `A operacao ${operation.id || operation.title} deve anexar JSON + captura identificaveis.`);
+      }
+      if (operation.evidenceBase) {
+        if (evidenceBases.has(operation.evidenceBase)) {
+          add("error", "missing-qa-evidence", relative(absolute), 1, `evidenceBase duplicado: ${operation.evidenceBase}.`);
+        }
+        evidenceBases.add(operation.evidenceBase);
+      } else {
+        add("error", "missing-qa-evidence", spec.file, 1, `A operacao ${operation.id || operation.title} deve declarar evidenceBase para o par JSON + captura.`);
+      }
+
+      const isConsultation = requiredActions.some((action) => /buscar|consultar|filtrar|pesquisar/i.test(action))
+        || /buscar|consultar|gerenciar|pesquisar/i.test(operation.title || "");
+      const isAllFilter = requiredActions.some((action) => /todos|todas/i.test(action));
+      const mapsColumnAndRows = /cabecalho|cabeçalho|header|coluna/i.test(implementation)
+        && /allTextContents|allInnerTexts|every\s*\(|for\s*\([^)]*\bof\b|toHaveText\s*\(/i.test(implementation);
+      const provesExactIdentity = /linha[A-Za-z0-9_]*(?:Exata|DoAlvo|PorCodigo|PorCódigo)|componenteExato|origemExata|hasText\s*:/i.test(implementation);
+      if (isConsultation && !isAllFilter && !mapsColumnAndRows && !provesExactIdentity) {
+        add("error", "uncorrelated-filter-results", spec.file, 1, `A operacao ${operation.id || operation.title} deve correlacionar o filtro com todas as linhas ou com uma identidade exata; tabela visivel nao comprova o resultado.`);
+      }
+
+      const requiresDomainCorrelation = requiredProofs.some((proof) => /todas.*linhas|tipo.*correspond|dominio|domínio/i.test(proof));
+      const domain = operation.domainContract;
+      if (requiresDomainCorrelation && (!domain?.field || !domain?.resultValue || !domain?.sourceEvidence || !domain?.filterStrategy)) {
+        add("error", "domain-filter-not-traced", spec.file, 1, `A operacao ${operation.id || operation.title} deve rastrear campo, valor real, evidencia de fonte e estrategia de filtro.`);
+      }
+      if (domain?.producerValue && domain?.resultValue && domain.producerValue !== domain.resultValue) {
+        add("error", "unsupported-domain-filter", spec.file, 1, `O produtor gera ${domain.producerValue}, mas a consulta espera ${domain.resultValue}.`);
+      }
+      if (domain?.filterStrategy === "type" && domain.filterValue !== domain.resultValue) {
+        add("error", "unsupported-domain-filter", spec.file, 1, "Filtro por tipo deve usar o mesmo valor de dominio comprovado no resultado; nao inferir tipo pelo nome da operacao.");
+      }
+    }
+  }
+}
+
+validarContratoDeCasos();
 
 const gitignorePath = path.join(root, ".gitignore");
 const envPath = path.join(root, ".env");

@@ -36,9 +36,10 @@ function existe(raiz, caminho) {
   return fs.existsSync(path.join(raiz, caminho));
 }
 
-function auditarComOpcoes(raiz, arquivos, { contract = "implantacao", caseKind = "formulario", exclude = [] } = {}) {
+function auditarComOpcoes(raiz, arquivos, { contract = "implantacao", caseKind = "formulario", caseContract = "", exclude = [] } = {}) {
   const argumentos = [raiz, "--files", ...arquivos, "--contract", contract];
   if (caseKind) argumentos.push("--case-kind", caseKind);
+  if (caseContract) argumentos.push("--case-contract", caseContract);
   for (const pattern of exclude) argumentos.push("--exclude", pattern);
   argumentos.push("--json");
   const resultado = executar(auditor, argumentos, { allowFailure: true });
@@ -80,11 +81,12 @@ function otimizarPrompt(raiz, prompt) {
 
 try {
   const manifesto = JSON.parse(fs.readFileSync(path.join(raizPlugin, ".codex-plugin", "plugin.json"), "utf8"));
-  assert.equal(manifesto.version, "3.0.0");
-  assert.match(manifesto.interface.longDescription, /varios casos numerados/);
-  assert.match(manifesto.interface.longDescription, /ciclos simples para reduzir massa/);
-  assert.match(manifesto.interface.longDescription, /autocompletes portateis/);
+  assert.match(manifesto.version, /^3\.1\.0(?:\+codex\.[0-9]+)?$/);
+  assert.match(manifesto.interface.longDescription, /autenticacao fora dos testes reportados/);
+  assert.match(manifesto.interface.longDescription, /dominio rastreado ate o produtor funcional/);
+  assert.match(manifesto.interface.longDescription, /relatorio HTML consolidado/);
   assert.doesNotMatch(manifesto.interface.longDescription, /guia|formatos|dados por cliente/);
+  assert(manifesto.interface.defaultPrompt.length <= 128, "interface.defaultPrompt deve ter no maximo 128 caracteres");
 
   const skillImplantacao = fs.readFileSync(
     path.join(raizPlugin, "skills", "criar-testes-implantacao-playwright", "SKILL.md"),
@@ -106,7 +108,9 @@ try {
   assert.match(skillImplantacao, /localizarTentativa.*retomarTentativa.*removerTentativa/is);
   assert.match(skillImplantacao, /expect\.soft/);
   assert.match(skillImplantacao, /testInfo\.errors/);
-  assert.match(skillImplantacao, /reporters nativos `line` e `html`/);
+  assert.match(skillImplantacao, /reporter `blob` em arquivo proprio/);
+  assert.match(skillImplantacao, /JSON sanitizado e uma captura/);
+  assert.match(skillImplantacao, /produtor gera somente `MODULO`/);
   assert.match(skillImplantacao, /Nao gerar Markdown proprio/i);
   assert.match(skillImplantacao, /`RelatorioValidacoes`/);
   assert.match(skillImplantacao, /usar `test\.step` no mesmo nivel/i);
@@ -117,7 +121,7 @@ try {
   assert.match(skillImplantacao, /Recusar `GUIA DE NAVEGACAO`/);
   assert.match(skillImplantacao, /Nao criar cache de lote/);
   assert.match(skillImplantacao, /propria spec/i);
-  assert.match(skillImplantacao, /--contract implantacao --case-kind <tipo>/i);
+  assert.match(skillImplantacao, /--contract implantacao --case-kind <tipo> --case-contract/i);
   assert.match(skillMassa, /primeira opcao valida/);
   assert.match(skillMassa, /campos de dominio/);
   assert.match(legibilidade, /A spec conta a historia funcional/);
@@ -144,6 +148,10 @@ try {
   assert.notEqual(scannerComNomePrivado.status, 0);
   assert(JSON.parse(scannerComNomePrivado.stdout).findings.some((item) => item.file.includes(termoPrivado.toLowerCase())));
 
+  const ajudaScaffold = executar(scaffold, ["--help"]);
+  assert.match(ajudaScaffold.stdout, /Uso: scaffold-playwright\.mjs/);
+  assert(!existe(raizTemporaria, "--help"), "--help nao pode ser interpretado como diretorio de scaffold");
+
   for (const modo of ["basico", "massa", "implantacao"]) {
     const projeto = path.join(raizTemporaria, modo);
     executar(scaffold, [projeto, "--mode", modo]);
@@ -166,6 +174,19 @@ try {
     assert.equal(packageJson.scripts.test, "playwright test");
     assert.equal(packageJson.scripts["test:headed"], "playwright test --headed");
     assert.equal(packageJson.scripts["test:e2e"], undefined);
+    const arquivosImplantacao = [
+      "tests/utils/authState.js",
+      "tests/utils/qaEvidence.js",
+      "tests/qa/implantation-contract.json",
+      "scripts/lib/readZip.mjs",
+      "scripts/qa-runner.mjs",
+      "scripts/scan-sensitive-artifacts.mjs",
+    ];
+    for (const arquivo of arquivosImplantacao) {
+      assert.equal(existe(projeto, arquivo), modo === "implantacao", `${modo} gerou incorretamente ${arquivo}`);
+    }
+    assert.equal(packageJson.scripts["test:qa"], modo === "implantacao" ? "node scripts/qa-runner.mjs" : undefined);
+    assert.equal(packageJson.scripts["test:qa:scan"], modo === "implantacao" ? "node scripts/scan-sensitive-artifacts.mjs" : undefined);
     const config = fs.readFileSync(path.join(projeto, "playwright.config.js"), "utf8");
     assert.match(config, /\[\s*['"]line['"]\s*\]/);
     assert.match(config, /\[\s*['"]html['"]/);
@@ -1009,6 +1030,277 @@ test('Cadastro: smoke usa apoio sintetico', async () => {
   `);
   rejeitarRegra(auditar(projeto, massaPrincipalEAuxiliar), "multiple-main-data-in-lifecycle");
 
+  const recuperacaoInsegura = "tests/e2e/recuperacao-insegura.spec.js";
+  escrever(path.join(projeto, recuperacaoInsegura), `
+const { test } = require('../fixtures/maximizedTest');
+test('Proposta: nao deve retomar massa antiga', async () => {
+  const alvoRecuperacao = process.env.E2E_PROPOSTA_RECUPERACAO;
+  if (alvoRecuperacao) await pagina.aprovar(alvoRecuperacao);
+});
+  `);
+  exigirRegra(auditar(projeto, recuperacaoInsegura), "unsafe-recovery-branch");
+
+  const autenticacaoReportada = "tests/e2e/autenticacao-reportada.spec.js";
+  escrever(path.join(projeto, autenticacaoReportada), `
+const { test } = require('../fixtures/maximizedTest');
+test('Acesso: login dentro do teste', async () => {
+  await acesso.login(process.env.E2E_EXAMPLE_USERNAME, process.env.E2E_EXAMPLE_PASSWORD);
+});
+  `);
+  exigirRegra(auditar(projeto, autenticacaoReportada), "auth-inside-reported-test");
+
+  const alvoDestrutivoSolto = "tests/e2e/alvo-destrutivo-solto.spec.js";
+  escrever(path.join(projeto, alvoDestrutivoSolto), `
+const { test } = require('../fixtures/maximizedTest');
+test('Aprovacao: alvo solto', async () => {
+  const nome = 'RUN_ATUAL';
+  await pagina.aprovar(nome);
+});
+  `);
+  exigirRegra(auditar(projeto, alvoDestrutivoSolto), "destructive-target-not-created-in-run");
+
+  const alvoDestrutivoLocal = "tests/e2e/alvo-destrutivo-local.spec.js";
+  escrever(path.join(projeto, alvoDestrutivoLocal), `
+const { test } = require('../fixtures/maximizedTest');
+test('Aprovacao: alvo criado nesta execucao', async () => {
+  const alvoCriado = await pagina.criarProposta('RUN_ATUAL');
+  await pagina.aprovar(alvoCriado);
+});
+  `);
+  rejeitarRegra(auditar(projeto, alvoDestrutivoLocal), "destructive-target-not-created-in-run");
+
+  const obrigatoriedadeGenerica = "tests/pages/ObrigatoriedadeGenericaPage.js";
+  escrever(path.join(projeto, obrigatoriedadeGenerica), `
+class ObrigatoriedadeGenericaPage {
+  async validarObrigatoriedade() {
+    await this.page.getByText(/Nome do Curso/i).first().click();
+  }
+}
+module.exports = { ObrigatoriedadeGenericaPage };
+  `);
+  exigirRegra(auditar(projeto, obrigatoriedadeGenerica), "required-message-can-match-label");
+
+  const copiaSomenteTitulo = "tests/pages/CopiaSomenteTituloPage.js";
+  escrever(path.join(projeto, copiaSomenteTitulo), `
+class CopiaSomenteTituloPage {
+  async abrirCadastrarNovoCurso() {
+    await this.page.getByText('Cadastrar Novo Curso').click();
+    await this.page.getByRole('heading', { name: 'Cadastrar Curso' }).waitFor();
+  }
+}
+module.exports = { CopiaSomenteTituloPage };
+  `);
+  exigirRegra(auditar(projeto, copiaSomenteTitulo), "copy-existing-without-field-proof");
+
+  const projetoContratoQa = path.join(raizTemporaria, "contrato-qa");
+  executar(scaffold, [projetoContratoQa, "--mode", "implantacao"]);
+  const specDominio = "tests/e2e/dominio.spec.js";
+  const pageDominio = "tests/pages/DominioPage.js";
+  const contratoDominio = "tests/qa/dominio-contract.json";
+  escrever(path.join(projetoContratoQa, specDominio), `
+const { test } = require('../fixtures/maximizedTest');
+test('Componentes: buscar modulos', async ({}, testInfo) => {
+  await pagina.buscarModuloPorCodigo();
+  await pagina.abrirAlteracao();
+  await pagina.cancelarAlteracao();
+  const todasLinhasModulo = true;
+  const componenteExato = true;
+  const dadosPreservadosAposCancelar = true;
+  await anexarEvidenciaQa(testInfo, { operacao: 'Buscar modulos', verificacoes: [todasLinhasModulo, componenteExato, dadosPreservadosAposCancelar] });
+});
+  `);
+  escrever(path.join(projetoContratoQa, pageDominio), `
+class DominioPage {
+  async buscarModuloPorCodigo() {
+    const cabecalhos = await this.tabela.locator('th').allTextContents();
+    const colunaTipo = cabecalhos.indexOf('Tipo');
+    const tipos = await this.tabela.locator('tbody tr td').allTextContents();
+    if (!tipos.every((tipo) => tipo === 'MODULO') || colunaTipo < 0) throw new Error('Dominio divergente');
+  }
+  async abrirAlteracao() {}
+  async cancelarAlteracao() {}
+}
+module.exports = { DominioPage };
+  `);
+  escrever(path.join(projetoContratoQa, contratoDominio), JSON.stringify({
+    schemaVersion: 1,
+    mode: "implantacao",
+    expectedTests: 1,
+    expectedOperations: 1,
+    specs: [{
+      id: "dominio",
+      file: specDominio,
+      operations: [{
+        id: "caso-1",
+        title: "Buscar modulos",
+        evidenceBase: "qa-caso-de-uso-1-buscar-modulos",
+        requiredActions: ["buscarModuloPorCodigo", "abrirAlteracao", "cancelarAlteracao"],
+        requiredProofs: ["todasLinhasModulo", "componenteExato", "dadosPreservadosAposCancelar"],
+        evidence: ["json", "screenshot"],
+        domainContract: {
+          field: "Tipo",
+          producerValue: "MODULO",
+          resultValue: "MODULO",
+          sourceEvidence: "O produtor funcional inicializa MODULO",
+          filterStrategy: "exact-identity",
+          filterField: "Codigo",
+        },
+      }],
+    }],
+  }, null, 2));
+  const auditoriaDominio = auditarComOpcoes(projetoContratoQa, [specDominio, pageDominio], {
+    contract: "implantacao",
+    caseKind: "consulta",
+    caseContract: contratoDominio,
+  });
+  rejeitarRegra(auditoriaDominio, "unsupported-domain-filter");
+  rejeitarRegra(auditoriaDominio, "domain-filter-not-traced");
+  rejeitarRegra(auditoriaDominio, "uncorrelated-filter-results");
+  rejeitarRegra(auditoriaDominio, "missing-operation-action");
+  rejeitarRegra(auditoriaDominio, "missing-qa-evidence");
+
+  const contratoDominioIncorreto = "tests/qa/dominio-incorreto-contract.json";
+  const dominioIncorreto = JSON.parse(fs.readFileSync(path.join(projetoContratoQa, contratoDominio), "utf8"));
+  dominioIncorreto.specs[0].operations[0].domainContract.resultValue = "DISCIPLINA";
+  escrever(path.join(projetoContratoQa, contratoDominioIncorreto), JSON.stringify(dominioIncorreto, null, 2));
+  exigirRegra(auditarComOpcoes(projetoContratoQa, [specDominio, pageDominio], {
+    contract: "implantacao",
+    caseKind: "consulta",
+    caseContract: contratoDominioIncorreto,
+  }), "unsupported-domain-filter");
+
+  const specSemCorrelacao = "tests/e2e/sem-correlacao.spec.js";
+  const pageSemCorrelacao = "tests/pages/SemCorrelacaoPage.js";
+  const contratoSemCorrelacao = "tests/qa/sem-correlacao-contract.json";
+  escrever(path.join(projetoContratoQa, specSemCorrelacao), `
+const { test } = require('../fixtures/maximizedTest');
+test('Consulta: somente tabela visivel', async ({}, testInfo) => {
+  await pagina.buscarPorTipo();
+  const resultadosCorrelacionados = true;
+  await anexarEvidenciaQa(testInfo, { operacao: 'Buscar por tipo', verificacoes: [resultadosCorrelacionados] });
+});
+  `);
+  escrever(path.join(projetoContratoQa, pageSemCorrelacao), `
+const { expect } = require('@playwright/test');
+class SemCorrelacaoPage {
+  async buscarPorTipo() {
+    await this.tipo.selectOption('MODULO');
+    await expect(this.tabela).toBeVisible();
+  }
+}
+module.exports = { SemCorrelacaoPage };
+  `);
+  escrever(path.join(projetoContratoQa, contratoSemCorrelacao), JSON.stringify({
+    schemaVersion: 1,
+    mode: "implantacao",
+    expectedTests: 1,
+    expectedOperations: 1,
+    specs: [{ id: "sem-correlacao", file: specSemCorrelacao, operations: [{
+      id: "caso-1",
+      title: "Buscar por tipo",
+      evidenceBase: "qa-caso-de-uso-1-buscar-por-tipo",
+      requiredActions: ["buscarPorTipo"],
+      requiredProofs: ["resultadosCorrelacionados"],
+      evidence: ["json", "screenshot"],
+    }] }],
+  }, null, 2));
+  exigirRegra(auditarComOpcoes(projetoContratoQa, [specSemCorrelacao, pageSemCorrelacao], {
+    contract: "implantacao",
+    caseKind: "consulta",
+    caseContract: contratoSemCorrelacao,
+  }), "uncorrelated-filter-results");
+
+  const specIncompleta = "tests/e2e/incompleta.spec.js";
+  const contratoIncompleto = "tests/qa/incompleto-contract.json";
+  escrever(path.join(projetoContratoQa, specIncompleta), `
+const { test } = require('../fixtures/maximizedTest');
+test('Alteracao incompleta', async () => { await pagina.acessar(); });
+  `);
+  escrever(path.join(projetoContratoQa, contratoIncompleto), JSON.stringify({
+    schemaVersion: 1,
+    mode: "implantacao",
+    expectedTests: 2,
+    expectedOperations: 1,
+    specs: [{ id: "incompleta", file: specIncompleta, operations: [{
+      id: "caso-1",
+      title: "Alterar e cancelar",
+      requiredActions: ["alterar", "cancelar"],
+      requiredProofs: ["dadosPreservados"],
+      evidence: ["json", "screenshot"],
+    }] }],
+  }, null, 2));
+  const auditoriaIncompleta = auditarComOpcoes(projetoContratoQa, [specIncompleta], {
+    contract: "implantacao",
+    caseKind: "formulario",
+    caseContract: contratoIncompleto,
+  });
+  exigirRegra(auditoriaIncompleta, "incomplete-qa-batch");
+  exigirRegra(auditoriaIncompleta, "missing-operation-action");
+  exigirRegra(auditoriaIncompleta, "missing-qa-evidence");
+
+  const projetoScanner = path.join(raizTemporaria, "scanner-sensivel");
+  executar(scaffold, [projetoScanner, "--mode", "implantacao"]);
+  const segredoFicticio = "SEGREDO_FICTICIO_987654";
+  escrever(path.join(projetoScanner, ".env"), `E2E_EXAMPLE_PASSWORD=${segredoFicticio}`);
+  escrever(path.join(projetoScanner, "test-results", "trace.log"), JSON.stringify({ method: "fill", params: { value: segredoFicticio } }));
+  const scannerSensivel = executar(path.join(projetoScanner, "scripts", "scan-sensitive-artifacts.mjs"), ["--dir", "test-results"], {
+    cwd: projetoScanner,
+    allowFailure: true,
+  });
+  assert.notEqual(scannerSensivel.status, 0);
+  assert.match(scannerSensivel.stderr, /E2E_EXAMPLE_PASSWORD/);
+  assert.doesNotMatch(scannerSensivel.stderr, new RegExp(segredoFicticio));
+
+  const projetoMerge = path.join(raizTemporaria, "merge-dois-blobs");
+  executar(scaffold, [projetoMerge, "--mode", "implantacao"]);
+  const contratoMerge = {
+    schemaVersion: 1,
+    mode: "implantacao",
+    expectedTests: 2,
+    expectedOperations: 2,
+    specs: [1, 2].map((numero) => ({
+      id: `spec-${numero}`,
+      file: `tests/e2e/spec-${numero}.spec.js`,
+      operations: [{
+        id: `caso-${numero}`,
+        title: `Operacao ${numero}`,
+        evidenceBase: `qa-caso-de-uso-${numero}-operacao-${numero}`,
+      }],
+    })),
+  };
+  escrever(path.join(projetoMerge, "tests", "qa", "implantation-contract.json"), JSON.stringify(contratoMerge, null, 2));
+  for (const spec of contratoMerge.specs) escrever(path.join(projetoMerge, spec.file), "// fixture do reporter");
+  escrever(path.join(projetoMerge, "node_modules", "@playwright", "test", "cli.js"), `
+const fs = require('node:fs');
+const path = require('node:path');
+const [comando] = process.argv.slice(2);
+if (comando === 'test') {
+  const zipVazio = Buffer.alloc(22);
+  zipVazio.writeUInt32LE(0x06054b50, 0);
+  fs.mkdirSync(path.dirname(process.env.PLAYWRIGHT_BLOB_OUTPUT_FILE), { recursive: true });
+  fs.writeFileSync(process.env.PLAYWRIGHT_BLOB_OUTPUT_FILE, zipVazio);
+} else if (comando === 'merge-reports') {
+  const contrato = JSON.parse(fs.readFileSync(path.resolve('tests/qa/implantation-contract.json'), 'utf8'));
+  const linhas = ['<html><body><pre>'];
+  for (const spec of contrato.specs) {
+    linhas.push(JSON.stringify({ file: path.resolve(spec.file), title: spec.id }));
+    for (const operacao of spec.operations) linhas.push(operacao.evidenceBase + '.json', operacao.evidenceBase + '.png');
+  }
+  linhas.push('</pre></body></html>');
+  fs.mkdirSync(process.env.PLAYWRIGHT_HTML_OUTPUT_DIR, { recursive: true });
+  fs.writeFileSync(path.join(process.env.PLAYWRIGHT_HTML_OUTPUT_DIR, 'index.html'), linhas.join('\\n'));
+}
+  `);
+  const mergeDoisBlobs = executar(path.join(projetoMerge, "scripts", "qa-runner.mjs"), [], {
+    cwd: projetoMerge,
+    allowFailure: true,
+  });
+  assert.equal(mergeDoisBlobs.status, 0, mergeDoisBlobs.stderr || mergeDoisBlobs.stdout);
+  assert.match(mergeDoisBlobs.stdout, /2 testes, 2 operacoes e 4 anexos/);
+  const htmlMerge = fs.readFileSync(path.join(projetoMerge, "test-results", "html", "index.html"), "utf8");
+  assert.match(htmlMerge, /spec-1/);
+  assert.match(htmlMerge, /spec-2/);
+
   const projetoCache = path.join(raizTemporaria, "cache-proibido");
   executar(scaffold, [projetoCache, "--mode", "implantacao"]);
   escrever(path.join(projetoCache, ".playwright-e2e", "cache", "flows.json"), "{}");
@@ -1271,7 +1563,7 @@ FONTES DE REFERENCIA:`,
   const tipoInvalido = executar(auditor, [projeto, "--case-kind", "desconhecido", "--json"], { allowFailure: true });
   exigirRegra(JSON.parse(tipoInvalido.stdout), "invalid-case-kind");
 
-  console.log("OK: contratos do plugin Playwright MCP E2E 3.0.0 validados.");
+  console.log("OK: contratos do plugin Playwright MCP E2E 3.1.0 validados.");
 } finally {
   fs.rmSync(raizTemporaria, { recursive: true, force: true });
 }

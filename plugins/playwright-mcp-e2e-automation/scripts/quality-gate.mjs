@@ -14,6 +14,7 @@ const jsonOutput = args.includes("--json");
 const verboseOutput = args.includes("--verbose");
 const contract = flagValues("--contract")[0] || "revisao";
 const caseKind = flagValues("--case-kind")[0] || (contract === "implantacao" ? "formulario" : "auto");
+const caseContract = flagValues("--case-contract")[0] || "";
 const ignoredDirs = new Set([".git", "node_modules", "playwright-report", "test-results", "blob-report"]);
 const nodeCheckExtensions = new Set([".js", ".cjs", ".mjs"]);
 const tsExtensions = new Set([".ts", ".tsx"]);
@@ -158,6 +159,7 @@ function runAudit() {
   if (manifestArg || autoManifestArg) args.push("--manifest", manifestArg || autoManifestArg);
   if (changedOnly) args.push("--changed");
   args.push("--contract", contract);
+  if (caseContract) args.push("--case-contract", caseContract);
   if (caseKind !== "auto") args.push("--case-kind", caseKind);
   for (const pattern of excludedPatterns) args.push("--exclude", pattern);
   args.push("--json");
@@ -309,6 +311,7 @@ const summary = {
   mode: explicitFiles.length ? "files" : (changedOnly ? "changed" : "full"),
   contract,
   caseKind,
+  caseContract,
   ok: !failed,
   audit: auditSummary,
   syntax: {

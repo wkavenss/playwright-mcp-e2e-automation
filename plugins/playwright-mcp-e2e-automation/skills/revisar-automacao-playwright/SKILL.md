@@ -43,11 +43,12 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - ID JSF gerado, indice escondido em `evaluate`, ID JSF estavel escrito como seletor escapado e `waitForTimeout` sem anotacao padronizada sao riscos de manutencao. ID estavel direto `[id="form:campo"]` no Page Object e aceito.
 - Assertions devem comprovar o efeito funcional, nao somente a presenca de um elemento.
 - Dependencias entre campos devem apenas preparar o fluxo smoke; nao devem virar teste negativo proprio sem requisito explicito fora de implantacao.
-- Filtro, busca ou assert nao pode perder parte do criterio informado pelo usuario sem confirmacao explicita.
+- Filtro, busca ou assert nao pode perder parte do criterio informado pelo usuario sem confirmacao explicita. A mera existencia da tabela nao comprova a consulta: identificar a coluna pelo cabecalho, correlacionar todas as linhas retornadas com o filtro e confirmar ausencia de carregamento.
+- Valores de dominio devem ser rastreados ate o produtor funcional no codigo ou na tela. Reprovar filtro inferido pelo nome da operacao, valor que o produtor nao gera ou opcao inexistente na interface; quando o tipo nao puder ser filtrado, aceitar identidade exata mais prova do dominio em todas as linhas.
 - `waitForTimeout`, retries excessivos e esperas globais podem mascarar sincronizacao incorreta.
 - Timeout local em `click`, `fill`, `check` ou `selectOption` deve ter motivo funcional; quando apenas reduz o `actionTimeout` central, prejudica portabilidade e duplica configuracao. `expect.poll` com limite explicito nao e espera fixa.
 - O limite total deve ficar em `timeout: 180_000` no `playwright.config`. Para spec excepcionalmente grande, preferir `test.slow()`; `test.setTimeout` e aceitavel somente quando um valor exato for comprovado e comentado.
-- Credenciais devem vir de `.env`, que precisa estar ignorado; `.env.example` nao deve conter segredos.
+- Credenciais devem vir de `.env`, que precisa estar ignorado; `.env.example` nao deve conter segredos. Em implantacao, reprovar login ou preenchimento de credenciais dentro do teste reportado: usar `globalSetup` sequencial sem trace e `storageState` temporario por perfil/spec, seguido de assertion de sessao autenticada.
 - Nomes reais de pessoas, usuarios, servidores/funcionarios, documentos, matriculas, emails, telefones e identificadores pessoais nao devem aparecer hardcoded em specs, Page Objects, fixtures, asserts, comentarios ou logs.
 - Datas, periodos, anos, semestres, prazos e vencimentos fixos devem ser tratados como risco de reprodutibilidade, salvo regra explicitamente fixa e parametrizada.
 - Erro cru, stack trace, timeout, texto de `body` inteiro, `console.log`, codigo comentado, `TODO/FIXME` e sobras de codegen devem ser tratados como sujeira de automacao.
@@ -67,13 +68,14 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Identificar casos compativeis que recriam a mesma entidade em specs separadas; recomendar um ciclo com uma massa principal quando cadastrar, consultar, alterar e remover puderem ocorrer na mesma sessao.
 - Cada `CAMINHO`, individual ou em bloco `CASO DE USO <n>`, limita uma unica operacao. Explorar funcionalidade vizinha e defeito de escopo; etapas tecnicas do mesmo fluxo nao viram specs.
 - O lote pertence ao processamento do prompt. Reprovar spec com numero/status do caso, mapa de credenciais, `RelatorioValidacoes`, `verificacoesPlanejadas` ou controle manual como `fluxoAcessivel`.
+- Em implantacao com contrato, exigir que todo o conjunto solicitado seja executado e consolidado: uma spec por blob, um unico HTML, e exatamente um JSON sanitizado mais uma captura mascarada por operacao. Reprovar lote incompleto, evidencia ausente/duplicada ou scanner que nao inspecione HTML, blobs, traces, logs e anexos.
 - Para listas de cadastros anteriores, revisar se a primeira opcao realmente valida exclui placeholder, vazio, oculto e desabilitado. Campos de dominio devem manter valor intencional.
 - `config/clientes`, `defaults.json`, `clientConfig` e `E2E_CLIENT_PROFILE` sao infraestrutura legada: alertar para migracao somente quando ainda existirem consumidores, sem excluir automaticamente.
 - Reentrada controlada apos Voltar/Cancelar e permitida na mesma sessao antes de persistencia; novo login ou novo contexto continuam sendo defeitos.
 - Consentimento que possa aparecer na abertura deve ser procurado por no maximo `2_000` ms antes das credenciais, aceito quando presente e ignorado quando ausente. A recuperacao tardia continua permitida somente para repetir uma acao interceptada uma vez e relancar erros nao relacionados.
 - `isVisible()` imediato apos submissao/navegacao nao comprova saida do fluxo; revisar se a continuidade aguarda um campo estavel da tela com timeout curto.
 - Propriedades `null` de specs nao selecionadas nao podem bloquear uma execucao parcial.
-- Configuracao padrao do plugin deve usar Chromium headed, reporters `line` e `html`, trace e screenshot somente em falhas e video desligado, salvo decisao explicita do projeto.
+- Configuracao padrao do plugin deve usar Chromium headed, reporter interativo compacto e trace/screenshot somente em falhas, com video desligado. Em lote de implantacao, cada spec deve produzir blob proprio e o HTML deve resultar de um unico merge, sem sobrescrever execucoes anteriores.
 
 Se nao houver achados, declarar isso e mencionar testes nao executados ou riscos que permaneceram.
 

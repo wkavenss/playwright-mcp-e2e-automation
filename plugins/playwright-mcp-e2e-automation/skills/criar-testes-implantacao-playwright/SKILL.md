@@ -22,12 +22,13 @@ Fazer o preflight de todos os blocos antes de gerar arquivos. Deduplicar por `op
 
 Se o modo estiver ausente ou contraditorio, o contrato global estiver incompleto ou nenhum caso estiver pronto, parar antes de criar arquivos ou executar navegador e listar somente o que falta por numero.
 
-Gravar credenciais reais somente em `.env`, manter `.env` ignorado e criar `.env.example` sem segredos. Normalizar o perfil para as chaves `E2E_<PERFIL>_USERNAME` e `E2E_<PERFIL>_PASSWORD`, usando `obterCredenciais('<perfil>')` na spec. Casos com mesmo perfil e credenciais reutilizam essas variaveis. Se o mesmo perfil aparecer com credenciais diferentes, bloquear todos os casos envolvidos ate a inconsistencia ser resolvida. Nunca copiar credenciais para spec, Page Object, cache, log ou relatorio. Nao exigir `E2E_CLIENT_PROFILE`, `config/defaults.json`, `config/clientes` ou preflight de massa por cliente.
+Gravar credenciais reais somente em `.env`, manter `.env` ignorado e criar `.env.example` sem segredos. Normalizar o perfil para as chaves `E2E_<PERFIL>_USERNAME` e `E2E_<PERFIL>_PASSWORD`. Em implantacao, um `globalSetup` deve autenticar sequencialmente, com trace desabilitado, e criar um `storageState` temporario por combinacao de perfil e spec em `test-results/auth/`; a spec usa esse estado e inicia confirmando a sessao autenticada, sem login ou preenchimento de credenciais dentro do teste reportado. Casos com mesmo perfil e credenciais reutilizam as variaveis, mas nao um arquivo de estado entre specs. Se o mesmo perfil aparecer com credenciais diferentes, bloquear todos os casos envolvidos ate a inconsistencia ser resolvida. Nunca copiar credenciais para spec, Page Object, cache, log, trace, anexo ou relatorio. Nao exigir `E2E_CLIENT_PROFILE`, `config/defaults.json`, `config/clientes` ou preflight de massa por cliente.
 
 ## Processamento Dos Casos
 
 - Seguir somente o `CAMINHO` de cada caso; nao descobrir funcionalidade vizinha nem transformar botoes tecnicos em novos casos.
-- Agrupar casos somente quando tiverem o mesmo perfil, entidade e encadeamento natural, como cadastrar, consultar, alterar e remover o mesmo registro. Cada grupo recebe uma spec, um login, uma sessao e uma massa principal.
+- Antes de escolher valor de Tipo, Situacao, Status, Modalidade ou outro dominio, rastrear o produtor funcional no codigo/tela e registrar no contrato o campo, valor produzido, evidencia de origem e estrategia de filtro. Nao inferir o valor pelo nome da operacao. Se o produtor gera somente `MODULO`, por exemplo, a consulta nao pode procurar `DISCIPLINA`.
+- Agrupar casos somente quando tiverem o mesmo perfil, entidade e encadeamento natural, como cadastrar, consultar, alterar e remover o mesmo registro. Cada grupo recebe uma spec, um estado autenticado temporario, uma sessao e uma massa principal.
 - Manter casos incompatíveis em specs independentes. Nao compartilhar registro, pagina, contexto ou ordem entre specs e nao preparar massa em `beforeAll`.
 - `MASSA E PRE-CONDICOES`, `DADOS ESPECIFICOS`, `RESULTADO ESPERADO` e `OBSERVACOES` orientam somente o caso correspondente. Nao copiar o bloco do prompt como objeto, comentario ou metadado na spec.
 - Nao criar cache de lote. Se houver interrupcao, informar casos concluidos, falhos, bloqueados e nao iniciados sem guardar credenciais ou massa.
@@ -52,6 +53,8 @@ Classificar cada caso antes de implementar:
 - remocao ou transicao irreversivel: criacao do alvo sintetico pela propria spec, prova de unicidade, acao e estado final.
 
 Casos de alteracao, remocao ou transicao irreversivel nao podem atuar sobre massa preexistente. Se a propria spec nao puder criar e localizar o alvo atual com `runId`, bloquear somente esse caso.
+
+Em consulta, a existencia da tabela nao e prova funcional. Correlacionar o filtro com todas as linhas retornadas pela coluna identificada pelo cabecalho e exigir ausencia de carregamento. Quando o valor de dominio nao estiver disponivel como filtro na interface, filtrar por uma identidade exata de um registro elegivel e ainda comprovar o dominio em todas as linhas retornadas.
 
 ## Descoberta Seletiva
 
@@ -128,16 +131,18 @@ Reentrada controlada para testar botao e permitida somente sem nova massa. Novo 
 - Executar a conclusao positiva somente quando `testInfo.errors.length === 0` depois das obrigatoriedades. Se houver falha suave, encerrar o teste sem persistir; o Playwright manterá o resultado reprovado.
 - Confirmar o registro em listagem/consulta quando houver caminho seguro sem massa adicional.
 - Em remocao, confirmar persistencia do alvo com o `runId` atual, testar Cancelar quando existir, confirmar a acao e validar ausencia ou estado final. Nunca usar primeira linha, prefixo generico ou registro de outra execucao.
+- Em copia a partir de registro existente, capturar a identidade da linha de origem, abrir a acao na mesma linha e provar os campos herdados e os campos reinicializados. Se Cancelar fizer parte do formulario, confirmar retorno e preservacao sem persistir copia indevida.
 - Se a acao irreversivel falhar apos a criacao, preservar o registro rastreavel; nao repetir nem tentar limpeza automatica que possa mascarar a falha.
 - Quando a consulta nao for segura ou nao existir, manter somente a validacao obrigatoria da mensagem final.
-- Configurar reporters nativos `line` e `html`, com HTML em `test-results/html` e abertura manual. Manter trace e screenshot apenas em falhas.
-- Nao gerar Markdown proprio, annotations ou etapas artificiais. O HTML nativo deve mostrar diretamente quais specs passaram ou falharam; trace e screenshot aparecem somente quando houver falha.
+- Para cada operacao do contrato, anexar exatamente um JSON sanitizado e uma captura recortada do checkpoint final. O JSON deve registrar `schemaVersion`, operacao, `runId`, contagens, estados, datas e verificacoes, rejeitando senha, token, cookie, credencial e dado pessoal indevido; a captura deve aplicar as mascaras necessarias.
+- Executar cada spec do lote com reporter `blob` em arquivo proprio, fazer um unico merge para `test-results/html` e exigir no contrato a contagem completa de testes, operacoes e anexos. Manter traces de falha apenas no lote local de diagnostico e fora do relatorio distribuido.
+- Nao gerar Markdown proprio, annotations ou etapas artificiais. O HTML consolidado deve mostrar diretamente quais specs passaram ou falharam e as evidencias sanitizadas por operacao.
 
 Organizar a spec como uma sequencia direta. Usar `test.step` somente para operacoes de negocio do mesmo ciclo que precisem aparecer separadamente no relatorio. Separar blocos por linhas em branco e comentarios apenas quando explicarem uma decisao nao obvia. Usar portugues natural em identificadores de dominio, comentarios, titulos e mensagens, preservando APIs do Playwright e JavaScript. Consultar `../../references/legibilidade-codigo.md` quando o fluxo for extenso.
 
 ## Implementacao E Validacao
 
-- Executar `check-environment.mjs <raiz> --headed-smoke --json`, `optimize-context.mjs` e, se necessario, `scaffold-playwright.mjs <raiz> --mode implantacao`. Essas ferramentas nao devem criar cache no projeto.
+- Executar `check-environment.mjs <raiz> --headed-smoke --json`, `optimize-context.mjs` e, se necessario, `scaffold-playwright.mjs <raiz> --mode implantacao`. O scaffold de implantacao deve incluir bootstrap de autenticacao temporaria, helper de evidencias, `implantation-contract.json`, runner `test:qa` e scanner de artefatos; os modos basico e massa nao recebem essa infraestrutura. Essas ferramentas nao devem criar cache no projeto.
 - Usar Page Objects, locators semanticos e IDs JSF estaveis declarados diretamente como `[id="form:campo"]`.
 - Nao criar camada `flows`, `BasePage`, helper de ID, fabrica trivial, utilitario preventivo ou perfil de cliente. Separar outro Page Object somente quando houver uma tela/componente real reutilizado em mais de um fluxo.
 - Evitar `.nth()`, XPath, IDs dinamicos e `.first()` sem filtragem explicita de candidatos validos.
@@ -151,7 +156,7 @@ Organizar a spec como uma sequencia direta. Usar `test.step` somente para operac
 - Nao dividir Page Object, criar facade ou extrair helper generico de select apenas para reduzir linhas. Exigir responsabilidade independente ou reuso comprovado.
 - Nao impor percentual de reducao nem comprimir comandos para atingir uma contagem. Uma reducao valida elimina responsabilidade duplicada ou wrapper sem consumidor; mover o mesmo comportamento para outro arquivo nao conta como simplificacao.
 - Manter Chromium headed maximizado, `viewport: null`, `--start-maximized`, fixture CDP e `workers: 1`.
-- Classificar o caso como `formulario`, `consulta`, `relatorio`, `remocao` ou `transicao` e executar `quality-gate.mjs <raiz> --contract implantacao --case-kind <tipo> --files <spec> <pages>`. Depois executar `npx playwright test <spec> --list` e cada ciclo aprovado headed no ambiente real. Nao reexecutar a suite inteira apenas para duplicar registros.
+- Classificar o caso como `formulario`, `consulta`, `relatorio`, `remocao` ou `transicao` e executar `quality-gate.mjs <raiz> --contract implantacao --case-kind <tipo> --case-contract tests/qa/implantation-contract.json --files <todas-as-specs-do-contrato> <pages>`. Depois executar `npx playwright test <spec> --list`, cada ciclo aprovado headed no ambiente real e, ao final, `npm run test:qa` para produzir um unico lote consolidado. Nao reexecutar a suite inteira apenas para duplicar registros fora da validacao final solicitada.
 - Considerar concluido somente quando o smoke passar no ambiente real; lista dinamica vazia deve ser relatada como bloqueio da spec, nao mascarada por valor fixo.
 
 Carregar referencias em `../../references/` somente conforme o risco: configuracao, seletores, exploracao MCP, diagnostico, legibilidade ou otimizacao.
