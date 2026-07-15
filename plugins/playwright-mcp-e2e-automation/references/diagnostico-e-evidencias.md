@@ -60,8 +60,6 @@ Com `evidencias: completo`, incluir no resumo:
 
 ## Lote De Implantacao
 
-Para entrega de implantacao, produzir um unico relatorio consolidado do contrato completo. Cada spec gera seu proprio blob e cada operacao anexa exatamente um JSON sanitizado mais uma captura recortada e mascarada. A contagem esperada de testes, operacoes e anexos vem de `tests/qa/implantation-contract.json`; uma execucao individual nao pode substituir o lote final.
+Executar os arquivos solicitados em um unico comando Playwright quando o QA precisar de um relatorio conjunto. O HTML nativo e as assertions funcionais sao suficientes: nao criar contrato paralelo, blobs individuais, anexos JSON/captura, runner, scanner ou leitor ZIP.
 
-Antes de distribuir o HTML, varrer dados embutidos, blobs, traces ZIP, logs e anexos. O scanner deve rejeitar senha, token, secret, cookie, credencial e parametros de autenticacao, informar apenas chave/caminho e nunca ecoar o valor. Traces de falha permanecem fora do HTML final e somente no diretorio local de diagnostico.
-
-Em consultas, registrar no JSON a quantidade retornada, o filtro efetivamente aplicado, a coluna identificada pelo cabecalho e a comprovacao sobre todas as linhas. Quando o dominio vier do produtor funcional, registrar a fonte e o valor produzido; isso impede que um nome de operacao seja convertido indevidamente em um tipo que o modulo nao gera.
+Em consultas, a propria assertion deve correlacionar o filtro com todas as linhas ou com a identidade exata pesquisada. Quando o dominio vier do produtor funcional, usar o mesmo valor na busca, no resultado e em qualquer formulario intermediario; nao registrar uma afirmacao paralela em anexo.

@@ -23,6 +23,7 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 ## Corrigir
 
 - Remover `console.log`, `debugger`, `TODO/FIXME`, codigo comentado e sobra de codegen.
+- Remover helper de evidencia manual, `implantation-contract.json`, runner de lote, scanner de artefatos, leitor ZIP, scripts `test:qa` e chamadas `testInfo.attach` criadas apenas para repetir assertions no relatorio. Preservar somente o reporter HTML nativo e trace/screenshot de falha configurados pelo Playwright.
 - Remover erro bruto, stack trace, timeout ou texto transitorio copiado para string, comentario, fixture ou assert.
 - Substituir nomes reais, usuarios, documentos, emails, telefones e identificadores por `.env`, fixture local ignorada ou massa neutra.
 - Mover contexto privado recorrente para `.playwright-e2e/private-domain/` quando for local ao projeto e garantir que nao seja versionado.

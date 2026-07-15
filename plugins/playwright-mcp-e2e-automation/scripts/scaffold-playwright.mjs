@@ -98,10 +98,6 @@ function atualizarPackageJson() {
     test: "playwright test",
     "test:headed": "playwright test --headed",
   };
-  if (modo === "implantacao") {
-    scriptsPadrao["test:qa"] = "node scripts/qa-runner.mjs";
-    scriptsPadrao["test:qa:scan"] = "node scripts/scan-sensitive-artifacts.mjs";
-  }
   for (const [nome, comando] of Object.entries(scriptsPadrao)) {
     if (packageJson.scripts[nome]) continue;
     packageJson.scripts[nome] = comando;
@@ -121,15 +117,6 @@ copiarTemplate("playwright.config.js");
 copiarTemplate("tests/utils/authProfiles.js");
 copiarTemplate("tests/utils/testData.js");
 copiarTemplate("tests/fixtures/maximizedTest.js");
-
-if (modo === "implantacao") {
-  copiarTemplate("tests/utils/authState.js");
-  copiarTemplate("tests/utils/qaEvidence.js");
-  copiarTemplate("tests/qa/implantation-contract.json");
-  copiarTemplate("scripts/lib/readZip.mjs");
-  copiarTemplate("scripts/qa-runner.mjs");
-  copiarTemplate("scripts/scan-sensitive-artifacts.mjs");
-}
 
 const chavesEnv = [
   ["BASE_URL", ""],

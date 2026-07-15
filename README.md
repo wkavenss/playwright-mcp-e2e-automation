@@ -178,4 +178,4 @@ Remoções e transições irreversíveis só atuam sobre um registro sintético 
 
 Se o modo estiver ausente ou contraditório, o plugin pede a escolha antes de criar código ou executar o navegador.
 
-Com esses dados, o plugin gera código Playwright reproduzível com Page Objects, `.env`, Chromium headed maximizado e evidências mínimas. Projetos novos não recebem perfis JSON por cliente.
+Com esses dados, o plugin gera código Playwright reproduzível com Page Objects, `.env`, Chromium headed maximizado, relatório HTML nativo e artefatos somente em falhas. Projetos novos não recebem perfis JSON por cliente nem infraestrutura paralela de evidências.

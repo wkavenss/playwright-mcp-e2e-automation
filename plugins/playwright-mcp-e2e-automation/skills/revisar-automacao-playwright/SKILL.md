@@ -68,14 +68,14 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Identificar casos compativeis que recriam a mesma entidade em specs separadas; recomendar um ciclo com uma massa principal quando cadastrar, consultar, alterar e remover puderem ocorrer na mesma sessao.
 - Cada `CAMINHO`, individual ou em bloco `CASO DE USO <n>`, limita uma unica operacao. Explorar funcionalidade vizinha e defeito de escopo; etapas tecnicas do mesmo fluxo nao viram specs.
 - O lote pertence ao processamento do prompt. Reprovar spec com numero/status do caso, mapa de credenciais, `RelatorioValidacoes`, `verificacoesPlanejadas` ou controle manual como `fluxoAcessivel`.
-- Em implantacao com contrato, exigir que todo o conjunto solicitado seja executado e consolidado: uma spec por blob, um unico HTML, e exatamente um JSON sanitizado mais uma captura mascarada por operacao. Reprovar lote incompleto, evidencia ausente/duplicada ou scanner que nao inspecione HTML, blobs, traces, logs e anexos.
+- Reprovar helper de evidencia manual, contrato de implantacao, runner de blobs, scanner de artefatos, leitor ZIP, scripts `test:qa` ou anexos que apenas repitam assertions. O relatorio deve ser o HTML nativo de uma unica execucao dos arquivos solicitados, com trace e screenshot somente em falhas.
 - Para listas de cadastros anteriores, revisar se a primeira opcao realmente valida exclui placeholder, vazio, oculto e desabilitado. Campos de dominio devem manter valor intencional.
 - `config/clientes`, `defaults.json`, `clientConfig` e `E2E_CLIENT_PROFILE` sao infraestrutura legada: alertar para migracao somente quando ainda existirem consumidores, sem excluir automaticamente.
 - Reentrada controlada apos Voltar/Cancelar e permitida na mesma sessao antes de persistencia; novo login ou novo contexto continuam sendo defeitos.
 - Consentimento que possa aparecer na abertura deve ser procurado por no maximo `2_000` ms antes das credenciais, aceito quando presente e ignorado quando ausente. A recuperacao tardia continua permitida somente para repetir uma acao interceptada uma vez e relancar erros nao relacionados.
 - `isVisible()` imediato apos submissao/navegacao nao comprova saida do fluxo; revisar se a continuidade aguarda um campo estavel da tela com timeout curto.
 - Propriedades `null` de specs nao selecionadas nao podem bloquear uma execucao parcial.
-- Configuracao padrao do plugin deve usar Chromium headed, reporter interativo compacto e trace/screenshot somente em falhas, com video desligado. Em lote de implantacao, cada spec deve produzir blob proprio e o HTML deve resultar de um unico merge, sem sobrescrever execucoes anteriores.
+- Configuracao padrao do plugin deve usar Chromium headed, reporters `line` e HTML nativos, trace/screenshot somente em falhas e video desligado. Executar os arquivos solicitados em um unico comando quando for necessario um relatorio conjunto.
 
 Se nao houver achados, declarar isso e mencionar testes nao executados ou riscos que permaneceram.
 

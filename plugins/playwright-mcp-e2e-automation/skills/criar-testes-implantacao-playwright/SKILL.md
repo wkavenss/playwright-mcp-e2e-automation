@@ -27,7 +27,8 @@ Gravar credenciais reais somente em `.env`, manter `.env` ignorado e criar `.env
 ## Processamento Dos Casos
 
 - Seguir somente o `CAMINHO` de cada caso; nao descobrir funcionalidade vizinha nem transformar botoes tecnicos em novos casos.
-- Antes de escolher valor de Tipo, Situacao, Status, Modalidade ou outro dominio, rastrear o produtor funcional no codigo/tela e registrar no contrato o campo, valor produzido, evidencia de origem e estrategia de filtro. Nao inferir o valor pelo nome da operacao. Se o produtor gera somente `MODULO`, por exemplo, a consulta nao pode procurar `DISCIPLINA`.
+- Antes de escolher valor de Tipo, Situacao, Status, Modalidade ou outro dominio, rastrear o produtor funcional no codigo/tela e confirmar o mesmo valor no filtro, no resultado e em qualquer formulario intermediario. Nao inferir o valor pelo nome da operacao. Se o produtor gera somente `MODULO`, por exemplo, a busca e a alteracao nao podem selecionar `DISCIPLINA`.
+- Se `Alterar` abrir uma etapa generica que nao oferece o tipo real do alvo, nao substituir o dominio por uma opcao apenas para avancar. Validar que a acao abriu, cancelar nessa etapa e refazer a busca pelo mesmo alvo para provar preservacao.
 - Agrupar casos somente quando tiverem o mesmo perfil, entidade e encadeamento natural, como cadastrar, consultar, alterar e remover o mesmo registro. Cada grupo recebe uma spec, um estado autenticado temporario, uma sessao e uma massa principal.
 - Manter casos incompatíveis em specs independentes. Nao compartilhar registro, pagina, contexto ou ordem entre specs e nao preparar massa em `beforeAll`.
 - `MASSA E PRE-CONDICOES`, `DADOS ESPECIFICOS`, `RESULTADO ESPERADO` e `OBSERVACOES` orientam somente o caso correspondente. Nao copiar o bloco do prompt como objeto, comentario ou metadado na spec.
@@ -124,7 +125,7 @@ Cobrir somente botoes e links de acao do formulario ou wizard. Excluir menu glob
 
 Reentrada controlada para testar botao e permitida somente sem nova massa. Novo login, novo contexto ou `beforeEach` por verificacao continuam proibidos. Um ciclo pode persistir no maximo uma massa principal; se Remover fizer parte do ciclo, ele encerra funcionalmente o registro atual.
 
-## Conclusao E Evidencias
+## Conclusao E Relatorio
 
 - Submeter uma unica conclusao positiva com dados sinteticos e confirmar a mensagem exata.
 - Um metodo semantico como `submeter()` pode executar a acao e validar o resultado imediato da mesma operacao. Nao esconder no Page Object varias fases independentes, como criar, consultar e remover, em uma unica chamada.
@@ -134,15 +135,15 @@ Reentrada controlada para testar botao e permitida somente sem nova massa. Novo 
 - Em copia a partir de registro existente, capturar a identidade da linha de origem, abrir a acao na mesma linha e provar os campos herdados e os campos reinicializados. Se Cancelar fizer parte do formulario, confirmar retorno e preservacao sem persistir copia indevida.
 - Se a acao irreversivel falhar apos a criacao, preservar o registro rastreavel; nao repetir nem tentar limpeza automatica que possa mascarar a falha.
 - Quando a consulta nao for segura ou nao existir, manter somente a validacao obrigatoria da mensagem final.
-- Para cada operacao do contrato, anexar exatamente um JSON sanitizado e uma captura recortada do checkpoint final. O JSON deve registrar `schemaVersion`, operacao, `runId`, contagens, estados, datas e verificacoes, rejeitando senha, token, cookie, credencial e dado pessoal indevido; a captura deve aplicar as mascaras necessarias.
-- Executar cada spec do lote com reporter `blob` em arquivo proprio, fazer um unico merge para `test-results/html` e exigir no contrato a contagem completa de testes, operacoes e anexos. Manter traces de falha apenas no lote local de diagnostico e fora do relatorio distribuido.
-- Nao gerar Markdown proprio, annotations ou etapas artificiais. O HTML consolidado deve mostrar diretamente quais specs passaram ou falharam e as evidencias sanitizadas por operacao.
+- Tratar as assertions funcionais como a prova do teste. Nunca anexar objetos manuais como `{ ok: true }`, pois eles apenas repetem a assertion e podem mentir sobre uma verificacao que nao ocorreu.
+- Nao criar `qaEvidence`, `implantation-contract.json`, `qa-runner`, scanner de artefatos, leitor ZIP, scripts `test:qa` ou anexos JSON/captura por operacao. Essa infraestrutura polui a spec e duplica responsabilidades do Playwright.
+- Nao gerar Markdown proprio, annotations ou etapas artificiais. O reporter HTML nativo deve mostrar diretamente quais specs passaram ou falharam; trace e screenshot ficam somente nas falhas.
 
 Organizar a spec como uma sequencia direta. Usar `test.step` somente para operacoes de negocio do mesmo ciclo que precisem aparecer separadamente no relatorio. Separar blocos por linhas em branco e comentarios apenas quando explicarem uma decisao nao obvia. Usar portugues natural em identificadores de dominio, comentarios, titulos e mensagens, preservando APIs do Playwright e JavaScript. Consultar `../../references/legibilidade-codigo.md` quando o fluxo for extenso.
 
 ## Implementacao E Validacao
 
-- Executar `check-environment.mjs <raiz> --headed-smoke --json`, `optimize-context.mjs` e, se necessario, `scaffold-playwright.mjs <raiz> --mode implantacao`. O scaffold de implantacao deve incluir bootstrap de autenticacao temporaria, helper de evidencias, `implantation-contract.json`, runner `test:qa` e scanner de artefatos; os modos basico e massa nao recebem essa infraestrutura. Essas ferramentas nao devem criar cache no projeto.
+- Executar `check-environment.mjs <raiz> --headed-smoke --json`, `optimize-context.mjs` e, se necessario, `scaffold-playwright.mjs <raiz> --mode implantacao`. O scaffold deve permanecer minimo em todos os modos: configuracao Playwright, fixture maximizada, perfis de autenticacao e dados de teste. Implementar o `globalSetup` seguro somente junto das specs que realmente o consumirem. Essas ferramentas nao devem criar cache nem infraestrutura de relatorio no projeto.
 - Usar Page Objects, locators semanticos e IDs JSF estaveis declarados diretamente como `[id="form:campo"]`.
 - Nao criar camada `flows`, `BasePage`, helper de ID, fabrica trivial, utilitario preventivo ou perfil de cliente. Separar outro Page Object somente quando houver uma tela/componente real reutilizado em mais de um fluxo.
 - Evitar `.nth()`, XPath, IDs dinamicos e `.first()` sem filtragem explicita de candidatos validos.
@@ -156,7 +157,7 @@ Organizar a spec como uma sequencia direta. Usar `test.step` somente para operac
 - Nao dividir Page Object, criar facade ou extrair helper generico de select apenas para reduzir linhas. Exigir responsabilidade independente ou reuso comprovado.
 - Nao impor percentual de reducao nem comprimir comandos para atingir uma contagem. Uma reducao valida elimina responsabilidade duplicada ou wrapper sem consumidor; mover o mesmo comportamento para outro arquivo nao conta como simplificacao.
 - Manter Chromium headed maximizado, `viewport: null`, `--start-maximized`, fixture CDP e `workers: 1`.
-- Classificar o caso como `formulario`, `consulta`, `relatorio`, `remocao` ou `transicao` e executar `quality-gate.mjs <raiz> --contract implantacao --case-kind <tipo> --case-contract tests/qa/implantation-contract.json --files <todas-as-specs-do-contrato> <pages>`. Depois executar `npx playwright test <spec> --list`, cada ciclo aprovado headed no ambiente real e, ao final, `npm run test:qa` para produzir um unico lote consolidado. Nao reexecutar a suite inteira apenas para duplicar registros fora da validacao final solicitada.
+- Classificar o caso como `formulario`, `consulta`, `relatorio`, `remocao` ou `transicao` e executar `quality-gate.mjs <raiz> --contract implantacao --case-kind <tipo> --files <specs> <pages>`. Depois executar `npx playwright test <specs> --list` e uma unica execucao headed dos arquivos aprovados, com `workers=1`, para produzir o HTML nativo sem duplicar registros.
 - Considerar concluido somente quando o smoke passar no ambiente real; lista dinamica vazia deve ser relatada como bloqueio da spec, nao mascarada por valor fixo.
 
 Carregar referencias em `../../references/` somente conforme o risco: configuracao, seletores, exploracao MCP, diagnostico, legibilidade ou otimizacao.

@@ -77,7 +77,6 @@ function repeatedFlagValues(flag) {
 
 const contract = flagValues("--contract")[0] || "revisao";
 const caseKind = flagValues("--case-kind")[0] || (contract === "implantacao" ? "formulario" : "auto");
-const caseContractArg = flagValues("--case-contract")[0] || "";
 const excludedPatterns = repeatedFlagValues("--exclude").map((value) => value.replaceAll("\\", "/").replace(/^\.\//, ""));
 
 if (!allowedContracts.has(contract)) {
@@ -402,14 +401,66 @@ function isFormActionMethodName(name) {
 }
 
 function stringLiterals(content) {
-  return [
-    /"((?:\\.|[^"\\\r\n]){4,160})"/g,
-    /'((?:\\.|[^'\\\r\n]){4,160})'/g,
-    /`((?:\\.|[^`\\\r\n]){4,160})`/g,
-  ].flatMap((regex) => {
-    regex.lastIndex = 0;
-    return [...content.matchAll(regex)].map((match) => ({ value: match[1], index: match.index }));
-  });
+  const literals = [];
+  let estado = "code";
+  let inicio = -1;
+  let valor = "";
+
+  for (let indice = 0; indice < content.length; indice += 1) {
+    const caractere = content[indice];
+    const proximo = content[indice + 1];
+
+    if (estado === "line-comment") {
+      if (caractere === "\n") estado = "code";
+      continue;
+    }
+    if (estado === "block-comment") {
+      if (caractere === "*" && proximo === "/") {
+        estado = "code";
+        indice += 1;
+      }
+      continue;
+    }
+    if (estado === "code") {
+      if (caractere === "/" && proximo === "/") {
+        estado = "line-comment";
+        indice += 1;
+      } else if (caractere === "/" && proximo === "*") {
+        estado = "block-comment";
+        indice += 1;
+      } else if (caractere === "'" || caractere === '"' || caractere === "`") {
+        estado = caractere;
+        inicio = indice;
+        valor = "";
+      }
+      continue;
+    }
+
+    if (caractere === "\\") {
+      valor += caractere;
+      if (proximo !== undefined) {
+        valor += proximo;
+        indice += 1;
+      }
+      continue;
+    }
+    if (caractere === estado) {
+      if (valor.length >= 4 && valor.length <= 160) literals.push({ value: valor, index: inicio });
+      estado = "code";
+      inicio = -1;
+      valor = "";
+      continue;
+    }
+    if (caractere === "\n" && estado !== "`") {
+      estado = "code";
+      inicio = -1;
+      valor = "";
+      continue;
+    }
+    valor += caractere;
+  }
+
+  return literals;
 }
 
 function words(value) {
@@ -544,6 +595,31 @@ for (const file of codeFiles) {
   );
   if (automationFile && unsafeRecovery) {
     add("error", "unsafe-recovery-branch", rel, lineNumber(content, unsafeRecovery.index), "Nao entregue ramificacao de retomada ou recuperacao de massa; uma nova execucao deve criar um novo alvo.");
+  }
+
+  const evidenceLayer = firstMatch(content, /\banexarEvidenciaQa\s*\(|\bqaEvidence\b|\bevidenceBase\b/gi);
+  if (automationFile && evidenceLayer) {
+    add("error", "manual-qa-evidence-layer", rel, lineNumber(content, evidenceLayer.index), "Remova evidencias manuais que repetem assertions; use somente o relatorio HTML nativo e artefatos de falha do Playwright.");
+  }
+
+  const blocosDeMetodo = methodBlocks(content);
+  for (const block of blocosDeMetodo) {
+    const nome = normalizeText(block.name);
+    const selecionaDisciplina = /selectOption\s*\([\s\S]{0,120}?(?:DISCIPLINA|disciplina)/.test(block.text);
+    const selecionaModulo = /selectOption\s*\([\s\S]{0,120}?(?:MODULO|M[ÓO]DULO|modulo|módulo)/.test(block.text);
+    if ((nome.includes("modulo") && selecionaDisciplina) || (nome.includes("disciplina") && selecionaModulo)) {
+      add("error", "domain-value-conflicts-with-operation", rel, lineNumber(content, block.index), "O valor selecionado contradiz o dominio nomeado pela operacao; confirme o produtor funcional e use o mesmo tipo na busca e no formulario.");
+    }
+  }
+  const declaraModulo = blocosDeMetodo.some(({ name }) => normalizeText(name).includes("modulo"));
+  const declaraDisciplina = blocosDeMetodo.some(({ name }) => normalizeText(name).includes("disciplina"));
+  if (declaraModulo !== declaraDisciplina) {
+    const tipoContraditorio = declaraModulo
+      ? firstMatch(content, /selectOption\s*\([\s\S]{0,120}?(?:DISCIPLINA|disciplina)/g)
+      : firstMatch(content, /selectOption\s*\([\s\S]{0,120}?(?:MODULO|M[ÓO]DULO|modulo|módulo)/g);
+    if (tipoContraditorio) {
+      add("error", "domain-value-conflicts-with-operation", rel, lineNumber(content, tipoContraditorio.index), "Um metodo generico seleciona tipo contrario ao dominio usado pelo Page Object; mantenha busca e formulario no mesmo tipo funcional.");
+    }
   }
 
   if (specFiles.includes(file)) {
@@ -849,12 +925,17 @@ for (const file of codeFiles) {
       add("warning", "possible-sensitive-literal", rel, lineNumber(content, sensitiveLiteral.index), "Possivel dado pessoal/institucional hardcoded; use massa neutra, process.env ou fixture local ignorada.");
     }
 
-    const fixedDateLiterals = stringLiterals(content).filter((literal) => hasFixedDateLiteral(literal.value)).slice(0, 3);
+    const fixedDateLiterals = stringLiterals(content)
+      .filter((literal) => hasFixedDateLiteral(literal.value))
+      .filter((literal) => !hasNearby(content, literal.index, /data fixa.*(?:regra|requisito)|requisito.*anterior|playwright-e2e-allow-fixed-date/i, 300))
+      .slice(0, 3);
     for (const fixedDateLiteral of fixedDateLiterals) {
       add("warning", "fixed-date-literal", rel, lineNumber(content, fixedDateLiteral.index), "Evite data fixa; gere dinamicamente com helper relativo a data de execucao ou parametro local quando a regra exigir.");
     }
 
-    const fixedTemporalValues = matches(content, /\b(?:data[A-Za-z0-9_]*|date[A-Za-z0-9_]*|inicio|fim|termino|vencimento|prazo|validade|ano|year|semestre|periodo[A-Za-z0-9_]*|period[A-Za-z0-9_]*|letivo|deadline|start|end)\s*[:=]\s*["'`]?(?:\d{2}[/-]\d{2}[/-](?:19|20)\d{2}|(?:19|20)\d{2}[/-]\d{2}[/-]\d{2}|(?:19|20)\d{2}(?:[./-][12])?)["'`]?/gi).slice(0, 5);
+    const fixedTemporalValues = matches(content, /\b(?:data[A-Za-z0-9_]*|date[A-Za-z0-9_]*|inicio|fim|termino|vencimento|prazo|validade|ano|year|semestre|periodo[A-Za-z0-9_]*|period[A-Za-z0-9_]*|letivo|deadline|start|end)\s*[:=]\s*["'`]?(?:\d{2}[/-]\d{2}[/-](?:19|20)\d{2}|(?:19|20)\d{2}[/-]\d{2}[/-]\d{2}|(?:19|20)\d{2}(?:[./-][12])?)["'`]?/gi)
+      .filter((valor) => !hasNearby(content, valor.index, /data fixa.*(?:regra|requisito)|requisito.*anterior|playwright-e2e-allow-fixed-date/i, 300))
+      .slice(0, 5);
     for (const fixedTemporalValue of fixedTemporalValues) {
       add("warning", "fixed-temporal-value", rel, lineNumber(content, fixedTemporalValue.index), "Valor temporal fixo em data/ano/periodo; derive em runtime ou use .env/fixture local quando a regra exigir.");
     }
@@ -874,10 +955,6 @@ for (const file of codeFiles) {
       add("warning", "persistent-browser-state", rel, lineNumber(content, persistentBrowserState.index), "Evite depender de perfil/storageState manual; o fluxo deve autenticar ou gerar estado reprodutivel.");
     }
 
-    const storageStateWrite = firstMatch(content, /\bstorageState\s*\(\s*\{[^}]*path\s*:/gs);
-    if (storageStateWrite) {
-      add("warning", "storage-state-path", rel, lineNumber(content, storageStateWrite.index), "storageState gravado em arquivo deve ser ignorado, reprodutivel e nao usado como atalho para passar teste.");
-    }
   }
 }
 
@@ -912,8 +989,7 @@ for (const file of specFiles) {
     add("warning", "long-spec", relative(file), 1, "Spec extensa; mantenha nela apenas a sequencia funcional e mova campos, seletores e interacoes para Page Objects.");
   }
 
-  const createsData = /\b(?:cadastr\w*|criar\w*|inclu\w*|registr\w*|salvar\w*|submet\w*|gerar\w*|adicionar\w*|novo\w*)\s*\(/i.test(content)
-    || /\btest\s*\(\s*["'`][^"'`]*(?:cadastr|criar|incluir|registrar|adicionar|gerar)[^"'`]*["'`]/i.test(content);
+  const createsData = /\b(?:cadastr\w*|criar\w*|inclu\w*|registr\w*|salvar\w*|submet\w*|gerar\w*|adicionar\w*|novo\w*)\s*\(/i.test(content);
   const hasRunId = /\b(?:runId|idExecucao)\b|(?:createRunId|criarIdExecucao|criar(?:Proposta|Tipo|Curso|Calendario|Calendário)[A-Za-z0-9_]*)\s*\(|Date\.now|randomUUID|crypto\.randomUUID|timestamp/i.test(content);
   const evitaColisaoComConsulta = /\bcriarDados[A-Za-z0-9_]*\s*\(\s*[A-Za-z0-9_]*(?:Existentes|Ocupados|Disponiveis)\s*\)/i.test(content);
   if (createsData && !hasRunId && !evitaColisaoComConsulta) {
@@ -1001,21 +1077,21 @@ for (const file of specFiles) {
     add("error", "implantation-negative-format-test", relative(file), lineNumber(content, negativeFormatTest.index), "Smoke de implantacao nao deve gerar teste negativo de tipo/formato; mantenha somente o preenchimento valido.");
   }
   const hasButtonCoverage = namedCalls(content).some((call) => isFormActionMethodName(call.name));
-  if (implantationSpec && !caseContractArg && caseKind === "formulario" && !hasButtonCoverage) {
+  if (implantationSpec && caseKind === "formulario" && !hasButtonCoverage) {
     add("error", "missing-smoke-button-coverage", relative(file), 1, "Smoke de implantacao deve executar e validar os botoes seguros do formulario.");
   }
   const hasConsultationCoverage = /\b(?:consultar|pesquisar|buscar|filtrar)[A-Za-z0-9_]*\s*\(/i.test(content)
     && /\b(?:validar|confirmar|expect)\w*\s*\(/i.test(content);
-  if (implantationSpec && !caseContractArg && caseKind === "consulta" && !hasConsultationCoverage) {
+  if (implantationSpec && caseKind === "consulta" && !hasConsultationCoverage) {
     add("error", "missing-consultation-coverage", relative(file), 1, "Consulta deve executar o filtro ou busca e validar o resultado observado.");
   }
   const hasReportCoverage = /\b(?:emitir|gerar|baixar|imprimir|abrirImpressao)[A-Za-z0-9_]*\s*\(/i.test(content)
     && /waitForEvent\s*\(\s*["'`]download|\b(?:validar|confirmar)[A-Za-z0-9_]*\s*\(/i.test(content);
-  if (implantationSpec && !caseContractArg && caseKind === "relatorio" && !hasReportCoverage) {
+  if (implantationSpec && caseKind === "relatorio" && !hasReportCoverage) {
     add("error", "missing-report-coverage", relative(file), 1, "Relatorio deve executar a emissao e comprovar o artefato ou a visualizacao resultante.");
   }
   const hasDestructiveCoverage = namedCalls(content).some((call) => isDestructiveMethodName(call.name));
-  if (implantationSpec && !caseContractArg && ["remocao", "transicao"].includes(caseKind) && !hasDestructiveCoverage) {
+  if (implantationSpec && ["remocao", "transicao"].includes(caseKind) && !hasDestructiveCoverage) {
     add("error", "missing-destructive-operation", relative(file), 1, "O caso destrutivo deve executar a remocao ou transicao e validar o estado final do alvo criado pela propria spec.");
   }
 
@@ -1363,101 +1439,6 @@ for (const file of pageObjectFiles) {
   }
 }
 
-function validarContratoDeCasos() {
-  if (!caseContractArg) return;
-  const absolute = path.resolve(root, caseContractArg);
-  if (!fs.existsSync(absolute)) {
-    add("error", "incomplete-qa-batch", relative(absolute), 1, "Contrato de casos nao encontrado.");
-    return;
-  }
-  let caseContract;
-  try {
-    caseContract = JSON.parse(fs.readFileSync(absolute, "utf8"));
-  } catch (error) {
-    add("error", "incomplete-qa-batch", relative(absolute), 1, `Contrato de casos invalido: ${error.message}.`);
-    return;
-  }
-  const specs = Array.isArray(caseContract.specs) ? caseContract.specs : [];
-  const operations = specs.flatMap((spec) => Array.isArray(spec.operations) ? spec.operations : []);
-  if (specs.length !== caseContract.expectedTests || operations.length !== caseContract.expectedOperations) {
-    add("error", "incomplete-qa-batch", relative(absolute), 1, "expectedTests/expectedOperations devem coincidir com todas as specs e operacoes declaradas.");
-  }
-
-  const contractFiles = specs.map((spec) => spec.file.replaceAll("\\", "/"));
-  if (hasExplicitScope) {
-    const selected = new Set(codeFiles.map((file) => relative(file).replaceAll("\\", "/")));
-    const missingFromScope = contractFiles.filter((file) => !selected.has(file));
-    if (missingFromScope.length) {
-      add("error", "incomplete-qa-batch", relative(absolute), 1, `O escopo executado omitiu ${missingFromScope.length} spec(s) do contrato.`);
-    }
-  }
-
-  const pageSources = pageObjectFiles.map((file) => fs.readFileSync(file, "utf8")).join("\n");
-  const evidenceBases = new Set();
-  for (const spec of specs) {
-    const specPath = path.resolve(root, spec.file);
-    if (!fs.existsSync(specPath)) {
-      add("error", "incomplete-qa-batch", spec.file, 1, "Spec declarada no contrato nao existe.");
-      continue;
-    }
-    const specContent = fs.readFileSync(specPath, "utf8");
-    const implementation = `${specContent}\n${pageSources}`;
-    const callsEvidence = matches(specContent, /\banexarEvidenciaQa\s*\(/g).length;
-    if (callsEvidence !== spec.operations.length) {
-      add("error", "missing-qa-evidence", spec.file, 1, `Esperado um par JSON + captura para cada uma das ${spec.operations.length} operacoes.`);
-    }
-    for (const operation of spec.operations) {
-      const requiredActions = Array.isArray(operation.requiredActions) ? operation.requiredActions : [];
-      for (const action of requiredActions) {
-        if (!new RegExp(`\\b${String(action).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(implementation)) {
-          add("error", "missing-operation-action", spec.file, 1, `A operacao ${operation.id || operation.title} nao implementa a acao obrigatoria ${action}.`);
-        }
-      }
-      const requiredProofs = Array.isArray(operation.requiredProofs) ? operation.requiredProofs : [];
-      for (const proof of requiredProofs) {
-        if (!new RegExp(`\\b${String(proof).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(specContent)) {
-          add("error", "missing-operation-action", spec.file, 1, `A operacao ${operation.id || operation.title} nao registra a prova obrigatoria ${proof}.`);
-        }
-      }
-      if (!/\banexarEvidenciaQa\s*\(/.test(specContent) || (operation.title && !specContent.includes(operation.title))) {
-        add("error", "missing-qa-evidence", spec.file, 1, `A operacao ${operation.id || operation.title} deve anexar JSON + captura identificaveis.`);
-      }
-      if (operation.evidenceBase) {
-        if (evidenceBases.has(operation.evidenceBase)) {
-          add("error", "missing-qa-evidence", relative(absolute), 1, `evidenceBase duplicado: ${operation.evidenceBase}.`);
-        }
-        evidenceBases.add(operation.evidenceBase);
-      } else {
-        add("error", "missing-qa-evidence", spec.file, 1, `A operacao ${operation.id || operation.title} deve declarar evidenceBase para o par JSON + captura.`);
-      }
-
-      const isConsultation = requiredActions.some((action) => /buscar|consultar|filtrar|pesquisar/i.test(action))
-        || /buscar|consultar|gerenciar|pesquisar/i.test(operation.title || "");
-      const isAllFilter = requiredActions.some((action) => /todos|todas/i.test(action));
-      const mapsColumnAndRows = /cabecalho|cabeçalho|header|coluna/i.test(implementation)
-        && /allTextContents|allInnerTexts|every\s*\(|for\s*\([^)]*\bof\b|toHaveText\s*\(/i.test(implementation);
-      const provesExactIdentity = /linha[A-Za-z0-9_]*(?:Exata|DoAlvo|PorCodigo|PorCódigo)|componenteExato|origemExata|hasText\s*:/i.test(implementation);
-      if (isConsultation && !isAllFilter && !mapsColumnAndRows && !provesExactIdentity) {
-        add("error", "uncorrelated-filter-results", spec.file, 1, `A operacao ${operation.id || operation.title} deve correlacionar o filtro com todas as linhas ou com uma identidade exata; tabela visivel nao comprova o resultado.`);
-      }
-
-      const requiresDomainCorrelation = requiredProofs.some((proof) => /todas.*linhas|tipo.*correspond|dominio|domínio/i.test(proof));
-      const domain = operation.domainContract;
-      if (requiresDomainCorrelation && (!domain?.field || !domain?.resultValue || !domain?.sourceEvidence || !domain?.filterStrategy)) {
-        add("error", "domain-filter-not-traced", spec.file, 1, `A operacao ${operation.id || operation.title} deve rastrear campo, valor real, evidencia de fonte e estrategia de filtro.`);
-      }
-      if (domain?.producerValue && domain?.resultValue && domain.producerValue !== domain.resultValue) {
-        add("error", "unsupported-domain-filter", spec.file, 1, `O produtor gera ${domain.producerValue}, mas a consulta espera ${domain.resultValue}.`);
-      }
-      if (domain?.filterStrategy === "type" && domain.filterValue !== domain.resultValue) {
-        add("error", "unsupported-domain-filter", spec.file, 1, "Filtro por tipo deve usar o mesmo valor de dominio comprovado no resultado; nao inferir tipo pelo nome da operacao.");
-      }
-    }
-  }
-}
-
-validarContratoDeCasos();
-
 const gitignorePath = path.join(root, ".gitignore");
 const envPath = path.join(root, ".env");
 const envExamplePath = path.join(root, ".env.example");
@@ -1488,8 +1469,26 @@ if (fs.existsSync(packagePath)) {
     if (generationAttemptScript) {
       add("error", "generation-attempt-script-in-project", "package.json", 1, `Script ${generationAttemptScript[0]} pertence a recuperacao temporaria da geracao e nao deve integrar o projeto entregue.`);
     }
+    const qaScript = Object.entries(packageJson.scripts || {}).find(([name, command]) => (
+      /test:qa|qa-runner|scan-sensitive-artifacts/i.test(`${name} ${command}`)
+    ));
+    if (qaScript) {
+      add("error", "manual-qa-evidence-layer", "package.json", 1, `Script ${qaScript[0]} duplica o reporter nativo e deve ser removido.`);
+    }
   } catch {
     // JSON invalido sera reportado pelos validadores de projeto.
+  }
+}
+
+for (const caminho of [
+  "tests/utils/qaEvidence.js",
+  "tests/qa/implantation-contract.json",
+  "scripts/lib/readZip.mjs",
+  "scripts/qa-runner.mjs",
+  "scripts/scan-sensitive-artifacts.mjs",
+]) {
+  if (fs.existsSync(path.join(root, caminho))) {
+    add("error", "manual-qa-evidence-layer", caminho, 1, "Remova infraestrutura paralela de evidencias; assertions e o reporter HTML nativo sao suficientes.");
   }
 }
 

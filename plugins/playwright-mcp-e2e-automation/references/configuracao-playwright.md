@@ -120,9 +120,7 @@ Quando o usuario pedir `evidencias: completo`, habilitar evidencias suficientes 
 
 Com `evidencias: minimo` ou `evidencias: falha`, nao criar nem atualizar README por causa de evidencias e guardar somente trace/screenshot de falhas. Com `evidencias: completo`, documentar somente comandos e local dos artefatos solicitados.
 
-Em implantacao, o contrato de QA prevalece sobre a captura generica: cada operacao produz exatamente um JSON sanitizado e uma captura recortada/mascarada do checkpoint final. O runner `npm run test:qa` executa cada spec com reporter `blob` em arquivo proprio, faz um unico `merge-reports` para `test-results/html` e verifica as contagens declaradas em `tests/qa/implantation-contract.json`.
-
-Executar o scanner depois do lote sobre HTML, blobs, traces, logs e anexos. Senha, token, secret, cookie e parametros de autenticacao sao bloqueantes; o diagnostico informa somente a chave e o caminho do artefato, nunca o valor detectado. Traces de falha podem permanecer no lote local, mas nao entram no HTML distribuido.
+Em implantacao, usar o reporter HTML nativo em uma unica execucao dos arquivos solicitados. Nao criar anexos por operacao, contrato paralelo, runner de blobs, scanner ou leitor ZIP. Credenciais continuam fora dos testes reportados por meio de `globalSetup` sem trace e `storageState` temporario.
 
 ## Dados De Teste
 
