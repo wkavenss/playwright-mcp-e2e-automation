@@ -167,7 +167,7 @@ Em implantacao, usar o reporter HTML nativo em uma unica execucao dos arquivos s
 ## Sessao E Dados Persistidos
 
 - Modelar cada operacao isolada ou ciclo compativel como uma unica spec/teste, usando a fixture `page` e mantendo a mesma pagina/contexto durante login, navegacao, preenchimento, avancos e validacao.
-- Dentro de um ciclo compativel, usar `test.step` somente para operacoes de negocio que precisem ser identificadas separadamente no HTML. Operacoes independentes usam testes independentes; nao compartilhar massa por modo serial ou hooks funcionais.
+- Dentro de uma jornada compativel, usar `test.step` para cada caso de negocio solicitado e para produtores de precondicao que precisem ficar visiveis no HTML. Perfis diferentes usam contextos e estados autenticados separados no mesmo `test`; operacoes independentes usam testes independentes. Nao compartilhar massa entre specs por modo serial, project dependencies ou hooks funcionais.
 - Quando cadastrar, consultar, alterar e remover puderem reutilizar a mesma entidade, preferir um ciclo com uma massa principal. Nao compartilhar estado entre specs nem preparar massa em `beforeAll`.
 - Nao abrir/fechar navegador manualmente a cada tela e nao dividir as telas de um mesmo cadastro em testes independentes.
 - Validar obrigatorios um por vez dentro do mesmo teste: remover, submeter, registrar, restaurar explicitamente e somente entao passar ao proximo campo.
@@ -175,7 +175,7 @@ Em implantacao, usar o reporter HTML nativo em uma unica execucao dos arquivos s
 - Tratar dependencias apenas para restaurar/preencher o fluxo smoke; nao gerar teste negativo separado para o campo controlador.
 - Identificar campos volateis/nao redistribuidos pelo servidor, especialmente senha e upload. Restaura-los apos cada submissao para que um validador short-circuit nao masque o campo-alvo seguinte.
 - Testar botoes do formulario pelo efeito funcional. Permitir reentrada apos Voltar/Cancelar somente na mesma sessao e sem criar outro registro, ou quando o mesmo `runId` puder continuar.
-- Remocao ou transicao irreversivel exige alvo criado pela propria spec na execucao atual, `runId` exclusivo, persistencia comprovada, uma unica linha localizada e estado final validado. Sem essas garantias, bloquear somente a operacao dependente.
+- Remocao ou transicao irreversivel exige alvo criado pela propria jornada na execucao atual, `runId` exclusivo, persistencia comprovada, uma unica linha localizada e estado final validado. Antes de bloquear, tentar produzir o alvo pela interface, inclusive com outro perfil autenticado.
 - Se a acao destrutiva falhar depois da criacao do alvo, preservar o registro identificado; nao repetir a acao nem executar limpeza automatica em `finally`.
 - Usar `expect.soft` somente nas evidencias recuperaveis de obrigatoriedade e identificar cada campo na mensagem da assertion. Assertions de acesso, navegacao, botoes, sentinela e conclusao permanecem bloqueantes.
 - Antes da persistencia positiva, consultar `testInfo.errors` uma unica vez. Nao criar acumuladores, estados de fluxo ou relatorio customizado para duplicar o runner.

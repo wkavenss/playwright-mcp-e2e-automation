@@ -8,9 +8,9 @@ A spec conta a historia funcional. O Page Object conhece a tela. O Playwright re
 
 Uma spec de implantacao deve ser uma sequencia direta de chamadas. Usar `test.step` apenas para operacoes de negocio distintas que compartilham a mesma massa e precisam aparecer separadamente no HTML, como criar, visualizar, emitir e remover. Nao criar etapa para clique, preenchimento, espera, campo individual ou botao isolado; nao aninhar etapas. Nao criar estado manual, annotations ou relatorio particular.
 
-Quando o prompt contiver varios casos, agrupar somente os que formarem um ciclo natural sobre a mesma entidade, perfil e massa. O ciclo reutiliza uma unica massa principal. A spec continua simples e recebe apenas a historia funcional do ciclo. Numero do caso, status do lote, credenciais dos outros casos, bloqueios e inventario nunca entram no codigo.
+Quando o prompt contiver varios casos, agrupar os que formarem uma jornada natural sobre a mesma entidade, `runId` e massa principal, mesmo com perfis diferentes em contextos separados. A spec recebe apenas a historia funcional da jornada. Numero do caso, status do lote, credenciais dos outros casos, bloqueios e inventario nunca entram no codigo.
 
-Operacoes independentes podem usar testes separados. Nunca usar `test.describe.serial`, variavel global ou `beforeAll` funcional para fazer um teste depender da massa de outro.
+Operacoes independentes podem usar testes separados. Casos dependentes da mesma entidade ficam em um unico `test`, mesmo com perfis diferentes, usando contextos autenticados separados. Nunca usar `test.describe.serial`, project dependencies, variavel global ou `beforeAll` funcional para fazer uma spec depender da massa de outra.
 
 ## Responsabilidades
 

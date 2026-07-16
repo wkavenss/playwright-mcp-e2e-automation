@@ -73,6 +73,7 @@ function repeatedFlagValues(flag) {
 }
 
 const excludedPatterns = repeatedFlagValues("--exclude").map((value) => value.replaceAll("\\", "/").replace(/^\.\//, ""));
+const expectedSteps = repeatedFlagValues("--expected-step").map((value) => value.trim()).filter(Boolean);
 
 function globRegex(pattern) {
   const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replaceAll("**", "\0").replaceAll("*", "[^/]*").replaceAll("\0", ".*");
@@ -159,6 +160,7 @@ function runAudit() {
   if (changedOnly) args.push("--changed");
   args.push("--contract", contract);
   if (caseKind !== "auto") args.push("--case-kind", caseKind);
+  for (const expectedStep of expectedSteps) args.push("--expected-step", expectedStep);
   for (const pattern of excludedPatterns) args.push("--exclude", pattern);
   args.push("--json");
   const result = spawnSync(process.execPath, args, { encoding: "utf8" });
@@ -339,6 +341,7 @@ const summary = {
   mode: explicitFiles.length ? "files" : (changedOnly ? "changed" : "full"),
   contract,
   caseKind,
+  expectedSteps,
   ok: !failed,
   audit: auditSummary,
   syntax: {

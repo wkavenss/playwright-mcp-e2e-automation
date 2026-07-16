@@ -36,11 +36,12 @@ function existe(raiz, arquivo) {
   return fs.existsSync(path.join(raiz, arquivo));
 }
 
-function auditar(raiz, arquivos = [], contract = "revisao", caseKind = "auto") {
+function auditar(raiz, arquivos = [], contract = "revisao", caseKind = "auto", expectedSteps = []) {
   const argumentos = [raiz];
   if (arquivos.length) argumentos.push("--files", ...arquivos);
   argumentos.push("--contract", contract);
   if (caseKind !== "auto") argumentos.push("--case-kind", caseKind);
+  for (const expectedStep of expectedSteps) argumentos.push("--expected-step", expectedStep);
   argumentos.push("--json");
   const resultado = executar(auditor, argumentos, { allowFailure: true });
   assert.match(resultado.stdout, /^\s*\{/);
@@ -67,9 +68,9 @@ function exigirErro(resumo, regra) {
 
 try {
   const manifesto = JSON.parse(fs.readFileSync(path.join(raizPlugin, ".codex-plugin", "plugin.json"), "utf8"));
-  assert.equal(manifesto.version, "3.1.2");
-  assert.match(manifesto.interface.longDescription, /autenticacao fora dos testes reportados/);
-  assert.match(manifesto.interface.longDescription, /dominio rastreado ate o produtor funcional/);
+  assert.equal(manifesto.version, "3.2.0");
+  assert.match(manifesto.interface.longDescription, /jornadas multiperfil/);
+  assert.match(manifesto.interface.longDescription, /precondicoes pela interface/);
   assert.match(manifesto.interface.longDescription, /relatorio HTML nativo/);
 
   const mcp = JSON.parse(fs.readFileSync(path.join(raizPlugin, ".mcp.json"), "utf8"));
@@ -87,7 +88,7 @@ try {
   assert.match(skillImplantacao, /cancelar nessa etapa e refazer a busca pelo mesmo alvo/);
   assert.match(skillImplantacao, /Nao criar `qaEvidence`/);
   assert.match(skillImplantacao, /reporter HTML nativo/);
-  assert.match(skillImplantacao, /--contract implantacao --case-kind <tipo> --files/);
+  assert.match(skillImplantacao, /--contract implantacao --case-kind <tipo> --expected-step <operacao> --files/);
   assert.match(skillImplantacao, /Exigir `AGENTS\.md` e raiz do codigo-fonte como fontes de evidencia globais/);
   assert.match(skillImplantacao, /somente as instrucoes aninhadas aplicaveis ao modulo\/caminho/);
   assert.match(skillImplantacao, /Nao ampliar o smoke/);
@@ -100,6 +101,11 @@ try {
   assert.match(skillImplantacao, /validarAusenciaErroImpeditivo/);
   assert.match(skillImplantacao, /`submeter\(\)`, `validarMensagemSucesso\(\)` e `validarPersistencia\(\)`/);
   assert.match(skillImplantacao, /Nao gerar assertions de `maxlength`/);
+  assert.match(skillImplantacao, /mesma entidade, o mesmo `runId` e encadeamento natural/);
+  assert.match(skillImplantacao, /Perfis diferentes nao separam a jornada/);
+  assert.match(skillImplantacao, /criarPaginaAutenticada\(perfil, specId\)/);
+  assert.match(skillImplantacao, /repetindo `--expected-step` para todos os casos solicitados/);
+  assert.match(skillImplantacao, /Um caso nao pode desaparecer do lote/);
 
   const projetoContratoEntrada = path.join(temporario, "contrato-entrada");
   fs.mkdirSync(path.join(projetoContratoEntrada, "codigo"), { recursive: true });
@@ -436,6 +442,197 @@ test('deve remover o registro criado na execucao', async () => {
   assert(!destrutivo.findings.some((item) => /autoriz/i.test(item.rule)), "Operacao destrutiva expressa nao deve exigir flag adicional");
   rejeitarRegra(destrutivo, "missing-destructive-operation");
 
+  const projetoJornada = path.join(temporario, "jornada-multiperfil");
+  executar(scaffold, [projetoJornada, "--mode", "implantacao"]);
+  const specJornada = "tests/e2e/jornada-curso.spec.js";
+  const paginaJornada = "tests/pages/JornadaCursoPage.js";
+  escrever(path.join(projetoJornada, specProfiles), `
+const specsAutenticadas = [
+  { id: 'jornada-gestor', perfil: 'Gestor', arquivo: 'tests/e2e/jornada-curso.spec.js' },
+  { id: 'jornada-coordenador', perfil: 'Coordenador', arquivo: 'tests/e2e/jornada-curso.spec.js' },
+];
+module.exports = { specsAutenticadas };
+  `);
+  escrever(path.join(projetoJornada, globalSetup), `
+const { specsAutenticadas } = require('./specProfiles');
+module.exports = async function globalSetup(config) {
+  if (config.argv.includes('--ui')) return;
+  const filtros = config.argv.slice(config.argv.indexOf('test') + 1);
+  const specs = filtros.length
+    ? specsAutenticadas.filter(({ arquivo }) => filtros.some((filtro) => arquivo.includes(filtro)))
+    : specsAutenticadas;
+  if (!specs.length) throw new Error('Nenhuma spec corresponde ao comando');
+  return specs;
+};
+  `);
+  escrever(path.join(projetoJornada, "tests/fixtures/maximizedTest.js"), `
+const base = require('@playwright/test');
+const { specsAutenticadas } = require('../auth/specProfiles');
+const { obterCredenciais } = require('../utils/authProfiles');
+function obterCaminhoEstadoAutenticacao(perfil, specId) { return perfil + '--' + specId + '.json'; }
+const test = base.test.extend({
+  autenticacaoUi: [async ({}, use, testInfo) => {
+    if (testInfo.config.argv.includes('--ui')) {
+      const specs = specsAutenticadas.filter(({ arquivo }) => testInfo.file.endsWith(arquivo));
+      for (const spec of specs) {
+        obterCredenciais(spec.perfil);
+        const contexto = { storageState: async () => {} };
+        await contexto.storageState({ path: obterCaminhoEstadoAutenticacao(spec.perfil, spec.id) });
+      }
+    }
+    await use();
+  }, { auto: true }],
+  criarPaginaAutenticada: async ({ browser }, use) => {
+    await use(async (perfil, specId) => {
+      const contexto = await browser.newContext({
+        storageState: obterCaminhoEstadoAutenticacao(perfil, specId),
+      });
+      return contexto.newPage();
+    });
+  },
+});
+module.exports = { expect: base.expect, test };
+  `);
+  escrever(path.join(projetoJornada, paginaJornada), `
+class JornadaCursoPage {
+  async criarCursoSintetico(runId) { await this.cadastrar.click(); return { runId }; }
+  async validarPersistenciaDoAlvo() { return true; }
+  async visualizarProposta() { return true; }
+  async identificarSecretario() { await this.submeter.click(); }
+  async substituirSecretario() { await this.submeter.click(); }
+  async validarEstadoFinalSecretario() { return true; }
+  async validarAusenciaErroImpeditivo() { return true; }
+}
+module.exports = { JornadaCursoPage };
+  `);
+  escrever(path.join(projetoJornada, specJornada), `
+const { test } = require('../fixtures/maximizedTest');
+const { criarIdExecucao } = require('../utils/testData');
+test('deve concluir a jornada do curso sintetico', async ({ criarPaginaAutenticada }) => {
+  const runId = criarIdExecucao('curso');
+  await jornadaPage.validarAusenciaErroImpeditivo();
+  const alvo = await test.step('Preparar curso sintetico aprovado', async () => {
+    const criado = await jornadaPage.criarCursoSintetico(runId);
+    await jornadaPage.validarPersistenciaDoAlvo(criado);
+    return criado;
+  });
+  await test.step('Visualizar Proposta', async () => {
+    await criarPaginaAutenticada('Coordenador', 'jornada-coordenador');
+    await jornadaPage.visualizarProposta(alvo);
+  });
+  await test.step('Identificar Secretario', async () => {
+    await jornadaPage.identificarSecretario(alvo);
+    await jornadaPage.validarPersistenciaDoAlvo(alvo);
+  });
+  await test.step('Substituir Secretario', async () => {
+    await jornadaPage.substituirSecretario(alvo);
+    await jornadaPage.validarEstadoFinalSecretario(alvo);
+  });
+  await jornadaPage.validarAusenciaErroImpeditivo();
+});
+  `);
+  const jornada = auditar(
+    projetoJornada,
+    [specJornada, paginaJornada, globalSetup, specProfiles, "tests/fixtures/maximizedTest.js"],
+    "implantacao",
+    "formulario",
+    ["Visualizar Proposta", "Identificar Secretario", "Substituir Secretario"],
+  );
+  for (const regra of [
+    "requested-case-without-coverage",
+    "missing-prerequisite-producer",
+    "mutating-case-without-owned-target",
+    "irreversible-action-without-run-id",
+    "cross-role-shared-auth-state",
+    "hidden-business-setup",
+  ]) rejeitarRegra(jornada, regra);
+
+  const jornadaSemCaso = auditar(
+    projetoJornada,
+    [specJornada, paginaJornada, globalSetup, specProfiles, "tests/fixtures/maximizedTest.js"],
+    "implantacao",
+    "formulario",
+    ["Visualizar Proposta", "Solicitar Prorrogacao"],
+  );
+  exigirErro(jornadaSemCaso, "requested-case-without-coverage");
+
+  escrever(path.join(projetoJornada, "node_modules/@playwright/test/cli.js"), "process.exitCode = 0;");
+  const gateSemCaso = executar(
+    qualityGate,
+    [
+      projetoJornada,
+      "--contract", "implantacao",
+      "--case-kind", "formulario",
+      "--expected-step", "Solicitar Prorrogacao",
+      "--files", specJornada, paginaJornada, globalSetup, specProfiles, "tests/fixtures/maximizedTest.js",
+      "--json",
+    ],
+    { allowFailure: true },
+  );
+  const resumoGateSemCaso = JSON.parse(gateSemCaso.stdout);
+  assert.deepEqual(resumoGateSemCaso.expectedSteps, ["Solicitar Prorrogacao"]);
+  assert(resumoGateSemCaso.audit.groupedFindings.some(({ rule }) => rule === "requested-case-without-coverage"));
+
+  const specMutacaoSemProdutor = "tests/e2e/mutacao-sem-produtor.spec.js";
+  escrever(path.join(projetoJornada, specMutacaoSemProdutor), `
+const { test } = require('../fixtures/maximizedTest');
+test('deve substituir secretario existente', async () => {
+  const cursoPreexistente = process.env.E2E_CURSO_ID;
+  await jornadaPage.validarAusenciaErroImpeditivo();
+  await jornadaPage.substituirSecretario(cursoPreexistente);
+  await jornadaPage.validarEstadoFinalSecretario(cursoPreexistente);
+  await jornadaPage.validarAusenciaErroImpeditivo();
+});
+  `);
+  const mutacaoSemProdutor = auditar(
+    projetoJornada,
+    [specMutacaoSemProdutor, paginaJornada, globalSetup, specProfiles, "tests/fixtures/maximizedTest.js"],
+    "implantacao",
+    "transicao",
+  );
+  for (const regra of [
+    "missing-prerequisite-producer",
+    "mutating-case-without-owned-target",
+    "irreversible-action-without-run-id",
+    "unsafe-preexisting-mass-mutation",
+  ]) exigirErro(mutacaoSemProdutor, regra);
+
+  const specSetupOculto = "tests/e2e/setup-oculto.spec.js";
+  escrever(path.join(projetoJornada, specSetupOculto), `
+const { test } = require('../fixtures/maximizedTest');
+test.beforeAll(async () => { await jornadaPage.criarCursoSintetico('oculto'); });
+test('deve consultar curso', async () => {
+  await jornadaPage.validarAusenciaErroImpeditivo();
+  await jornadaPage.visualizarProposta();
+  await jornadaPage.validarAusenciaErroImpeditivo();
+});
+  `);
+  exigirErro(
+    auditar(projetoJornada, [specSetupOculto, paginaJornada, globalSetup, specProfiles], "implantacao", "consulta"),
+    "hidden-business-setup",
+  );
+
+  const perfilCompartilhado = specProfiles;
+  escrever(path.join(projetoJornada, perfilCompartilhado), `
+const specsAutenticadas = [
+  { id: 'jornada', perfil: 'Gestor', arquivo: 'tests/e2e/jornada-curso.spec.js' },
+  { id: 'jornada', perfil: 'Coordenador', arquivo: 'tests/e2e/jornada-curso.spec.js' },
+];
+module.exports = { specsAutenticadas };
+  `);
+  exigirErro(
+    auditar(projetoJornada, [specJornada, paginaJornada, globalSetup, perfilCompartilhado, "tests/fixtures/maximizedTest.js"], "implantacao"),
+    "cross-role-shared-auth-state",
+  );
+
+  const configDependente = fs.readFileSync(path.join(projetoJornada, "playwright.config.js"), "utf8")
+    .replace("projects: [", "projects: [{ name: 'consumer', dependencies: ['setup'] },");
+  escrever(path.join(projetoJornada, "playwright.config.js"), configDependente);
+  exigirErro(
+    auditar(projetoJornada, [specJornada, paginaJornada, globalSetup, specProfiles, "playwright.config.js"], "implantacao"),
+    "dependent-spec-without-explicit-mode",
+  );
+
   const projetoTypeScript = path.join(temporario, "typescript-list");
   executar(scaffold, [projetoTypeScript, "--mode", "implantacao"]);
   escrever(path.join(projetoTypeScript, globalSetup), fs.readFileSync(path.join(projetoConsulta, globalSetup), "utf8"));
@@ -494,7 +691,7 @@ fs.writeFileSync('.playwright-list-args.json', JSON.stringify(process.argv.slice
   assert.equal(autoAuditoria.status, 0, autoAuditoria.stderr || autoAuditoria.stdout);
   assert.equal(JSON.parse(autoAuditoria.stdout).audit.errors, 0);
 
-  console.log("OK: contratos do plugin Playwright MCP E2E 3.1.2 validados.");
+  console.log("OK: contratos do plugin Playwright MCP E2E 3.2.0 validados.");
 } finally {
   fs.rmSync(temporario, { recursive: true, force: true });
 }

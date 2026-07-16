@@ -79,6 +79,7 @@ const contract = flagValues("--contract")[0] || "revisao";
 const caseKind = flagValues("--case-kind")[0] || (contract === "implantacao" ? "formulario" : "auto");
 const implantationRiskSeverity = contract === "implantacao" ? "error" : "warning";
 const excludedPatterns = repeatedFlagValues("--exclude").map((value) => value.replaceAll("\\", "/").replace(/^\.\//, ""));
+const expectedSteps = repeatedFlagValues("--expected-step").map((value) => value.trim()).filter(Boolean);
 
 if (!allowedContracts.has(contract)) {
   add("error", "invalid-audit-contract", ".", 1, "Use --contract implantacao, massa ou revisao.");
@@ -384,6 +385,13 @@ function normalizeText(text) {
   return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
+function normalizeCoverageTitle(text) {
+  return normalizeText(String(text || ""))
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
 function namedCalls(content) {
   return matches(content, /\b([A-Za-z_$][A-Za-z0-9_$]*)\s*\(/g)
     .map((match) => ({ name: match[1], normalizedName: normalizeText(match[1]), index: match.index }));
@@ -395,10 +403,16 @@ function isDestructiveMethodName(name) {
   return /(?:remover|excluir|apagar|deletar|aprovar|rejeitar|inativar|arquivar|cancelardefinitivamente|(?:abrir|acionar|executar|realizar).*(?:remocao|exclusao)|confirmar.*(?:remocao|exclusao|cancelamentodefinitivo))/.test(normalized);
 }
 
+function isOwnedTargetMutationName(name) {
+  const normalized = normalizeText(name);
+  if (/^(?:validar|confirmar|localizar|buscar|abrir|preencher|selecionar|obter)/.test(normalized)) return false;
+  return /(?:aprovar|rejeitar|remover|excluir|apagar|deletar|substituir|identificarsecretari|prorrogar|solicitarprorrogacao|alterarstatus|transicionar|inativar|arquivar)/.test(normalized);
+}
+
 function isFormActionMethodName(name) {
   const normalized = normalizeText(name);
   if (/^(?:validar|verificar|obter|localizar|preencher|selecionar)/.test(normalized)) return false;
-  return /^(?:clicar|cancelar|voltar|avancar|submeter|salvar|cadastrar|alterar|confirmar|finalizar|incluir|adicionar)/.test(normalized);
+  return /^(?:clicar|cancelar|voltar|avancar|submeter|salvar|cadastrar|alterar|confirmar|finalizar|incluir|adicionar|identificar|substituir|solicitar)/.test(normalized);
 }
 
 function stringLiterals(content) {
@@ -1269,6 +1283,7 @@ for (const file of specFiles) {
   );
   if (sharedCaseSetup) {
     add("error", "shared-use-case-state", relative(file), lineNumber(content, sharedCaseSetup.index), "Cada spec deve criar login, sessao e massa proprios; nao prepare estado funcional compartilhado em beforeAll.");
+    add("error", "hidden-business-setup", relative(file), lineNumber(content, sharedCaseSetup.index), "Massa e transicoes de negocio devem aparecer como etapas da jornada, nunca em beforeAll.");
   }
   const repeatedLoginHook = firstMatch(content, /\btest\.beforeEach\s*\([\s\S]{0,1200}?\b(?:login|autenticar|realizarLogin|openCreateForm|abrirFormularioCadastro|acessarFluxo)\s*\(/gi);
   if (implantationSpec && repeatedLoginHook) {
@@ -1285,6 +1300,31 @@ for (const file of specFiles) {
   }
 
   const calls = namedCalls(content);
+  const ownedTargetMutation = calls.find((call) => isOwnedTargetMutationName(call.name));
+  if (implantationSpec && ownedTargetMutation) {
+    const prerequisiteProducer = calls.find((call) => (
+      call.index < ownedTargetMutation.index
+      && /^(?:criar|cadastrar|incluir|submeter|preparar).*(?:proposta|curso|registro|alvo|sintet|massa)/.test(call.normalizedName)
+      && !/(?:idexecucao|runid|dados|data)/.test(call.normalizedName)
+    ));
+    const hasOwnedRunId = /\b(?:runId|idExecucao)\b|(?:createRunId|criarIdExecucao|criar(?:Proposta|Tipo|Curso|Calendario|Calendário)[A-Za-z0-9_]*)\s*\(|Date\.now|randomUUID|crypto\.randomUUID|timestamp/i.test(content);
+    const preexistingTarget = firstMatch(
+      content,
+      /process\.env\.[A-Z0-9_]*(?:RECORD|REGISTRO|ALVO|TARGET|CURSO)_?ID\b|\b(?:massa|alvo|registro|curso)(?:Preexistente|Existente|Anterior|Compartilhado)\b/gi,
+    );
+    if (!prerequisiteProducer) {
+      add("error", "missing-prerequisite-producer", relative(file), lineNumber(content, ownedTargetMutation.index), "Antes da mutacao, produza pela interface o alvo sintetico da mesma jornada ou identifique exatamente o produtor indisponivel.");
+    }
+    if (!prerequisiteProducer || !hasOwnedRunId) {
+      add("error", "mutating-case-without-owned-target", relative(file), lineNumber(content, ownedTargetMutation.index), "Caso mutavel exige alvo criado pela propria jornada e correlacionado por runId antes da operacao.");
+    }
+    if (!hasOwnedRunId) {
+      add("error", "irreversible-action-without-run-id", relative(file), lineNumber(content, ownedTargetMutation.index), "Transicao irreversivel exige runId exclusivo e rastreavel na identidade do alvo.");
+    }
+    if (preexistingTarget) {
+      add("error", "unsafe-preexisting-mass-mutation", relative(file), lineNumber(content, preexistingTarget.index), "Nao altere massa preexistente ou compartilhada; produza o alvo pela interface dentro da jornada atual.");
+    }
+  }
   const destructiveCall = calls.find((call) => isDestructiveMethodName(call.name));
   if (destructiveCall) {
     const creationCall = calls.find((call) => (
@@ -1328,6 +1368,25 @@ for (const file of specFiles) {
     }
     if (sharedTarget) {
       add("error", "destructive-shared-target", relative(file), lineNumber(content, sharedTarget.index), "Spec destrutiva nao pode depender de alvo preparado por hook, ambiente ou outra spec.");
+    }
+  }
+}
+
+if (contract === "implantacao" && expectedSteps.length) {
+  const coverageTitles = specFiles.flatMap((file) => {
+    const content = fs.readFileSync(file, "utf8");
+    return [
+      ...matches(content, /\btest\s*\(\s*["'`]([^"'`]+)["'`]/g),
+      ...matches(content, /\btest\.step\s*\(\s*["'`]([^"'`]+)["'`]/g),
+    ].map((match) => normalizeCoverageTitle(match[1]));
+  });
+  for (const expectedStep of expectedSteps) {
+    const normalizedExpected = normalizeCoverageTitle(expectedStep);
+    const covered = coverageTitles.some((title) => (
+      title.includes(normalizedExpected) || normalizedExpected.includes(title)
+    ));
+    if (!covered) {
+      add("error", "requested-case-without-coverage", ".", 1, `Caso solicitado sem spec ou test.step correspondente: ${expectedStep}.`);
     }
   }
 }
@@ -1504,6 +1563,7 @@ for (const file of pageObjectFiles) {
 }
 
 if (contract === "implantacao" && specFiles.length) {
+  const multiProfileJourneyFiles = new Set();
   const globalSetupFiles = walk(root).filter((file) => (
     codeExtensions.has(path.extname(file)) && /(?:^|[/\\])globalSetup\.[cm]?[jt]s$/i.test(file)
   ));
@@ -1517,6 +1577,24 @@ if (contract === "implantacao" && specFiles.length) {
     if (!/\bid\s*:/.test(profileContent) || !/\bperfil\s*:/.test(profileContent) || !/\barquivo\s*:/.test(profileContent)) {
       add("error", "invalid-auth-spec-profiles", relative(specProfileFiles[0]), 1, "specProfiles deve mapear id, perfil e arquivo de cada spec.");
     }
+    const profileEntries = [...profileContent.matchAll(
+      /\{\s*id\s*:\s*["'`]([^"'`]+)["'`]\s*,\s*perfil\s*:\s*["'`]([^"'`]+)["'`]\s*,\s*arquivo\s*:\s*["'`]([^"'`]+)["'`]\s*\}/g,
+    )].map((match) => ({ id: match[1], perfil: match[2], arquivo: match[3] }));
+    const ids = new Set();
+    for (const entry of profileEntries) {
+      if (ids.has(entry.id)) {
+        add("error", "cross-role-shared-auth-state", relative(specProfileFiles[0]), 1, `O id de autenticacao ${entry.id} foi reutilizado; cada perfil da jornada precisa de storageState proprio.`);
+      }
+      ids.add(entry.id);
+    }
+    const profilesByFile = new Map();
+    for (const entry of profileEntries) {
+      if (!profilesByFile.has(entry.arquivo)) profilesByFile.set(entry.arquivo, new Set());
+      profilesByFile.get(entry.arquivo).add(entry.perfil);
+    }
+    for (const [arquivo, perfis] of profilesByFile) {
+      if (perfis.size > 1) multiProfileJourneyFiles.add(arquivo);
+    }
   }
   if (!globalSetupFiles.length) {
     add("error", "missing-scoped-auth-setup", ".", 1, "Implantacao exige globalSetup com storageState por perfil/spec e selecao automatica pelos filtros de arquivo do comando.");
@@ -1525,6 +1603,13 @@ if (contract === "implantacao" && specFiles.length) {
     const fixtureFiles = walk(path.join(root, "tests", "fixtures"))
       .filter((file) => codeExtensions.has(path.extname(file)));
     const fixtureContent = fixtureFiles.map((file) => fs.readFileSync(file, "utf8")).join("\n");
+    const hiddenBusinessSetup = firstMatch(
+      authContent,
+      /\b(?:criar|cadastrar|submeter|aprovar|rejeitar|remover|excluir|substituir|prorrogar|solicitarProrrogacao)[A-Za-z0-9_]*\s*\(/gi,
+    );
+    if (hiddenBusinessSetup) {
+      add("error", "hidden-business-setup", relative(globalSetupFiles[0]), lineNumber(authContent, hiddenBusinessSetup.index), "globalSetup deve preparar somente autenticacao; produza massa e transicoes em test.step visivel na jornada.");
+    }
     const selectionIndex = authContent.indexOf("config.argv");
     const filterIndex = authContent.search(/\.filter\s*\(/);
     const uiIndex = authContent.indexOf("--ui");
@@ -1551,6 +1636,14 @@ if (contract === "implantacao" && specFiles.length) {
       && /auto\s*:\s*true/.test(fixtureContent);
     if (!hasUiLazyAuth) {
       add("error", "missing-ui-lazy-auth", fixtureFiles.length ? relative(fixtureFiles[0]) : ".", 1, "Adicione fixture automatica que, somente ao executar uma spec no UI Mode, selecione o perfil por testInfo.file e gere seu storageState em contexto separado.");
+    }
+    if (multiProfileJourneyFiles.size) {
+      const hasIsolatedRoleContexts = /\bcriarPaginaAutenticada\b/.test(fixtureContent)
+        && /\bbrowser\.newContext\s*\(/.test(fixtureContent)
+        && /obterCaminhoEstadoAutenticacao\s*\(\s*perfil\s*,\s*specId\s*\)/.test(fixtureContent);
+      if (!hasIsolatedRoleContexts) {
+        add("error", "cross-role-shared-auth-state", fixtureFiles.length ? relative(fixtureFiles[0]) : ".", 1, "Jornada multiperfil exige criarPaginaAutenticada com novo contexto e storageState calculado por perfil e specId.");
+      }
     }
   }
 }
@@ -1654,6 +1747,10 @@ if (!configFile) {
 } else {
   const config = fs.readFileSync(configFile, "utf8");
   const rel = relative(configFile);
+  const projectDependencies = firstMatch(config, /\bdependencies\s*:\s*\[/g);
+  if (contract === "implantacao" && projectDependencies) {
+    add("error", "dependent-spec-without-explicit-mode", rel, lineNumber(config, projectDependencies.index), "Nao use project dependencies para transportar massa entre specs; mantenha o ciclo em uma jornada unica. O modo dependente nao integra o contrato 3.2.0.");
+  }
   if (!/^\s*timeout\s*:\s*[0-9_]+\s*,?/m.test(config)) {
     add("warning", "missing-central-test-timeout", rel, 1, "Configure o limite total central em timeout no playwright.config; o padrao do plugin e 180_000 ms.");
   }
@@ -1687,6 +1784,7 @@ const summary = {
   mode: scopedFiles.length ? "files" : (changedOnly ? "changed" : "full"),
   contract,
   caseKind,
+  expectedSteps,
   scannedFiles: codeFiles.length,
   errors: findings.filter((item) => item.severity === "error").length,
   warnings: findings.filter((item) => item.severity === "warning").length,

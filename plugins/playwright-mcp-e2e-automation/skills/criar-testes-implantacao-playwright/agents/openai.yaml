@@ -1,6 +1,6 @@
 interface:
   display_name: "Criar testes de implantacao"
-  short_description: "Cria smoke por caminho ou casos numerados"
+  short_description: "Cria jornadas smoke multiperfil por casos"
   icon_small: "./assets/playwright.png"
   icon_large: "./assets/playwright.png"
-  default_prompt: "Use $criar-testes-implantacao-playwright com MODO: Implantacao e informe URL, operacao, caminho, perfil, credenciais, resultado esperado, AGENTS.md e raiz do codigo-fonte. Analise as fontes somente no caminho solicitado."
+  default_prompt: "Use $criar-testes-implantacao-playwright com MODO: Implantacao e informe URL, casos, perfis, credenciais, resultados esperados, AGENTS.md e raiz do codigo-fonte. Produza precondicoes seguras e agrupe casos dependentes na mesma jornada."

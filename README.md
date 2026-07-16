@@ -123,7 +123,7 @@ CAMINHO:
 PERFIL:
 USUÁRIO:
 SENHA:
-MASSA E PRÉ-CONDIÇÕES:     # obrigatória quando depender de cadastro anterior
+MASSA E PRÉ-CONDIÇÕES:     # opcional; o plugin tenta produzir a precondição ausente
 RESULTADO ESPERADO:
 
 FONTES DE EVIDÊNCIA (obrigatórias; análise limitada ao caminho informado):
@@ -131,7 +131,7 @@ AGENTS.md do módulo: /caminho/AGENTS.md
 Código-fonte: /caminho/do/sistema
 ```
 
-Para criar várias specs no mesmo pedido, mantenha cada caso e suas credenciais no mesmo bloco:
+Para criar varios casos no mesmo pedido, mantenha cada operacao e suas credenciais no proprio bloco. Casos dependentes podem formar uma unica jornada:
 
 ```text
 MODO: Implantação
@@ -143,7 +143,7 @@ CAMINHO:
 PERFIL:
 USUÁRIO:
 SENHA:
-MASSA E PRÉ-CONDIÇÕES:     # obrigatória quando depender de cadastro anterior
+MASSA E PRÉ-CONDIÇÕES:     # opcional; o plugin tenta produzir a precondição ausente
 DADOS ESPECÍFICOS:         # opcional
 RESULTADO ESPERADO:
 OBSERVAÇÕES:               # opcional
@@ -154,7 +154,7 @@ CAMINHO:
 PERFIL:
 USUÁRIO:
 SENHA:
-MASSA E PRÉ-CONDIÇÕES:     # obrigatória quando depender de cadastro anterior
+MASSA E PRÉ-CONDIÇÕES:     # opcional; o plugin tenta produzir a precondição ausente
 DADOS ESPECÍFICOS:         # opcional
 RESULTADO ESPERADO:
 OBSERVAÇÕES:               # opcional
@@ -164,17 +164,17 @@ AGENTS.md do módulo: /caminho/AGENTS.md
 Código-fonte: /caminho/do/sistema
 ```
 
-Os blocos devem ser numerados a partir de 1 e conter operação, caminho, perfil, usuário, senha e resultado esperado. `AGENTS.md` e raiz do código-fonte são obrigatórios como fontes globais de evidência; sua ausência ou impossibilidade de leitura bloqueia o lote antes da navegação. `MASSA E PRÉ-CONDIÇÕES` torna-se obrigatória quando o fluxo depender de cadastro anterior. O plugin processa todos os casos completos na ordem e agrupa somente operações compatíveis sobre a mesma entidade, perfil e massa em um ciclo funcional. Casos incompatíveis continuam em specs independentes. Casos com o mesmo perfil e credenciais reutilizam as variáveis do `.env`; credenciais nunca entram no código.
+Os blocos devem ser numerados a partir de 1 e conter operação, caminho, perfil, usuário, senha e resultado esperado. `AGENTS.md` e raiz do código-fonte são obrigatórios como fontes globais de evidência; sua ausência ou impossibilidade de leitura bloqueia o lote antes da navegação. O plugin classifica produtores, consumidores, perfis, mutações e precondições antes de gerar código. Casos sobre a mesma entidade e o mesmo `runId` formam uma jornada, inclusive quando exigem perfis diferentes. Casos incompatíveis continuam em specs independentes. Credenciais reutilizam variáveis do `.env`, mas cada combinação de perfil e spec recebe um estado autenticado próprio.
 
-O formato de guia não é aceito. Converta o documento em casos de uso explícitos e envie apenas os que já tenham caminho e pré-condições suficientes para automação.
+O formato de guia não é aceito. Converta o documento em casos de uso explícitos com caminho suficiente para localizar a operação; o plugin resolve as precondições que puder produzir com segurança pela interface.
 
-Esse modo sempre usa `AGENTS.md` e código-fonte como evidência, mas lê somente instruções, telas, controladores, validadores e persistência ligados ao caminho informado. Regras internas não observáveis não criam casos adicionais, assertions ou exploração de funcionalidades vizinhas. Cada spec representa uma operação isolada ou um ciclo compatível, com uma sessão maximizada, uma massa principal, validações de todos os obrigatórios visuais, cobertura dos botões seguros, checkpoints de erro impeditivo e uma única conclusão positiva. Assertions de `maxlength`, classe CSS e testes negativos de tipo ou formato não fazem parte do smoke salvo requisito explícito.
+Esse modo sempre usa `AGENTS.md` e código-fonte como evidência, lendo as partes ligadas aos casos e aos produtores estritamente necessários de suas precondições. Antes de bloquear por falta de massa, o plugin tenta reutilizar saída da jornada, criar um alvo sintético pela interface e alternar para outro perfil. Massa preexistente fica restrita a consultas e operações comprovadamente não destrutivas. Cada spec representa uma operação isolada ou uma jornada compatível, com uma massa principal, contextos autenticados separados por papel, cobertura dos botões seguros, checkpoints de erro impeditivo e conclusões funcionais visíveis.
 
-A spec conserva apenas a história funcional. Quando várias operações usam o mesmo registro, elas permanecem em um `test` e recebem `test.step` apenas no nível de negócio, como criar, visualizar, imprimir e remover. Operações independentes usam testes separados; etapas de clique, preenchimento ou campo individual não recebem `test.step`. As obrigatoriedades usam `expect.soft` para verificar todos os campos na mesma sessão. Antes da única persistência positiva, a spec consulta `testInfo.errors` uma vez e encerra sem cadastrar se alguma obrigatoriedade falhou. Ações e provas ficam em chamadas separadas, como `submeter()`, `validarMensagemSucesso()` e `validarPersistencia()`. O Page Object concentra locators, campos e operações de preenchimento, validação, restauração e consulta, sem camada `flows`, `BasePage` ou método único que esconda todo o smoke. O lote nunca adiciona relatório customizado, `fluxoAcessivel`, inventário ou metadados à spec.
+A spec conserva apenas a história funcional. Quando várias operações usam o mesmo registro, elas permanecem em um `test`; cada caso solicitado e cada produtor necessário recebem `test.step` no nível de negócio. Perfis adicionais usam `criarPaginaAutenticada(perfil, specId)` em contextos separados. Operações independentes usam testes separados; etapas de clique, preenchimento ou campo individual não recebem `test.step`. As obrigatoriedades usam `expect.soft`, e ações/provas ficam em chamadas separadas. O Page Object concentra locators e comportamento de tela, sem camada `flows`, `BasePage` ou método único que esconda a jornada.
 
-O quality gate recebe contexto explícito: `--contract implantacao --case-kind formulario|consulta|relatorio|remocao|transicao`, `--contract massa` ou `--contract revisao`. Use `--files` para auditar somente a spec e seus Page Objects e `--exclude <caminho>` quando fixtures negativas intencionais não devam participar da autoauditoria. Em implantação, o gate também coleta as specs selecionadas com `playwright test --list` e trata esperas fixas e seletores estruturais de alto risco como erros.
+O quality gate recebe contexto explícito: `--contract implantacao --case-kind formulario|consulta|relatorio|remocao|transicao`, `--contract massa` ou `--contract revisao`. Em implantação, repita `--expected-step "Operação"` para cada caso solicitado e use `--files` para auditar a jornada e seus Page Objects. O gate reprova caso sem cobertura, setup funcional oculto, dependência entre specs, estado compartilhado entre perfis e mutação sem alvo sintético próprio. Ele também coleta as specs selecionadas com `playwright test --list`.
 
-Cada spec recebe um ID em `tests/auth/specProfiles.js`. A escolha e feita diretamente pelo comando: `npx playwright test "tests/e2e/minha-spec.spec.js"` executa e autentica somente a spec informada; `npm test` sem filtro executa e autentica a suite completa. O `globalSetup` usa `config.argv`, fornecido pelo Playwright, e nao exige variavel adicional para essa selecao.
+Cada combinação de perfil e spec recebe um ID em `tests/auth/specProfiles.js`; uma jornada multiperfil possui várias entradas para o mesmo arquivo. A escolha é feita diretamente pelo comando: uma spec filtrada prepara todos os seus papéis, enquanto `npm test` prepara a suite completa. O `globalSetup` usa `config.argv`, cuida somente de autenticação e não exige variável adicional.
 
 No UI Mode, `npx playwright test --ui` abre somente a interface e lista as specs. O `globalSetup` nao autentica durante essa abertura; o estado da sessao e preparado por uma fixture automatica apenas quando o usuario mandar executar a spec escolhida.
 
@@ -182,7 +182,7 @@ Listas alimentadas por cadastros anteriores usam a primeira opção válida, ign
 
 Formulários multipágina percorrem todas as telas na mesma sessão e sobre a mesma massa. Voltar e Cancelar só reentram no fluxo quando não criarem outro registro ou quando o mesmo `runId` puder continuar. Recuperações necessárias durante a criação são executadas pelo Codex no navegador e não geram métodos de tentativa, locks, ledger, cache ou scripts de limpeza no projeto entregue.
 
-Remoções e transições irreversíveis só atuam sobre um registro sintético criado pela própria spec na execução atual. A spec confirma persistência e unicidade pelo `runId`, testa Cancelar antes de Confirmar quando disponível e valida ausência ou estado final. Se não puder garantir propriedade exclusiva ou segurança contra cascata, somente essa operação fica bloqueada. O relatório HTML mostra diretamente quais specs passaram ou falharam, com trace e screenshot somente em falhas.
+Remoções e transições irreversíveis só atuam sobre registro sintético criado pela própria jornada. A spec confirma persistência e unicidade pelo `runId`, testa Cancelar antes de Confirmar quando disponível e valida ausência ou estado final. Se não houver produtor seguro na interface, o plugin informa exatamente a operação, o perfil ou o dado ausente; ele não pode simplesmente omitir o caso. O relatório HTML mostra cada caso e etapa de suporte, com trace e screenshot somente em falhas.
 
 Se o modo estiver ausente ou contraditório, o plugin pede a escolha antes de criar código ou executar o navegador.
 
