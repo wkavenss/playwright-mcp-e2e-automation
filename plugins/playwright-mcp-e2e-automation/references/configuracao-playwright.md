@@ -106,7 +106,7 @@ npx playwright test --ui
 
 O browser da aplicacao e o login devem iniciar somente depois que o usuario clicar para executar uma spec.
 
-O utilitario deve mapear o perfil para variaveis de ambiente no formato `E2E_<PERFIL>_USERNAME` e `E2E_<PERFIL>_PASSWORD`, convertendo hifens e espacos para `_`. Exemplos: `docente` -> `E2E_DOCENTE_USERNAME`; `coord-graduacao` -> `E2E_COORD_GRADUACAO_USERNAME`. Nao usar `process.env.E2E_USERNAME` ou `process.env.E2E_PASSWORD` em specs novas. Salvar um `storageState` temporario por perfil/spec em `test-results/auth/`, configurar `test.use({ storageState })` e iniciar a spec confirmando que a sessao esta autenticada. Nao reutilizar estado manual ou versionado.
+O utilitario deve mapear o perfil para variaveis de ambiente no formato `E2E_<PERFIL>_USERNAME` e `E2E_<PERFIL>_PASSWORD`, convertendo hifens e espacos para `_`. Exemplos: `operador` -> `E2E_OPERADOR_USERNAME`; `coord-area` -> `E2E_COORD_AREA_USERNAME`. Nao usar `process.env.E2E_USERNAME` ou `process.env.E2E_PASSWORD` em specs novas. Salvar um `storageState` temporario por perfil/spec em `test-results/auth/`, configurar `test.use({ storageState })` e iniciar a spec confirmando que a sessao esta autenticada. Nao reutilizar estado manual ou versionado.
 
 Configurar Playwright com `workers: process.env.E2E_WORKERS ? Number(process.env.E2E_WORKERS) : 1`. O padrao serial evita conflito de sessao em sistemas legados quando varios perfis do `.env` apontam temporariamente para a mesma conta. Aumentar `E2E_WORKERS` somente quando as contas e massas forem independentes.
 

@@ -36,6 +36,19 @@ Para dois papeis que exigem pessoas diferentes:
 
 Depois de cada clique, confirme que o input assumiu o texto esperado. Se a confirmacao falhar, use uma mensagem funcional sem copiar o nome descoberto dinamicamente para a spec, `.env`, log ou relatorio.
 
+## Qualificacao Funcional Reversivel
+
+Algumas listas retornam cadastros consultaveis, mas nao expõem no autocomplete a regra que determina se cada candidato pode ocupar o papel solicitado. Nessa situacao, uma qualificacao sistematica e permitida somente quando as fontes e a tela confirmarem uma acao anterior a persistencia principal que aplique a mesma regra e possa ser integralmente desfeita.
+
+- Colete a lista dinamica uma vez, descarte itens invalidos e deduplique por identidade normalizada.
+- Derive a quantidade necessaria dos papeis consumidores da jornada.
+- Selecione cada candidato por valor exato e submeta cada identidade no maximo uma vez ao validador reversivel.
+- Mantenha os candidatos aceitos apenas enquanto forem necessarios para comprovar cardinalidade e distincao.
+- Remova todas as inclusoes temporarias e confirme o retorno ao estado inicial antes da persistencia principal.
+- Se a lista terminar sem candidatos suficientes, informe a quantidade obtida e a precondicao ausente; nao procure automaticamente outro modulo nem invente valores.
+
+Nao aplique este procedimento quando a elegibilidade ja estiver expressa na lista ou quando a acao de teste persistir, auditar ou notificar o candidato. Nesses casos, use a selecao simples ou bloqueie com o dado exato ausente.
+
 ## Casos De Contrato
 
-O comportamento deve cobrir: valor especifico encontrado ou ausente, homonimos, lista vazia, itens vazios ou desabilitados, busca `%%%` sem valor especifico, dois valores informados, apenas um valor informado e dois candidatos dinamicos distintos.
+O comportamento deve cobrir: valor especifico encontrado ou ausente, homonimos, lista vazia, itens vazios ou desabilitados, busca `%%%` sem valor especifico, dois valores informados, apenas um valor informado, papeis dinamicos distintos e qualificacao reversivel com sucesso, reversao e esgotamento insuficiente.

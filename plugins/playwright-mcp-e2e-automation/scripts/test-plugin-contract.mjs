@@ -68,7 +68,7 @@ function exigirErro(resumo, regra) {
 
 try {
   const manifesto = JSON.parse(fs.readFileSync(path.join(raizPlugin, ".codex-plugin", "plugin.json"), "utf8"));
-  assert.equal(manifesto.version, "3.2.0");
+  assert.equal(manifesto.version, "3.2.1");
   assert.match(manifesto.interface.longDescription, /jornadas multiperfil/);
   assert.match(manifesto.interface.longDescription, /precondicoes pela interface/);
   assert.match(manifesto.interface.longDescription, /relatorio HTML nativo/);
@@ -80,6 +80,10 @@ try {
 
   const skillImplantacao = fs.readFileSync(
     path.join(raizPlugin, "skills", "criar-testes-implantacao-playwright", "SKILL.md"),
+    "utf8",
+  );
+  const referenciaAutocompletes = fs.readFileSync(
+    path.join(raizPlugin, "references", "autocompletes-portateis.md"),
     "utf8",
   );
   assert.match(skillImplantacao, /produtor gera somente `MODULO`/);
@@ -106,6 +110,26 @@ try {
   assert.match(skillImplantacao, /criarPaginaAutenticada\(perfil, specId\)/);
   assert.match(skillImplantacao, /repetindo `--expected-step` para todos os casos solicitados/);
   assert.match(skillImplantacao, /Um caso nao pode desaparecer do lote/);
+  assert.match(skillImplantacao, /candidato institucional que precisa ser qualificado por regra de negocio/);
+  assert.match(skillImplantacao, /Qualificacao Reversivel De Candidatos/);
+  assert.match(skillImplantacao, /Derivar a quantidade necessaria dos papeis consumidores da jornada/);
+  assert.match(skillImplantacao, /Desfazer todas as inclusoes temporarias/);
+  assert.match(skillImplantacao, /nao proibe jornadas legitimamente multimodulo/);
+  assert.match(skillImplantacao, /modulo adicional.*expresso nos casos solicitados/);
+  assert.match(referenciaAutocompletes, /Qualificacao Funcional Reversivel/);
+  assert.match(referenciaAutocompletes, /Remova todas as inclusoes temporarias/);
+  assert.match(referenciaAutocompletes, /lista terminar sem candidatos suficientes/);
+  const termosDeDominioEspecifico = [
+    ["S", "IGAA"].join(""),
+    ["L", "ato Sensu"].join(""),
+    ["Gradua", "cao"].join(""),
+    ["Secret", "ario"].join(""),
+  ];
+  for (const termo of termosDeDominioEspecifico) {
+    const expressao = new RegExp(termo, "i");
+    assert.doesNotMatch(skillImplantacao, expressao);
+    assert.doesNotMatch(referenciaAutocompletes, expressao);
+  }
 
   const projetoContratoEntrada = path.join(temporario, "contrato-entrada");
   fs.mkdirSync(path.join(projetoContratoEntrada, "codigo"), { recursive: true });
@@ -444,12 +468,12 @@ test('deve remover o registro criado na execucao', async () => {
 
   const projetoJornada = path.join(temporario, "jornada-multiperfil");
   executar(scaffold, [projetoJornada, "--mode", "implantacao"]);
-  const specJornada = "tests/e2e/jornada-curso.spec.js";
-  const paginaJornada = "tests/pages/JornadaCursoPage.js";
+  const specJornada = "tests/e2e/jornada-registro.spec.js";
+  const paginaJornada = "tests/pages/JornadaRegistroPage.js";
   escrever(path.join(projetoJornada, specProfiles), `
 const specsAutenticadas = [
-  { id: 'jornada-gestor', perfil: 'Gestor', arquivo: 'tests/e2e/jornada-curso.spec.js' },
-  { id: 'jornada-coordenador', perfil: 'Coordenador', arquivo: 'tests/e2e/jornada-curso.spec.js' },
+  { id: 'jornada-produtor', perfil: 'Produtor', arquivo: 'tests/e2e/jornada-registro.spec.js' },
+  { id: 'jornada-consumidor', perfil: 'Consumidor', arquivo: 'tests/e2e/jornada-registro.spec.js' },
 ];
 module.exports = { specsAutenticadas };
   `);
@@ -494,39 +518,65 @@ const test = base.test.extend({
 module.exports = { expect: base.expect, test };
   `);
   escrever(path.join(projetoJornada, paginaJornada), `
-class JornadaCursoPage {
-  async criarCursoSintetico(runId) { await this.cadastrar.click(); return { runId }; }
+class JornadaRegistroPage {
+  async obterCandidatosInstitucionais() { return [{ id: 'a' }, { id: 'b' }, { id: 'c' }]; }
+  async validarCandidato(candidato) { return Boolean(candidato.id); }
+  async qualificarCandidatosReversivelmente(candidatos, quantidade) {
+    const qualificados = [];
+    for (const candidato of candidatos) {
+      if (await this.validarCandidato(candidato)) qualificados.push(candidato);
+      if (qualificados.length === quantidade) break;
+    }
+    return qualificados;
+  }
+  async desfazerQualificacoesTemporarias(qualificados) { return qualificados.length; }
+  async validarEstadoInicialRestaurado() { return true; }
+  async criarRegistroSintetico(runId) { await this.cadastrar.click(); return { runId }; }
   async validarPersistenciaDoAlvo() { return true; }
-  async visualizarProposta() { return true; }
-  async identificarSecretario() { await this.submeter.click(); }
-  async substituirSecretario() { await this.submeter.click(); }
-  async validarEstadoFinalSecretario() { return true; }
+  async consultarRegistro() { return true; }
+  async atribuirResponsavel() { await this.submeter.click(); }
+  async substituirResponsavel() { await this.submeter.click(); }
+  async validarEstadoFinalResponsavel() { return true; }
   async validarAusenciaErroImpeditivo() { return true; }
 }
-module.exports = { JornadaCursoPage };
+module.exports = { JornadaRegistroPage };
   `);
   escrever(path.join(projetoJornada, specJornada), `
 const { test } = require('../fixtures/maximizedTest');
 const { criarIdExecucao } = require('../utils/testData');
-test('deve concluir a jornada do curso sintetico', async ({ criarPaginaAutenticada }) => {
-  const runId = criarIdExecucao('curso');
+test('deve concluir a jornada do registro sintetico', async ({ criarPaginaAutenticada }) => {
+  const runId = criarIdExecucao('registro');
   await jornadaPage.validarAusenciaErroImpeditivo();
-  const alvo = await test.step('Preparar curso sintetico aprovado', async () => {
-    const criado = await jornadaPage.criarCursoSintetico(runId);
+  const quantidadeResponsaveis = 2;
+  const responsaveis = await test.step('Qualificar candidatos institucionais', async () => {
+    const candidatos = await jornadaPage.obterCandidatosInstitucionais();
+    const qualificados = await jornadaPage.qualificarCandidatosReversivelmente(
+      candidatos,
+      quantidadeResponsaveis,
+    );
+    await jornadaPage.desfazerQualificacoesTemporarias(qualificados);
+    await jornadaPage.validarEstadoInicialRestaurado();
+    if (qualificados.length < quantidadeResponsaveis) {
+      throw new Error('Precondicao ausente: candidatos institucionais qualificados insuficientes.');
+    }
+    return qualificados;
+  });
+  const alvo = await test.step('Preparar registro sintetico aprovado', async () => {
+    const criado = await jornadaPage.criarRegistroSintetico(runId);
     await jornadaPage.validarPersistenciaDoAlvo(criado);
     return criado;
   });
-  await test.step('Visualizar Proposta', async () => {
-    await criarPaginaAutenticada('Coordenador', 'jornada-coordenador');
-    await jornadaPage.visualizarProposta(alvo);
+  await test.step('Consultar Registro', async () => {
+    await criarPaginaAutenticada('Consumidor', 'jornada-consumidor');
+    await jornadaPage.consultarRegistro(alvo);
   });
-  await test.step('Identificar Secretario', async () => {
-    await jornadaPage.identificarSecretario(alvo);
+  await test.step('Atribuir Responsavel', async () => {
+    await jornadaPage.atribuirResponsavel(alvo, responsaveis[0]);
     await jornadaPage.validarPersistenciaDoAlvo(alvo);
   });
-  await test.step('Substituir Secretario', async () => {
-    await jornadaPage.substituirSecretario(alvo);
-    await jornadaPage.validarEstadoFinalSecretario(alvo);
+  await test.step('Substituir Responsavel', async () => {
+    await jornadaPage.substituirResponsavel(alvo, responsaveis[1]);
+    await jornadaPage.validarEstadoFinalResponsavel(alvo);
   });
   await jornadaPage.validarAusenciaErroImpeditivo();
 });
@@ -536,7 +586,7 @@ test('deve concluir a jornada do curso sintetico', async ({ criarPaginaAutentica
     [specJornada, paginaJornada, globalSetup, specProfiles, "tests/fixtures/maximizedTest.js"],
     "implantacao",
     "formulario",
-    ["Visualizar Proposta", "Identificar Secretario", "Substituir Secretario"],
+    ["Consultar Registro", "Atribuir Responsavel", "Substituir Responsavel"],
   );
   for (const regra of [
     "requested-case-without-coverage",
@@ -552,7 +602,7 @@ test('deve concluir a jornada do curso sintetico', async ({ criarPaginaAutentica
     [specJornada, paginaJornada, globalSetup, specProfiles, "tests/fixtures/maximizedTest.js"],
     "implantacao",
     "formulario",
-    ["Visualizar Proposta", "Solicitar Prorrogacao"],
+    ["Consultar Registro", "Emitir Comprovante"],
   );
   exigirErro(jornadaSemCaso, "requested-case-without-coverage");
 
@@ -563,24 +613,24 @@ test('deve concluir a jornada do curso sintetico', async ({ criarPaginaAutentica
       projetoJornada,
       "--contract", "implantacao",
       "--case-kind", "formulario",
-      "--expected-step", "Solicitar Prorrogacao",
+      "--expected-step", "Emitir Comprovante",
       "--files", specJornada, paginaJornada, globalSetup, specProfiles, "tests/fixtures/maximizedTest.js",
       "--json",
     ],
     { allowFailure: true },
   );
   const resumoGateSemCaso = JSON.parse(gateSemCaso.stdout);
-  assert.deepEqual(resumoGateSemCaso.expectedSteps, ["Solicitar Prorrogacao"]);
+  assert.deepEqual(resumoGateSemCaso.expectedSteps, ["Emitir Comprovante"]);
   assert(resumoGateSemCaso.audit.groupedFindings.some(({ rule }) => rule === "requested-case-without-coverage"));
 
   const specMutacaoSemProdutor = "tests/e2e/mutacao-sem-produtor.spec.js";
   escrever(path.join(projetoJornada, specMutacaoSemProdutor), `
 const { test } = require('../fixtures/maximizedTest');
-test('deve substituir secretario existente', async () => {
-  const cursoPreexistente = process.env.E2E_CURSO_ID;
+test('deve substituir responsavel existente', async () => {
+  const registroPreexistente = process.env.E2E_REGISTRO_ID;
   await jornadaPage.validarAusenciaErroImpeditivo();
-  await jornadaPage.substituirSecretario(cursoPreexistente);
-  await jornadaPage.validarEstadoFinalSecretario(cursoPreexistente);
+  await jornadaPage.substituirResponsavel(registroPreexistente);
+  await jornadaPage.validarEstadoFinalResponsavel(registroPreexistente);
   await jornadaPage.validarAusenciaErroImpeditivo();
 });
   `);
@@ -691,7 +741,7 @@ fs.writeFileSync('.playwright-list-args.json', JSON.stringify(process.argv.slice
   assert.equal(autoAuditoria.status, 0, autoAuditoria.stderr || autoAuditoria.stdout);
   assert.equal(JSON.parse(autoAuditoria.stdout).audit.errors, 0);
 
-  console.log("OK: contratos do plugin Playwright MCP E2E 3.2.0 validados.");
+  console.log("OK: contratos do plugin Playwright MCP E2E 3.2.1 validados.");
 } finally {
   fs.rmSync(temporario, { recursive: true, force: true });
 }

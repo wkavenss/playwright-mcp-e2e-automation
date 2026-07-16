@@ -20,7 +20,7 @@ Exigir `AGENTS.md` e raiz do codigo-fonte como fontes de evidencia globais. Conf
 
 No formato numerado, exigir sequencia exata 1, 2, 3, sem limite fixo. Nao aceitar uma secao global `CREDENCIAIS`, uma secao global `CASOS DE USO`, nem misturar `CAMINHO` global com blocos numerados. Recusar `GUIA DE NAVEGACAO`, `ABRANGENCIA` ou `SECOES/CASOS` e orientar a conversao em casos explicitos.
 
-Fazer o preflight de todos os blocos antes de gerar arquivos. Deduplicar por `operacao + caminho + perfil`. Para cada caso, identificar perfil executor, entidade consumida, entidade produzida, precondicoes, mutabilidade e reversibilidade; ligar produtores e consumidores em um grafo mantido apenas durante a geracao. Processar na ordem numerica todos os casos completos e bloquear somente os incompletos, duplicados ou realmente inseguros. Antes de bloquear por falta de massa, procurar um produtor seguro pela interface e incorporar essa operacao como etapa de suporte da jornada. Falha global de URL, `AGENTS.md` ausente/ilegivel ou raiz de codigo ausente/ilegivel interrompe o lote antes de qualquer navegacao. Falha funcional de um caso nao impede jornadas independentes seguintes.
+Fazer o preflight de todos os blocos antes de gerar arquivos. Deduplicar por `operacao + caminho + perfil`. Para cada caso, identificar perfil executor, entidade consumida, entidade produzida, precondicoes, mutabilidade e reversibilidade; ligar produtores e consumidores em um grafo mantido apenas durante a geracao. Classificar cada precondicao como entidade que pode ser criada, candidato institucional que pode ser consultado, candidato institucional que precisa ser qualificado por regra de negocio ou dado que nao pode ser produzido com seguranca. Processar na ordem numerica todos os casos completos e bloquear somente os incompletos, duplicados ou realmente inseguros. Antes de bloquear por falta de massa, procurar um produtor seguro pela interface e incorporar essa operacao como etapa de suporte da jornada. Falha global de URL, `AGENTS.md` ausente/ilegivel ou raiz de codigo ausente/ilegivel interrompe o lote antes de qualquer navegacao. Falha funcional de um caso nao impede jornadas independentes seguintes.
 
 Se o modo estiver ausente ou contraditorio, o contrato global estiver incompleto ou nenhum caso estiver pronto, parar antes de criar arquivos ou executar navegador e listar somente o que falta por numero.
 
@@ -33,7 +33,8 @@ Gravar credenciais reais somente em `.env`, manter `.env` ignorado e criar `.env
 - Se `Alterar` abrir uma etapa generica que nao oferece o tipo real do alvo, nao substituir o dominio por uma opcao apenas para avancar. Validar que a acao abriu, cancelar nessa etapa e refazer a busca pelo mesmo alvo para provar preservacao.
 - Agrupar casos quando tiverem a mesma entidade, o mesmo `runId` e encadeamento natural, como produzir, consultar, alterar e transicionar o mesmo registro. Perfis diferentes nao separam a jornada: cada papel recebe estado autenticado e contexto proprios dentro da mesma spec.
 - Manter jornadas incompatíveis em specs independentes. Nao compartilhar registro, pagina, contexto ou ordem entre specs, nao usar `test.describe.serial`, project dependencies, `beforeAll` funcional, `globalSetup` de negocio, ledger ou cache para transportar massa.
-- `MASSA E PRE-CONDICOES`, `DADOS ESPECIFICOS`, `RESULTADO ESPERADO` e `OBSERVACOES` orientam o caso correspondente e seus produtores necessarios. Resolver precondicoes nesta ordem: reutilizar saida anterior da jornada; criar massa sintetica pela interface; alternar perfil; usar massa preexistente somente em consulta ou operacao comprovadamente nao destrutiva; solicitar o dado exato apenas quando nenhum produtor seguro existir. Nao copiar o bloco do prompt como objeto, comentario ou metadado na spec.
+- `MASSA E PRE-CONDICOES`, `DADOS ESPECIFICOS`, `RESULTADO ESPERADO` e `OBSERVACOES` orientam o caso correspondente e seus produtores necessarios. Resolver precondicoes nesta ordem: reutilizar saida anterior da jornada; criar massa sintetica pela interface; qualificar de modo reversivel um candidato institucional quando a regra de elegibilidade so for observavel depois de uma acao; alternar perfil; usar massa preexistente somente em consulta ou operacao comprovadamente nao destrutiva; solicitar o dado exato apenas quando nenhum produtor seguro existir. Nao copiar o bloco do prompt como objeto, comentario ou metadado na spec.
+- Nao presumir que um modulo adicional esteja implantado apenas para descobrir massa. Usa-lo somente quando estiver expresso nos casos solicitados ou quando as fontes comprovarem que ele e produtor funcional obrigatorio e a interface confirmar sua disponibilidade. Esta restricao nao proibe jornadas legitimamente multimodulo.
 - Mapear cada operacao pedida para uma spec ou `test.step` funcional. Um caso nao pode desaparecer do lote: entregar como implementado e aprovado, implementado mas bloqueado pelo ambiente real, ou nao implementavel com produtor, perfil ou dado ausente identificado exatamente.
 - Nao criar cache de lote. Se houver interrupcao, informar casos concluidos, falhos, bloqueados e nao iniciados sem guardar credenciais ou massa.
 - Falha de autenticacao bloqueia os casos com as mesmas credenciais, sem expor seus valores.
@@ -81,6 +82,7 @@ Classificar cada valor antes de codificar:
 - `gerado`: texto, identificador ou data sintetica criada em runtime com `runId`;
 - `dominio`: valor intencional que altera status, modalidade, tipo ou resultado esperado;
 - `cadastro-anterior`: opcao institucional carregada de registros preexistentes.
+- `candidato-institucional`: cadastro anterior cuja elegibilidade pode exigir uma qualificacao funcional antes de ser consumido pela jornada.
 
 Para `cadastro-anterior`, concentrar no Page Object a selecao portatil:
 
@@ -96,6 +98,20 @@ Para `cadastro-anterior`, concentrar no Page Object a selecao portatil:
 - se nenhum candidato existir, falhar somente a spec com `Nenhuma opcao valida disponivel para <rotulo>`.
 
 Quando houver autocomplete, carregar `../../references/autocompletes-portateis.md` e aplicar o contrato completo de busca exata, filtragem, ambiguidade e papeis distintos.
+
+### Qualificacao Reversivel De Candidatos
+
+Quando a lista dinamica apresenta cadastros, mas a elegibilidade so se torna observavel depois de uma acao do formulario, nao presumir que o primeiro resultado seja elegivel nem procurar uma fonte auxiliar em funcionalidade nao solicitada.
+
+- Confirmar na tela e nas fontes que existe uma acao anterior a persistencia principal que aplica a mesma regra exigida pelo caso consumidor.
+- Usar essa acao somente quando o candidato aceito puder ser removido com seguranca e a interface permitir comprovar o retorno ao estado anterior.
+- Obter candidatos dinamicamente, filtrar os itens invalidos e processar cada identidade no maximo uma vez, sem nomes presumidos ou indices fixos.
+- Derivar a quantidade necessaria dos papeis consumidores da jornada; nao fixar cardinalidade global no plugin.
+- Interromper a qualificacao assim que a cardinalidade exigida for atingida. Se a solicitacao exigir esgotamento, percorrer toda a lista restante dentro de um timeout local justificado pela spec.
+- Desfazer todas as inclusoes temporarias e confirmar visualmente o estado inicial antes de persistir a entidade principal.
+- Se a estrategia segura for esgotada sem a cardinalidade necessaria, bloquear somente a jornada dependente e informar quantos candidatos foram qualificados e qual precondicao continua ausente.
+
+Esta estrategia e uma opcao de planejamento, nao uma regra para todo autocomplete. Quando a propria lista ja identifica candidatos elegiveis, manter a selecao portatil simples descrita acima.
 
 Campos de dominio continuam com valor intencional. Nunca escolher automaticamente a primeira opcao de Situacao, Status, Modalidade ou outro campo que mude o significado do cadastro.
 
@@ -115,7 +131,7 @@ Navegacao, acesso, botoes e conclusao devem usar assertions normais do Playwrigh
 
 A spec continua responsavel pela sequencia funcional e pela barreira baseada em `testInfo.errors`. O Page Object nao pode importar ou manipular `testInfo`, nem oferecer metodo monolitico como `executarSmokeCompleto` que esconda toda a operacao. Nao criar annotations, `RelatorioValidacoes`, `verificacoesPlanejadas`, estados manuais como `fluxoAcessivel`/`cadastroConcluido`, inventario duplicado de verificacoes ou `try/finally` na spec apenas para produzir relatorio.
 
-Quando um unico ciclo possuir varias operacoes de negocio relevantes, mapear cada caso solicitado e cada produtor de precondicao para `test.step` no mesmo nivel, por exemplo `Preparar curso sintetico aprovado`, `Visualizar proposta`, `Identificar secretario` e `Solicitar prorrogacao`. O titulo deve permitir conferir a cobertura com `quality-gate.mjs --expected-step <operacao>`. Nao criar etapa para clique, preenchimento, espera, campo obrigatorio individual ou botao isolado. Nao aninhar etapas.
+Quando um unico ciclo possuir varias operacoes de negocio relevantes, mapear cada caso solicitado e cada produtor de precondicao para `test.step` no mesmo nivel, por exemplo `Preparar registro sintetico`, `Consultar registro`, `Atribuir responsavel` e `Substituir responsavel`. O titulo deve permitir conferir a cobertura com `quality-gate.mjs --expected-step <operacao>`. Nao criar etapa para clique, preenchimento, espera, campo obrigatorio individual ou botao isolado. Nao aninhar etapas.
 
 Em uma operacao com um unico teste, colocar o modulo no titulo do `test` e nao criar `test.describe` sem ganho organizacional. Manter a sequencia rasa e direta. O proprio runner registra erros, traces e screenshots; nao duplicar essa responsabilidade em infraestrutura particular.
 

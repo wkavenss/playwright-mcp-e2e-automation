@@ -406,7 +406,7 @@ function isDestructiveMethodName(name) {
 function isOwnedTargetMutationName(name) {
   const normalized = normalizeText(name);
   if (/^(?:validar|confirmar|localizar|buscar|abrir|preencher|selecionar|obter)/.test(normalized)) return false;
-  return /(?:aprovar|rejeitar|remover|excluir|apagar|deletar|substituir|identificarsecretari|prorrogar|solicitarprorrogacao|alterarstatus|transicionar|inativar|arquivar)/.test(normalized);
+  return /(?:aprovar|rejeitar|remover|excluir|apagar|deletar|atribuir|designar|substituir|prorrogar|solicitarprorrogacao|alterarstatus|transicionar|inativar|arquivar)/.test(normalized);
 }
 
 function isFormActionMethodName(name) {
@@ -1749,7 +1749,7 @@ if (!configFile) {
   const rel = relative(configFile);
   const projectDependencies = firstMatch(config, /\bdependencies\s*:\s*\[/g);
   if (contract === "implantacao" && projectDependencies) {
-    add("error", "dependent-spec-without-explicit-mode", rel, lineNumber(config, projectDependencies.index), "Nao use project dependencies para transportar massa entre specs; mantenha o ciclo em uma jornada unica. O modo dependente nao integra o contrato 3.2.0.");
+    add("error", "dependent-spec-without-explicit-mode", rel, lineNumber(config, projectDependencies.index), "Nao use project dependencies para transportar massa entre specs; mantenha o ciclo em uma jornada unica. O modo dependente nao integra o contrato 3.2.1.");
   }
   if (!/^\s*timeout\s*:\s*[0-9_]+\s*,?/m.test(config)) {
     add("warning", "missing-central-test-timeout", rel, 1, "Configure o limite total central em timeout no playwright.config; o padrao do plugin e 180_000 ms.");
