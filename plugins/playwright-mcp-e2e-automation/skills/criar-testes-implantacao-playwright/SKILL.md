@@ -1,6 +1,6 @@
 ---
 name: criar-testes-implantacao-playwright
-description: "Criar e validar smoke tests Playwright quando o pedido declarar `MODO: Implantacao`, com URL, AGENTS.md, codigo-fonte e um caminho individual ou blocos numerados `CASO DE USO n`. Agrupe operacoes compativeis em ciclos simples para reduzir massa, preserve uma sessao em formularios multipagina e trate autocompletes sem nomes hardcoded. Nao usar com guia, testes negativos de formato ou `MODO: Geracao de massa de dados`."
+description: "Criar e validar smoke tests Playwright quando o pedido declarar `MODO: Implantacao`, com URL, AGENTS.md, raiz do codigo-fonte e um caminho individual ou blocos numerados `CASO DE USO n`. Analise as fontes somente nas partes ligadas ao caminho informado, sem ampliar o smoke por regras internas nao visiveis. Agrupe operacoes compativeis em ciclos simples, preserve formularios multipagina e trate autocompletes sem nomes hardcoded. Nao usar com guia, testes negativos de formato ou `MODO: Geracao de massa de dados`."
 ---
 
 # Criar Smoke Tests De Implantacao Playwright
@@ -11,18 +11,20 @@ Conduzir a solicitacao somente com esta skill. Nao carregar outra skill do plugi
 
 ## Contrato
 
-Exigir `MODO: Implantacao`, URL, `AGENTS.md` do modulo, raiz do codigo-fonte e um dos formatos:
+Exigir `MODO: Implantacao`, URL e um dos formatos:
 
-- individual legado: `USUARIO`, `SENHA` e `CAMINHO` globais, gerando somente a operacao informada;
-- numerado: um ou mais blocos `CASO DE USO <n>` com `OPERACAO`, `CAMINHO`, `PERFIL`, `USUARIO` e `SENHA` no proprio bloco. `MASSA E PRE-CONDICOES`, `DADOS ESPECIFICOS`, `RESULTADO ESPERADO` e `OBSERVACOES` sao opcionais.
+- individual: `OPERACAO`, `CAMINHO`, `PERFIL`, `USUARIO`, `SENHA` e `RESULTADO ESPERADO` globais, gerando somente a operacao informada;
+- numerado: um ou mais blocos `CASO DE USO <n>` com `OPERACAO`, `CAMINHO`, `PERFIL`, `USUARIO`, `SENHA` e `RESULTADO ESPERADO` no proprio bloco. `DADOS ESPECIFICOS` e `OBSERVACOES` sao opcionais. `MASSA E PRE-CONDICOES` e opcional somente quando o fluxo nao depender de cadastro anterior.
+
+Exigir `AGENTS.md` e raiz do codigo-fonte como fontes de evidencia globais. Confirmar que ambos existem e podem ser lidos antes de criar arquivos ou abrir o navegador. Ler o `AGENTS.md` informado e somente as instrucoes aninhadas aplicaveis ao modulo/caminho; no codigo, localizar apenas telas, controladores/MBeans, validadores e pontos de persistencia diretamente relacionados a operacao. Nao ampliar o smoke, explorar funcionalidades vizinhas nem criar casos ou assertions baseados apenas em regras internas que nao sejam observaveis no fluxo solicitado.
 
 No formato numerado, exigir sequencia exata 1, 2, 3, sem limite fixo. Nao aceitar uma secao global `CREDENCIAIS`, uma secao global `CASOS DE USO`, nem misturar `CAMINHO` global com blocos numerados. Recusar `GUIA DE NAVEGACAO`, `ABRANGENCIA` ou `SECOES/CASOS` e orientar a conversao em casos explicitos.
 
-Fazer o preflight de todos os blocos antes de gerar arquivos. Deduplicar por `operacao + caminho + perfil`. Processar na ordem numerica todos os casos completos e bloquear somente os incompletos, duplicados ou inseguros. Falha global de URL, `AGENTS.md` ou codigo-fonte interrompe o lote. Falha de um caso nao impede os casos independentes seguintes.
+Fazer o preflight de todos os blocos antes de gerar arquivos. Deduplicar por `operacao + caminho + perfil`. Processar na ordem numerica todos os casos completos e bloquear somente os incompletos, duplicados ou inseguros. Falha global de URL, `AGENTS.md` ausente/ilegivel ou raiz de codigo ausente/ilegivel interrompe o lote antes de qualquer navegacao. Falha funcional de um caso nao impede os casos independentes seguintes.
 
 Se o modo estiver ausente ou contraditorio, o contrato global estiver incompleto ou nenhum caso estiver pronto, parar antes de criar arquivos ou executar navegador e listar somente o que falta por numero.
 
-Gravar credenciais reais somente em `.env`, manter `.env` ignorado e criar `.env.example` sem segredos. Normalizar o perfil para as chaves `E2E_<PERFIL>_USERNAME` e `E2E_<PERFIL>_PASSWORD`. Em implantacao, um `globalSetup` deve autenticar sequencialmente, com trace desabilitado, e criar um `storageState` temporario por combinacao de perfil e spec em `test-results/auth/`; a spec usa esse estado e inicia confirmando a sessao autenticada, sem login ou preenchimento de credenciais dentro do teste reportado. Casos com mesmo perfil e credenciais reutilizam as variaveis, mas nao um arquivo de estado entre specs. Se o mesmo perfil aparecer com credenciais diferentes, bloquear todos os casos envolvidos ate a inconsistencia ser resolvida. Nunca copiar credenciais para spec, Page Object, cache, log, trace, anexo ou relatorio. Nao exigir `E2E_CLIENT_PROFILE`, `config/defaults.json`, `config/clientes` ou preflight de massa por cliente.
+Gravar credenciais reais somente em `.env`, manter `.env` ignorado e criar `.env.example` sem segredos. Normalizar o perfil para as chaves `E2E_<PERFIL>_USERNAME` e `E2E_<PERFIL>_PASSWORD`. Em implantacao, manter em `tests/auth/specProfiles.js` um mapeamento simples `{ id, perfil, arquivo }` para cada spec e fazer o `globalSetup` autenticar sequencialmente, com trace desabilitado, criando um `storageState` temporario por combinacao de perfil e spec em `test-results/auth/`; a spec usa esse estado e inicia confirmando a sessao autenticada, sem login ou preenchimento de credenciais dentro do teste reportado. O `globalSetup` deve ler os filtros de arquivo do comando em `config.argv`: sem filtro, preparar todas as specs; com um ou mais filtros, preparar somente as specs correspondentes. Filtrar antes de ler credenciais ou autenticar, falhar quando um filtro de arquivo informado nao corresponder ao mapeamento e nao exigir variavel adicional para escolher specs. No UI Mode, o Playwright chama o `globalSetup` antes de exibir a lista; ao detectar `--ui`, retornar antes de abrir browser ou ler credenciais. Adicionar uma fixture automatica que, somente depois de o usuario executar uma spec na interface, identifica o perfil por `testInfo.file`, autentica em contexto separado sem trace e grava o `storageState` consumido pelo contexto do teste. Casos com mesmo perfil e credenciais reutilizam as variaveis, mas nao um arquivo de estado entre specs. Se o mesmo perfil aparecer com credenciais diferentes, bloquear todos os casos envolvidos ate a inconsistencia ser resolvida. Nunca copiar credenciais para spec, Page Object, cache, log, trace, anexo ou relatorio. Nao exigir `E2E_CLIENT_PROFILE`, `config/defaults.json`, `config/clientes` ou preflight de massa por cliente.
 
 ## Processamento Dos Casos
 
@@ -31,7 +33,7 @@ Gravar credenciais reais somente em `.env`, manter `.env` ignorado e criar `.env
 - Se `Alterar` abrir uma etapa generica que nao oferece o tipo real do alvo, nao substituir o dominio por uma opcao apenas para avancar. Validar que a acao abriu, cancelar nessa etapa e refazer a busca pelo mesmo alvo para provar preservacao.
 - Agrupar casos somente quando tiverem o mesmo perfil, entidade e encadeamento natural, como cadastrar, consultar, alterar e remover o mesmo registro. Cada grupo recebe uma spec, um estado autenticado temporario, uma sessao e uma massa principal.
 - Manter casos incompatíveis em specs independentes. Nao compartilhar registro, pagina, contexto ou ordem entre specs e nao preparar massa em `beforeAll`.
-- `MASSA E PRE-CONDICOES`, `DADOS ESPECIFICOS`, `RESULTADO ESPERADO` e `OBSERVACOES` orientam somente o caso correspondente. Nao copiar o bloco do prompt como objeto, comentario ou metadado na spec.
+- `MASSA E PRE-CONDICOES`, `DADOS ESPECIFICOS`, `RESULTADO ESPERADO` e `OBSERVACOES` orientam somente o caso correspondente. Se consulta, copia ou alteracao segura depender de cadastro anterior, exigir a massa/pre-condicao antes de navegar. Nao copiar o bloco do prompt como objeto, comentario ou metadado na spec.
 - Nao criar cache de lote. Se houver interrupcao, informar casos concluidos, falhos, bloqueados e nao iniciados sem guardar credenciais ou massa.
 - Falha de autenticacao bloqueia os casos com as mesmas credenciais, sem expor seus valores.
 
@@ -59,17 +61,17 @@ Em consulta, a existencia da tabela nao e prova funcional. Correlacionar o filtr
 
 ## Descoberta Seletiva
 
-1. Inspecionar a estrutura Playwright existente e ler o `AGENTS.md` informado.
-2. A partir da tela, localizar somente JSP, MBean e persistencia diretamente ligados a:
-   - obrigatorios de tela e servidor;
+1. Inspecionar a estrutura Playwright existente, ler o `AGENTS.md` informado e seguir somente as instrucoes aninhadas aplicaveis ao modulo/caminho.
+2. A partir do caminho e da tela, identificar os obrigatorios visuais, botoes, resultado e persistencia. No codigo-fonte obrigatorio, localizar somente JSP/tela, controlador/MBean, validador e persistencia diretamente ligados a:
+   - obrigatorios visuais e mensagens acionadas pelo fluxo;
    - origem das listas dinamicas;
    - acoes dos botoes do formulario ou wizard;
    - persistencia intermediaria;
    - mensagem de conclusao;
    - consulta segura do registro, quando existir.
-3. Nao analisar conversores ou validadores para criar entradas invalidas. Consulta-los somente quando forem necessarios para preencher um valor valido.
+3. Nao analisar conversores ou validadores fora do caminho nem usa-los para criar entradas invalidas. Consulta-los somente quando forem diretamente acionados ou necessarios para preencher um valor valido.
 4. Montar durante a analise um resumo compacto por tela com obrigatorios, estrategia de valor valido, botoes, efeito observavel e risco de persistencia. Esse resumo orienta a implementacao e nao deve virar estrutura de dados na spec ou README.
-5. Usar o codigo como comportamento esperado e a tela para confirmar o que esta implantado. Divergencia observavel deve falhar a verificacao correspondente.
+5. Usar o codigo obrigatorio como evidencia do comportamento esperado e a tela para confirmar o que esta implantado. Divergencia observavel deve falhar a verificacao correspondente. Nao transformar regra interna sem indicador visual em novo caso, assertion ou teste negativo.
 
 ## Dados Portateis
 
@@ -96,10 +98,12 @@ Quando houver autocomplete, carregar `../../references/autocompletes-portateis.m
 
 Campos de dominio continuam com valor intencional. Nunca escolher automaticamente a primeira opcao de Situacao, Status, Modalidade ou outro campo que mude o significado do cadastro.
 
+Datas sinteticas devem ser relativas a execucao ou fornecidas em `DADOS ESPECIFICOS`. Nao usar outro seculo como estrategia generica para evitar colisao. Se a faixa segura depender de regra ou massa institucional que nao possa ser confirmada, bloquear o caso e solicitar a pre-condicao.
+
 ## Smoke Da Operacao
 
 1. Criar um unico `test` quando as operacoes compartilham a mesma entidade, o mesmo `runId` e o mesmo ciclo transacional. Operacoes realmente independentes podem usar testes separados, cada um com pagina, login e massa proprios.
-2. Fazer o Page Object expor os obrigatorios em uma unica colecao de objetos nomeados, como `{ campo, rotulo, controle, tipo, valorValido, origem }`. A spec recebe essa colecao por `obterCamposObrigatorios(dados)` e mantem somente o loop funcional; nao repetir o mapeamento campo-locator-valor na spec. Quando houver muitos campos, usar um objeto completo por linha quando legivel e quebrar somente descritores realmente longos, sem criar factory posicional.
+2. Identificar pela tela todos os campos visualmente obrigatorios e fazer o Page Object expo-los em uma unica colecao de objetos nomeados, como `{ campo, rotulo, controle, tipo, valorValido, origem }`. A spec recebe essa colecao por `obterCamposObrigatorios(dados)` e mantem somente o loop funcional; nao repetir o mapeamento campo-locator-valor na spec. Nao gerar assertions de `maxlength`, classe CSS de obrigatorio ou outro contrato HTML, salvo requisito explicito indispensavel ao fluxo. Quando houver muitos campos, usar um objeto completo por linha quando legivel e quebrar somente descritores realmente longos, sem criar factory posicional.
 3. Em cada tela, preencher uma base valida e verificar cada obrigatorio na mesma sessao. Antes da submissao negativa, limpar primeiro um campo-sentinela conhecido como obrigatorio e deixar o alvo por ultimo. A sentinela impede persistencia acidental e a ordem evita que um evento posterior restaure um select dependente JSF; ela nao representa uma segunda verificacao planejada.
 4. Concentrar no Page Object a operacao atomica `validarObrigatoriedade`: escolher a sentinela, limpar ambos, confirmar por assertion normal que a sentinela continua ausente, submeter, verificar o alvo com `expect.soft` e restaurar alvo e sentinela em `finally`, inclusive campos volateis que o servidor limpa.
 5. Percorrer os obrigatorios diretamente no mesmo loop. O rotulo de cada campo deve aparecer na mensagem da assertion; nao criar uma etapa separada para cada campo.
@@ -113,6 +117,13 @@ A spec continua responsavel pela sequencia funcional e pela barreira baseada em 
 Quando um unico ciclo possuir varias operacoes de negocio relevantes, usar `test.step` no mesmo nivel para identifica-las no HTML e no trace, por exemplo `Criar e confirmar rascunho`, `Visualizar proposta` e `Remover rascunho`. Nao criar etapa para clique, preenchimento, espera, campo obrigatorio individual ou botao isolado. Nao aninhar etapas.
 
 Em uma operacao com um unico teste, colocar o modulo no titulo do `test` e nao criar `test.describe` sem ganho organizacional. Manter a sequencia rasa e direta. O proprio runner registra erros, traces e screenshots; nao duplicar essa responsabilidade em infraestrutura particular.
+
+## Erros Impeditivos
+
+- Identificar durante a exploracao respostas de navegacao HTTP 5xx e marcadores estaveis de erro fatal, indisponibilidade ou excecao da aplicacao. Nao tratar mensagens de obrigatoriedade/regra funcional como erro de sistema.
+- Concentrar a verificacao em um metodo curto do Page Object de acesso ou da area compartilhada, como `validarAusenciaErroImpeditivo()`. Nao criar `BasePage`, fixture global ou leitura do `body` inteiro apenas para essa checagem.
+- Chamar o checkpoint explicitamente na spec depois de abrir a funcionalidade e depois da conclusao/resultado final. A spec deve mostrar tanto a acao quanto a prova.
+- Quando a interface e as fontes nao permitirem identificar marcador confiavel, manter as assertions funcionais normais e registrar a limitacao; nao inventar regex generica que produza falso positivo.
 
 ## Botoes Do Fluxo
 
@@ -128,7 +139,7 @@ Reentrada controlada para testar botao e permitida somente sem nova massa. Novo 
 ## Conclusao E Relatorio
 
 - Submeter uma unica conclusao positiva com dados sinteticos e confirmar a mensagem exata.
-- Um metodo semantico como `submeter()` pode executar a acao e validar o resultado imediato da mesma operacao. Nao esconder no Page Object varias fases independentes, como criar, consultar e remover, em uma unica chamada.
+- Manter acao e comprovacao em chamadas separadas e visiveis na spec, como `submeter()`, `validarMensagemSucesso()` e `validarPersistencia()`. Em consulta, chamar `buscar...()` e depois `validarResultados...()`. O Page Object continua contendo seletores e assertions, mas uma unica chamada nao deve esconder acao e prova.
 - Executar a conclusao positiva somente quando `testInfo.errors.length === 0` depois das obrigatoriedades. Se houver falha suave, encerrar o teste sem persistir; o Playwright manterá o resultado reprovado.
 - Confirmar o registro em listagem/consulta quando houver caminho seguro sem massa adicional.
 - Em remocao, confirmar persistencia do alvo com o `runId` atual, testar Cancelar quando existir, confirmar a acao e validar ausencia ou estado final. Nunca usar primeira linha, prefixo generico ou registro de outra execucao.
@@ -145,8 +156,8 @@ Organizar a spec como uma sequencia direta. Usar `test.step` somente para operac
 
 - Executar `check-environment.mjs <raiz> --headed-smoke --json`, `optimize-context.mjs` e, se necessario, `scaffold-playwright.mjs <raiz> --mode implantacao`. O scaffold deve permanecer minimo em todos os modos: configuracao Playwright, fixture maximizada, perfis de autenticacao e dados de teste. Implementar o `globalSetup` seguro somente junto das specs que realmente o consumirem. Essas ferramentas nao devem criar cache nem infraestrutura de relatorio no projeto.
 - Usar Page Objects, locators semanticos e IDs JSF estaveis declarados diretamente como `[id="form:campo"]`.
-- Nao criar camada `flows`, `BasePage`, helper de ID, fabrica trivial, utilitario preventivo ou perfil de cliente. Separar outro Page Object somente quando houver uma tela/componente real reutilizado em mais de um fluxo.
-- Evitar `.nth()`, XPath, IDs dinamicos e `.first()` sem filtragem explicita de candidatos validos.
+- Nao criar camada `flows`, `BasePage`, helper de ID, fabrica trivial, utilitario preventivo ou perfil de cliente. Separar outro Page Object somente quando houver responsabilidade independente ou reuso real; por exemplo, um wizard de cadastro e uma listagem reutilizada com copia/remocao podem ser dois objetos, mas as etapas do mesmo wizard permanecem juntas.
+- Evitar `.nth()` numerico, XPath, IDs dinamicos e `.first()` sem filtragem explicita de candidatos validos. Indice calculado depois de mapear o cabecalho da tabela e permitido.
 - Quando o consentimento puder aparecer na abertura, procura-lo por no maximo `2_000` ms antes do login; se aparecer, aceita-lo e confirmar que desapareceu antes de preencher credenciais. Se nao aparecer, continuar sem falhar. Preservar a recuperacao tardia quando ele interceptar uma acao, repetindo o clique uma vez e relancando erros nao relacionados.
 - Depois de submissao ou navegacao, verificar continuidade com espera observavel por um campo estavel da tela; nao usar `isVisible()` imediato para concluir que o formulario desapareceu.
 - Se login e consentimento ja estiverem duplicados em mais de um Page Object, extrair um Page Object de acesso com essa responsabilidade concreta; nao inclui-lo no scaffold generico sem evidencia na interface.
@@ -154,14 +165,16 @@ Organizar a spec como uma sequencia direta. Usar `test.step` somente para operac
 - Centralizar acoes em `actionTimeout`; nao adicionar timeout menor em `click`, `fill` ou `selectOption` apenas para falhar cedo. Timeout local continua permitido em `expect.poll` ou assertion quando delimitar uma condicao assincrona real.
 - Usar `timeout: 180_000` no `playwright.config` como margem total padrao e nao repetir `test.setTimeout` nas specs. Para operacao comprovadamente mais longa, preferir `test.slow()`; usar valor exato local somente quando indispensavel e justificado.
 - Incorporar wrappers internos curtos usados uma unica vez ao metodo consumidor. Preservar metodos chamados pela spec e metodos semanticos com assertions ou recuperacao transacional.
+- Remover preenchimento/acao repetido sobre o mesmo locator e valor. Repeticao intencional depois de AJAX deve ter comentario curto explicando o efeito funcional observado.
 - Nao dividir Page Object, criar facade ou extrair helper generico de select apenas para reduzir linhas. Exigir responsabilidade independente ou reuso comprovado.
 - Nao impor percentual de reducao nem comprimir comandos para atingir uma contagem. Uma reducao valida elimina responsabilidade duplicada ou wrapper sem consumidor; mover o mesmo comportamento para outro arquivo nao conta como simplificacao.
 - Manter Chromium headed maximizado, `viewport: null`, `--start-maximized`, fixture CDP e `workers: 1`.
-- Classificar o caso como `formulario`, `consulta`, `relatorio`, `remocao` ou `transicao` e executar `quality-gate.mjs <raiz> --contract implantacao --case-kind <tipo> --files <specs> <pages>`. Depois executar `npx playwright test <specs> --list` e uma unica execucao headed dos arquivos aprovados, com `workers=1`, para produzir o HTML nativo sem duplicar registros.
+- Confirmar que `npx playwright test --ui` abre somente a interface com a lista. Nenhum login ou browser da aplicacao deve iniciar antes de o usuario executar uma spec; a fixture automatica prepara apenas o estado da spec escolhida.
+- Classificar o caso como `formulario`, `consulta`, `relatorio`, `remocao` ou `transicao` e executar `quality-gate.mjs <raiz> --contract implantacao --case-kind <tipo> --files <specs> <pages>`. O gate coleta as specs selecionadas com `playwright test --list`. Depois executar uma unica execucao headed dos arquivos aprovados, passando os proprios arquivos no comando Playwright e mantendo `workers=1`, para produzir o HTML nativo sem duplicar registros. O mesmo comando sem filtro de arquivo executa a suite completa.
 - Considerar concluido somente quando o smoke passar no ambiente real; lista dinamica vazia deve ser relatada como bloqueio da spec, nao mascarada por valor fixo.
 
 Carregar referencias em `../../references/` somente conforme o risco: configuracao, seletores, exploracao MCP, diagnostico, legibilidade ou otimizacao.
 
 ## Saida
 
-Entregar uma spec simples por caso isolado ou ciclo compativel, Page Objects reutilizados, utilitarios realmente usados, `.env.example`, comandos headed, mapeamento dos casos para ciclos, caminho do HTML nativo e bloqueios reais. Informar tentativas e residuos apenas na resposta, sem criar infraestrutura de recuperacao no projeto.
+Entregar uma spec simples por caso isolado ou ciclo compativel, Page Objects reutilizados, utilitarios realmente usados, `.env.example`, comandos headed padrao do Playwright para uma spec e para a suite, mapeamento dos casos para ciclos, caminho do HTML nativo e bloqueios reais. Informar tentativas e residuos apenas na resposta, sem criar infraestrutura de recuperacao no projeto.

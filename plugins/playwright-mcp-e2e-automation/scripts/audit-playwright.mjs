@@ -77,6 +77,7 @@ function repeatedFlagValues(flag) {
 
 const contract = flagValues("--contract")[0] || "revisao";
 const caseKind = flagValues("--case-kind")[0] || (contract === "implantacao" ? "formulario" : "auto");
+const implantationRiskSeverity = contract === "implantacao" ? "error" : "warning";
 const excludedPatterns = repeatedFlagValues("--exclude").map((value) => value.replaceAll("\\", "/").replace(/^\.\//, ""));
 
 if (!allowedContracts.has(contract)) {
@@ -731,8 +732,8 @@ for (const file of codeFiles) {
     add("warning", "trivial-factory", rel, lineNumber(content, trivialFactory.index), "Fabrica que apenas chama new adiciona uma camada sem ganho; instancie a classe diretamente.");
   }
   const wait = firstMatch(content, /\bwaitForTimeout\s*\(/g);
-  if (wait && !(hasAllowedWaitComment(content, wait.index) && hasFunctionalWaitGuard(content, wait.index))) {
-    add("warning", "fixed-timeout", rel, lineNumber(content, wait.index), "Evite waitForTimeout; espere uma condicao observavel ou anote requisito explicito do usuario.");
+  if (wait && (contract === "implantacao" || !(hasAllowedWaitComment(content, wait.index) && hasFunctionalWaitGuard(content, wait.index)))) {
+    add(implantationRiskSeverity, "fixed-timeout", rel, lineNumber(content, wait.index), "Evite waitForTimeout; espere uma condicao observavel. Em implantacao, espera fixa e bloqueante mesmo quando comentada.");
   }
 
   const perSpecTimeout = specFiles.includes(file)
@@ -761,7 +762,7 @@ for (const file of codeFiles) {
 
   const forceAction = firstMatch(content, /\b(?:fill|click|check|uncheck|selectOption|press)\s*\([^)]*\{[^}]*force\s*:\s*true/gs);
   if (forceAction) {
-    add("warning", "force-true-action", rel, lineNumber(content, forceAction.index), "Evite force: true amplo; prefira elemento editavel/visivel ou fallback JSF isolado e comentado.");
+    add(implantationRiskSeverity, "force-true-action", rel, lineNumber(content, forceAction.index), "Evite force: true amplo; prefira elemento editavel/visivel ou fallback JSF isolado e comentado.");
   }
 
   const bodyInnerText = firstMatch(content, /locator\s*\(\s*["'`]body["'`]\s*\)\s*\.\s*innerText\s*\(/g);
@@ -770,13 +771,13 @@ for (const file of codeFiles) {
   }
 
   const nthSelector = firstMatch(content, /\.nth\s*\(\s*\d+\s*\)/g);
-  if (nthSelector) {
-    add("warning", "nth-selector", rel, lineNumber(content, nthSelector.index), "Evite .nth() como seletor principal; filtre por label, role, linha, texto estavel ou dado gerado.");
+  if (nthSelector && !hasNearby(content, nthSelector.index, /indice estavel justificado|índice estável justificado|playwright-e2e-stable-index/i, 240)) {
+    add(implantationRiskSeverity, "nth-selector", rel, lineNumber(content, nthSelector.index), "Evite .nth() numerico; filtre por label, role, linha, texto estavel ou dado gerado. Indice calculado por cabecalho continua permitido.");
   }
 
   const unfilteredFirst = firstMatch(content, /\.first\s*\(\s*\)/g);
   if (unfilteredFirst && !hasNearby(content, unfilteredFirst.index, /\.filter\s*\(|hasText|has\s*:/, 360)) {
-    add("warning", "unfiltered-first", rel, lineNumber(content, unfilteredFirst.index), "Evite .first() sem filtro estavel; escopo e criterio funcional devem ficar claros.");
+    add(implantationRiskSeverity, "unfiltered-first", rel, lineNumber(content, unfilteredFirst.index), "Evite .first() sem filtro estavel; escopo e criterio funcional devem ficar claros.");
   }
 
   const xpathSelector = firstMatch(content, /(?:locator\s*\(\s*["'`]xpath=|locator\s*\(\s*["'`]\/\/)/g);
@@ -786,7 +787,39 @@ for (const file of codeFiles) {
 
   const structuralTableSelector = firstMatch(content, /locator\s*\(\s*["'`][^"'`]*\btable\b[^"'`]*\b(?:tbody\s+tr|thead\s+tr|tr\s+td)\b[^"'`]*["'`]/gi);
   if (structuralTableSelector && !hasNearby(content, structuralTableSelector.index, /sem (?:role|acessibilidade)|fallback legado|estrutura legada justificada/i, 240)) {
-    add("warning", "structural-table-selector", rel, lineNumber(content, structuralTableSelector.index), "Evite acoplar linhas a table/tbody/tr; localize a tabela por role/nome ou ID estavel e filtre getByRole('row').");
+    add(implantationRiskSeverity, "structural-table-selector", rel, lineNumber(content, structuralTableSelector.index), "Evite acoplar linhas a table/tbody/tr; localize a tabela por role/nome ou ID estavel e filtre getByRole('row').");
+  }
+
+  const htmlContractAssertion = firstMatch(
+    content,
+    /\b(?:toHaveAttribute\s*\(\s*["'`]maxlength["'`]|getAttribute\s*\(\s*["'`]maxlength["'`]|toHaveClass\s*\([^\n]*(?:obrigat|required))/gi,
+  );
+  if (
+    contract === "implantacao"
+    && automationFile
+    && htmlContractAssertion
+    && !hasNearby(content, htmlContractAssertion.index, /requisito funcional expresso|requisito explícito|playwright-e2e-allow-html-contract/i, 300)
+  ) {
+    add("error", "implantation-html-contract-assertion", rel, lineNumber(content, htmlContractAssertion.index), "Smoke de implantacao nao deve validar maxlength, classe CSS ou contrato HTML sem requisito funcional expresso.");
+  }
+
+  if (automationFile) {
+    const actionLines = content.split(/\r?\n/);
+    const lastAction = new Map();
+    for (let index = 0; index < actionLines.length; index += 1) {
+      const normalizedLine = actionLines[index].trim().replace(/;$/, "");
+      if (!/^(?:await\s+)?[^;]+\.(?:fill|selectOption|check|pressSequentially|type)\s*\(/.test(normalizedLine)) continue;
+      const previous = lastAction.get(normalizedLine);
+      if (
+        previous !== undefined
+        && index - previous <= 12
+        && !hasNearby(content, content.split(/\r?\n/).slice(0, index).join("\n").length, /evento JSF exige repeticao|evento JSF exige repetição|playwright-e2e-allow-repeat/i, 260)
+      ) {
+        add(implantationRiskSeverity, "duplicated-locator-action", rel, index + 1, "A mesma acao foi repetida sobre o mesmo locator e valor; remova o preenchimento duplicado ou documente a exigencia JSF.");
+        break;
+      }
+      lastAction.set(normalizedLine, index);
+    }
   }
 
   const optionalOverlayRace = firstMatch(content, /if\s*\(\s*await\s+[A-Za-z0-9_.$]*(?:cookie|consent|modal|dialog|overlay)[A-Za-z0-9_.$]*\.isVisible\s*\(\s*\)\s*\)\s*(?:\{\s*)?await\s+[A-Za-z0-9_.$]+\.click\s*\(/gi);
@@ -940,6 +973,14 @@ for (const file of codeFiles) {
       add("warning", "fixed-temporal-value", rel, lineNumber(content, fixedTemporalValue.index), "Valor temporal fixo em data/ano/periodo; derive em runtime ou use .env/fixture local quando a regra exigir.");
     }
 
+    const farFutureGeneric = firstMatch(
+      content,
+      /\b(?:data[A-Za-z0-9_]*|date[A-Za-z0-9_]*|inicio[A-Za-z0-9_]*|fim[A-Za-z0-9_]*|termino[A-Za-z0-9_]*|vencimento[A-Za-z0-9_]*|prazo[A-Za-z0-9_]*|validade[A-Za-z0-9_]*|ano[A-Za-z0-9_]*|year[A-Za-z0-9_]*|semestre[A-Za-z0-9_]*|periodo[A-Za-z0-9_]*|period[A-Za-z0-9_]*|letivo[A-Za-z0-9_]*|deadline[A-Za-z0-9_]*|start[A-Za-z0-9_]*|end[A-Za-z0-9_]*)\s*[:=]\s*["'`]?(?:\d{2}[/-]\d{2}[/-])?2[1-9]\d{2}\b/gi,
+    );
+    if (contract === "implantacao" && farFutureGeneric && !hasNearby(content, farFutureGeneric.index, /faixa funcional confirmada|requisito explicito|requisito explícito|playwright-e2e-allow-future-date/i, 300)) {
+      add("error", "far-future-generic-date", rel, lineNumber(content, farFutureGeneric.index), "Nao use ano de outro seculo como massa generica; forneca ou calcule uma data dentro de faixa funcional confirmada.");
+    }
+
     const absolutePathLiteral = stringLiterals(content).find((literal) => /(?:\/Users\/|\/home\/|[A-Za-z]:\\Users\\)/.test(literal.value));
     if (absolutePathLiteral) {
       add("warning", "local-absolute-path", rel, lineNumber(content, absolutePathLiteral.index), "Evite caminho absoluto local; use caminho relativo ao projeto ou variavel de ambiente.");
@@ -1045,6 +1086,13 @@ for (const file of specFiles) {
     add("error", "technical-step-as-spec", relative(file), lineNumber(content, technicalStepTitle.index), "Avancar, Voltar, Confirmar e Cancelar sao etapas do fluxo; nao crie uma spec independente sem objetivo de negocio proprio.");
   }
   const implantationSpec = contract === "implantacao" && /\btest\s*\(/.test(content);
+  const blockingErrorChecks = namedCalls(content).filter((call) => (
+    /^(?:validar|confirmar).*(?:ausencia|sem).*(?:erro|falha).*(?:impedit|sistema|fatal)/.test(call.normalizedName)
+  ));
+  const documentedMissingErrorMarker = /playwright-e2e-no-stable-error-marker\s*:/i.test(content);
+  if (implantationSpec && blockingErrorChecks.length < 2 && !documentedMissingErrorMarker) {
+    add("error", "missing-blocking-error-checkpoint", relative(file), 1, "Chame a verificacao de ausencia de erro impeditivo depois da abertura e depois da conclusao, ou documente que o sistema nao possui marcador estavel confirmado.");
+  }
   const functionalSteps = matches(content, /\btest\.step\s*\(\s*["'`]([^"'`]+)["'`]/g);
   for (const step of functionalSteps) {
     const title = normalizeText(step[1]).trim();
@@ -1286,9 +1334,16 @@ for (const file of specFiles) {
 
 for (const file of pageObjectFiles) {
   const content = fs.readFileSync(file, "utf8");
+  const pageObjectLineCount = content.split(/\r?\n/).filter((line) => line.trim()).length;
   const methodCount = matches(content, /^\s*(?:async\s+)?[A-Za-z_][A-Za-z0-9_]*\s*\([^)]*\)\s*\{/gm)
     .filter((match) => !/constructor\s*\(/.test(match[0]))
     .length;
+
+  const hasWizardResponsibility = /\b(?:avancar|voltar|etapa|dadosGerais|coordenacao|preencher)[A-Za-z0-9_]*/i.test(content);
+  const hasListingResponsibility = /\b(?:linha|listagem|abrirVisualizacao|abrirImpressao|remover|consultarRascunho)[A-Za-z0-9_]*/i.test(content);
+  if (pageObjectLineCount > 420 && hasWizardResponsibility && hasListingResponsibility) {
+    add("warning", "mixed-page-object-responsibilities", relative(file), 1, "Page Object extenso mistura wizard e listagem/acoes posteriores; separe somente essas responsabilidades independentes, sem criar objeto por etapa.");
+  }
 
   const requiredDescriptors = methodBlock(content, "obterCamposObrigatorios");
   if (requiredDescriptors) {
@@ -1338,6 +1393,15 @@ for (const file of pageObjectFiles) {
   );
   if (hiddenScenario) {
     add("error", "hidden-complete-scenario", relative(file), lineNumber(content, hiddenScenario.index), "Nao esconda todo o smoke em um metodo do Page Object; exponha operacoes por fase e mantenha a historia funcional na spec.");
+  }
+
+  if (contract === "implantacao") {
+    for (const block of methodBlocks(content)) {
+      if (!/^(?:submeter|salvar|cadastrar|aprovar|atualizar|remover|excluir|confirmarOperacao|clicarCadastrar)/i.test(block.name)) continue;
+      if (!/\.(?:click|press|check|selectOption)\s*\(/.test(block.text)) continue;
+      if (!/\bexpect(?:\.soft)?\s*\(|\.toHave[A-Z]|\.toBe(?:Visible|Hidden|Enabled|Disabled)/.test(block.text)) continue;
+      add("error", "action-hides-result-assertion", relative(file), lineNumber(content, block.index), `Metodo ${block.name} mistura a acao com a comprovacao; exponha a assertion em validarMensagemSucesso/validarPersistencia.`);
+    }
   }
 
   const immediateFlowVisibility = firstMatch(
@@ -1433,8 +1497,60 @@ for (const file of pageObjectFiles) {
     const looksLikeCollection = /sugest|suggest|autocomplete|op[cç][aã]o|option|linha|row|table|lista|list/i.test(windowText);
     const hasSafeFilter = /\.filter\s*\(|hasText|:not\s*\(\s*\[disabled\]|disabled|hidden|placeholder|selecione|escolha|candidat|op[cç][aã]o\s+v[aá]lida/i.test(windowText);
     if (looksLikeCollection && !hasSafeFilter) {
-      add("warning", "unfiltered-first-collection", relative(file), index + 1, "Antes de .first(), filtre candidatos por texto intencional ou exclua vazio, placeholder, oculto e desabilitado.");
+      add(implantationRiskSeverity, "unfiltered-first-collection", relative(file), index + 1, "Antes de .first(), filtre candidatos por texto intencional ou exclua vazio, placeholder, oculto e desabilitado.");
       break;
+    }
+  }
+}
+
+if (contract === "implantacao" && specFiles.length) {
+  const globalSetupFiles = walk(root).filter((file) => (
+    codeExtensions.has(path.extname(file)) && /(?:^|[/\\])globalSetup\.[cm]?[jt]s$/i.test(file)
+  ));
+  const specProfileFiles = walk(root).filter((file) => (
+    codeExtensions.has(path.extname(file)) && /(?:^|[/\\])specProfiles\.[cm]?[jt]s$/i.test(file)
+  ));
+  if (!specProfileFiles.length) {
+    add("error", "missing-auth-spec-profiles", ".", 1, "Crie tests/auth/specProfiles com mapeamento simples { id, perfil, arquivo } para cada spec, sem credenciais.");
+  } else {
+    const profileContent = specProfileFiles.map((file) => fs.readFileSync(file, "utf8")).join("\n");
+    if (!/\bid\s*:/.test(profileContent) || !/\bperfil\s*:/.test(profileContent) || !/\barquivo\s*:/.test(profileContent)) {
+      add("error", "invalid-auth-spec-profiles", relative(specProfileFiles[0]), 1, "specProfiles deve mapear id, perfil e arquivo de cada spec.");
+    }
+  }
+  if (!globalSetupFiles.length) {
+    add("error", "missing-scoped-auth-setup", ".", 1, "Implantacao exige globalSetup com storageState por perfil/spec e selecao automatica pelos filtros de arquivo do comando.");
+  } else {
+    const authContent = globalSetupFiles.map((file) => fs.readFileSync(file, "utf8")).join("\n");
+    const fixtureFiles = walk(path.join(root, "tests", "fixtures"))
+      .filter((file) => codeExtensions.has(path.extname(file)));
+    const fixtureContent = fixtureFiles.map((file) => fs.readFileSync(file, "utf8")).join("\n");
+    const selectionIndex = authContent.indexOf("config.argv");
+    const filterIndex = authContent.search(/\.filter\s*\(/);
+    const uiIndex = authContent.indexOf("--ui");
+    const browserLaunchIndex = authContent.search(/\b(?:chromium|firefox|webkit)\.launch\s*\(/);
+    const credentialsIndex = authContent.search(/\bobterCredenciais\s*\(|process\.env\.E2E_[A-Z0-9_]*(?:USERNAME|PASSWORD)/);
+    if (/E2E_AUTH_SPEC_IDS/.test(authContent)) {
+      add("error", "manual-scoped-auth-selection", relative(globalSetupFiles[0]), lineNumber(authContent, authContent.indexOf("E2E_AUTH_SPEC_IDS")), "Remova E2E_AUTH_SPEC_IDS; a escolha entre uma spec e a suite deve vir do filtro de arquivo do comando Playwright.");
+    }
+    if (selectionIndex < 0 || filterIndex < 0) {
+      add("error", "missing-scoped-auth-selection", relative(globalSetupFiles[0]), 1, "globalSetup deve ler config.argv e filtrar specProfiles pelos arquivos informados no comando; sem filtro, deve preparar a suite completa.");
+    } else if (credentialsIndex >= 0 && selectionIndex > credentialsIndex) {
+      add("error", "late-scoped-auth-selection", relative(globalSetupFiles[0]), 1, "Selecione as specs por config.argv antes de ler credenciais ou iniciar logins, para nao depender de perfis fora da execucao.");
+    }
+    if (uiIndex < 0) {
+      add("error", "missing-ui-auth-defer", relative(globalSetupFiles[0]), 1, "UI Mode executa globalSetup antes da lista; detecte --ui e retorne antes de abrir browser ou ler credenciais.");
+    } else if (browserLaunchIndex >= 0 && uiIndex > browserLaunchIndex) {
+      add("error", "late-ui-auth-defer", relative(globalSetupFiles[0]), 1, "Detecte --ui antes de iniciar o browser de autenticacao.");
+    }
+    const hasUiLazyAuth = /testInfo\.config\.argv/.test(fixtureContent)
+      && /["'`]--ui["'`]/.test(fixtureContent)
+      && /\bspecsAutenticadas\b/.test(fixtureContent)
+      && /\bobterCredenciais\s*\(/.test(fixtureContent)
+      && /\.storageState\s*\(/.test(fixtureContent)
+      && /auto\s*:\s*true/.test(fixtureContent);
+    if (!hasUiLazyAuth) {
+      add("error", "missing-ui-lazy-auth", fixtureFiles.length ? relative(fixtureFiles[0]) : ".", 1, "Adicione fixture automatica que, somente ao executar uma spec no UI Mode, selecione o perfil por testInfo.file e gere seu storageState em contexto separado.");
     }
   }
 }

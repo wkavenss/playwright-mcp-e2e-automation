@@ -52,7 +52,7 @@ Nao capturar nem colar DOM completo, HTML completo, screenshots ou listas integr
 - Nao submeter formulario incompleto apenas para observar validacoes de campos obrigatorios.
 - Diferenciar acoes intermediarias de finais: salvar, avancar, enviar, confirmar, cancelar ou excluir.
 - Antes de clicar Voltar/Cancelar, confirmar se a reentrada e segura na mesma sessao.
-- Durante o inventario do guia, nao confirmar acao destrutiva nem transicao irreversivel. Depois da aprovacao, a spec correspondente pode executa-la somente sobre alvo sintetico criado, persistido e localizado de forma unica pela propria spec na execucao atual.
+- Durante o inventario do guia, nao confirmar acao destrutiva nem transicao irreversivel. Se ela estiver expressa em `OPERACAO` ou `CAMINHO`, a spec correspondente pode executa-la sobre alvo seguro definido pelo fluxo; em remocao, usar alvo sintetico criado, persistido e localizado de forma unica pela propria spec na execucao atual.
 - Antes de acao final, verificar permissao explicita, ambiente seguro, dados de teste, reversibilidade e ausencia de impacto real.
 - Antes de acao que persiste dado, confirmar que os campos obrigatorios conhecidos, massa neutra e validacao final ja estao definidos. Nao usar repetidas submisssoes como mecanismo de descoberta.
 

@@ -55,6 +55,18 @@ function existingDirectory(relativePath) {
   return fs.existsSync(target) && fs.statSync(target).isDirectory();
 }
 
+function isReadablePath(value, expectedType) {
+  if (!value) return false;
+  try {
+    const target = path.resolve(root, value);
+    fs.accessSync(target, fs.constants.R_OK);
+    const stat = fs.statSync(target);
+    return expectedType === "file" ? stat.isFile() : stat.isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 function unique(items) {
   return [...new Set(items.filter(Boolean))];
 }
@@ -166,7 +178,7 @@ function cleanPromptValue(value) {
 
 function isPromptFieldHeader(line) {
   const normalized = normalizeText(line);
-  return /^(?:modo|url(?:\s+base)?|caso de uso(?:\s+\d+)?|operacao|caminho|passo a passo|perfil|usuario|user|senha|password|massa e pre-condicoes|dados especificos|resultado esperado|observacoes|fontes de referencia|agents\.md(?:\s+do\s+modulo)?|codigo-fonte|credenciais|casos de uso|guia de navegacao|abrangencia|secoes\/casos|secoes|casos)\s*:/.test(normalized);
+  return /^(?:modo|url(?:\s+base)?|caso de uso(?:\s+\d+)?|operacao|caminho|passo a passo|perfil|usuario|user|senha|password|massa e pre-condicoes|dados especificos|resultado esperado|observacoes|fontes de (?:referencia|evidencia)|agents\.md(?:\s+do\s+modulo)?|codigo-fonte|credenciais|casos de uso|guia de navegacao|abrangencia|secoes\/casos|secoes|casos)\s*:/.test(normalized);
 }
 
 function promptFieldValue(lines, regex) {
@@ -294,6 +306,8 @@ function parsePrompt(text) {
   const url = promptFieldValue(lines, /^url(?:\s+base)?\s*:/);
   const agents = promptFieldValue(lines, /^agents\.md(?:\s+do\s+modulo)?\s*:/);
   const source = promptFieldValue(lines, /^codigo-fonte\s*:/);
+  const agentsReadable = isReadablePath(agents, "file");
+  const sourceReadable = isReadablePath(source, "directory");
   const user = promptFieldValue(preamble, /^(?:usuario|user)\s*:/);
   const password = promptFieldValue(preamble, /^(?:senha|password)\s*:/);
   const pathValue = promptFieldValue(preamble, /^(?:caminho|passo a passo)\s*:/);
@@ -323,7 +337,7 @@ function parsePrompt(text) {
   const routeComplete = requestKind === "individual"
     || (requestKind === "lote" && parsedCases.numberingValid && readyCases.length > 0);
   const commonCredentialsComplete = Boolean(url && user && password);
-  const globalImplementationComplete = Boolean(url && agents && source);
+  const globalImplementationComplete = Boolean(url && agentsReadable && sourceReadable);
   const rawSteps = requestKind === "lote"
     ? []
     : lines
@@ -342,6 +356,8 @@ function parsePrompt(text) {
     routeComplete,
     hasAgents: Boolean(agents),
     hasSource: Boolean(source),
+    agentsReadable,
+    sourceReadable,
     useCaseCount: parsedCases.summaries.length,
     numberingValid: parsedCases.numberingValid,
     readyUseCaseCount: readyCases.length,
@@ -549,6 +565,8 @@ function buildRiskFlags({ shape, privateDomainStatus, normalizedInput, rawInput,
   if (normalizedInput && !normalizedInput.contractComplete) {
     riskFlags.push("missing-minimum-contract");
   }
+  if (normalizedInput?.hasAgents && !normalizedInput.agentsReadable) riskFlags.push("agents-source-unreadable");
+  if (normalizedInput?.hasSource && !normalizedInput.sourceReadable) riskFlags.push("code-source-unreadable");
   if (normalizedInput?.functionalMode === "ausente") riskFlags.push("functional-mode-missing");
   if (normalizedInput?.functionalMode === "contraditorio") riskFlags.push("functional-mode-contradictory");
   if (normalizedInput?.requestKind === "guia-removido") riskFlags.push("guide-mode-removed");
@@ -583,6 +601,7 @@ function chooseNextAction({ shape, riskFlags }) {
   if (riskFlags.includes("mixed-use-case-formats")) return "escolher-formato-individual-ou-numerado";
   if (riskFlags.includes("use-case-numbering-invalid")) return "corrigir-numeracao-dos-casos";
   if (riskFlags.includes("credential-profile-conflict")) return "corrigir-credenciais-conflitantes";
+  if (riskFlags.includes("agents-source-unreadable") || riskFlags.includes("code-source-unreadable")) return "corrigir-fontes-de-evidencia";
   if (riskFlags.includes("no-ready-use-cases")) return "corrigir-casos-bloqueados";
   if (riskFlags.includes("missing-minimum-contract")) return "pedir-contrato-minimo";
   if (!shape.isPlaywrightProject || riskFlags.includes("missing-playwright-config")) return "preparar-projeto-ou-rodar-scaffold";

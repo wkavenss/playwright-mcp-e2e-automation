@@ -28,6 +28,8 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 
 ## Padrao Gerado
 
+Os modos `basico`, `massa` e `implantacao` sao mantidos por compatibilidade de CLI e produzem intencionalmente a mesma base minima. As diferencas de contrato pertencem as skills e ao quality gate, nao ao scaffold.
+
 - JavaScript e Playwright Test.
 - `tests/e2e` para specs, `tests/pages` reservado para Page Objects reais, credenciais por perfil e `runId`.
 - Chromium headed e maximizado por padrao, com `viewport: null`, `--start-maximized` e fixture CDP.

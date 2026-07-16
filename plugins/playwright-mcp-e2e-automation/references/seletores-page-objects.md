@@ -24,7 +24,7 @@ Mapear seletores sob demanda: identificar o seletor no momento em que o passo pr
 
 Nao usar nomes reais de pessoas, usuarios, servidores/funcionarios, emails, documentos, matriculas ou telefones observados na tela como seletor, `hasText`, assert ou fixture versionada. Em tabelas/listagens, preferir registro criado pela propria automacao com `runId`, texto neutro fornecido pelo usuario ou variavel local nao versionada. Quando um dado real for inevitavel para localizar um registro preexistente, encapsular em parametro generico e nao repetir o valor em comentarios ou logs.
 
-Nao usar `.nth()`, indice numerico, posicao visual ou `.first()` sem filtro. Para listas de cadastros anteriores, a filtragem valida deve excluir item oculto, desabilitado, vazio e placeholder antes de escolher o primeiro candidato. Para outras colecoes, filtrar por escopo funcional, linha, label, cabecalho, role, `hasText` sanitizado ou dado de teste gerado.
+Nao usar `.nth()`, indice numerico, posicao visual ou `.first()` sem filtro. Um indice calculado em runtime a partir do texto do cabecalho da coluna e permitido, porque a posicao deriva da semantica exibida e nao de um numero fixo. Para listas de cadastros anteriores, a filtragem valida deve excluir item oculto, desabilitado, vazio e placeholder antes de escolher o primeiro candidato. Para outras colecoes, filtrar por escopo funcional, linha, label, cabecalho, role, `hasText` sanitizado ou dado de teste gerado.
 
 ## Primeira Opcao Valida
 
@@ -140,16 +140,21 @@ Usar kebab-case para specs/dados/utils e PascalCase para Page Objects. Criar pel
 
 ```javascript
 test('deve cadastrar projeto quando dados obrigatorios forem validos', async ({ page }) => {
-  await loginPage.realizarLogin();
+  await acessoPage.abrirSessaoAutenticada();
+  await acessoPage.validarAusenciaErroImpeditivo();
   await cadastroPage.preencherDadosObrigatorios(dadosProjeto);
   await cadastroPage.salvar();
   await cadastroPage.validarMensagemSucesso();
+  await cadastroPage.validarPersistencia(dadosProjeto.nome);
+  await acessoPage.validarAusenciaErroImpeditivo();
 });
 ```
 
 Page Objects devem representar acoes funcionais, como `realizarLogin`, `acessarFuncionalidade`, `obterCamposObrigatorios`, `preencherDadosObrigatorios`, `validarObrigatoriedade`, `avancarEtapa`, `confirmarOperacao`, `validarMensagemSucesso` e `validarRegistroNaListagem`.
 
 Em smoke com muitos campos, a colecao campo-locator-valor pertence ao Page Object. A spec recebe os descritores para manter o loop visivel, mas nao acessa `controle` diretamente. O Page Object pode usar o descritor para preencher e restaurar; nao deve conhecer o runner nem executar o smoke inteiro.
+
+Nao validar `maxlength`, classe CSS, atributo de obrigatoriedade ou outro contrato HTML em implantacao sem requisito funcional expresso. Nao repetir consecutivamente a mesma acao sobre o mesmo locator com o mesmo valor; quando um componente JSF realmente exigir repeticao, documentar a causa junto da excecao.
 
 Um fluxo de negocio atravessando varias telas deve ficar em um unico `test`, com chamadas sequenciais e nomes funcionais. Nao criar um `test` por tela quando as telas dependem da mesma sessao, do mesmo cadastro ou do mesmo estado transacional.
 
@@ -168,6 +173,8 @@ Evitar metodos como `clickButton1`, `fillInput2`, `goNext` ou seletores complexo
 ## Page Objects
 
 Cada Page Object deve conter locators da tela, acoes reutilizaveis, metodos com nomes claros e pequenas validacoes ligadas aquela tela quando fizer sentido. Preferir locators no `constructor` ou getters simples; evitar objetos gigantes ou genericos demais.
+
+Separar Page Objects quando houver responsabilidades funcionais independentes, como um assistente de cadastro e uma listagem de registros. Nao criar um objeto para cada etapa do mesmo wizard nem uma facade apenas para preservar imports antigos.
 
 Exemplo de formato:
 

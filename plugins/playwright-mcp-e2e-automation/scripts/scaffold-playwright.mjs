@@ -7,6 +7,7 @@ import { fileURLToPath } from "node:url";
 const argumentos = process.argv.slice(2);
 if (argumentos.includes('--help') || argumentos.includes('-h')) {
   console.log('Uso: scaffold-playwright.mjs [raiz] --mode <basico|massa|implantacao> [--legacy-form]');
+  console.log('Os tres modos preservam a mesma base minima; o contrato e aplicado pela skill e pelo quality gate.');
   process.exit(0);
 }
 const posicionais = [];
@@ -141,4 +142,4 @@ garantirLinhas(".gitignore", [
 escreverSeAusente("tests/e2e/.gitkeep", "");
 escreverSeAusente("tests/pages/.gitkeep", "");
 
-console.log(JSON.stringify({ raiz, modo, criados, preservados }, null, 2));
+console.log(JSON.stringify({ raiz, modo, baseComum: true, criados, preservados }, null, 2));

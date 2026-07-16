@@ -228,6 +228,35 @@ function checkJson(files) {
     });
 }
 
+function collectPlaywrightSpecs(files) {
+  const specs = files.filter((file) => /(?:\.spec|\.test)\.[cm]?[jt]sx?$/.test(file));
+  if (!specs.length) {
+    return { checked: false, ok: true, specs: 0, message: "" };
+  }
+
+  const cli = path.join(root, "node_modules", "@playwright", "test", "cli.js");
+  if (!fs.existsSync(cli)) {
+    return {
+      checked: contract === "implantacao",
+      ok: contract !== "implantacao",
+      specs: specs.length,
+      message: "@playwright/test local nao encontrado; instale as dependencias antes de validar a coleta.",
+    };
+  }
+
+  const result = spawnSync(
+    process.execPath,
+    [cli, "test", "--list", ...specs.map(relative)],
+    { cwd: root, encoding: "utf8" },
+  );
+  return {
+    checked: true,
+    ok: result.status === 0,
+    specs: specs.length,
+    message: result.status === 0 ? "" : compact(result.stderr || result.stdout || "Falha ao coletar specs Playwright."),
+  };
+}
+
 function groupFindings(items) {
   const groups = new Map();
   for (const item of items) {
@@ -279,6 +308,7 @@ const leaks = runLeakCheck();
 const syntax = checkNodeSyntax(files);
 const json = checkJson(files);
 const skippedTs = files.filter((file) => tsExtensions.has(path.extname(file))).map(relative);
+const playwrightCollection = collectPlaywrightSpecs(files);
 const syntaxFailures = syntax.filter((item) => !item.ok);
 const jsonFailures = json.filter((item) => !item.ok);
 const findings = audit.summary.findings || [];
@@ -290,7 +320,7 @@ const topFindings = findings.slice(0, 15).map((item) => ({
   line: item.line,
   message: item.message,
 }));
-const failed = Boolean(scopeError) || !audit.ok || !leaks.ok || (audit.summary.errors || 0) > 0 || syntaxFailures.length > 0 || jsonFailures.length > 0;
+const failed = Boolean(scopeError) || !audit.ok || !leaks.ok || !playwrightCollection.ok || (audit.summary.errors || 0) > 0 || syntaxFailures.length > 0 || jsonFailures.length > 0;
 
 const auditSummary = {
   ok: audit.ok && (audit.summary.errors || 0) === 0,
@@ -320,6 +350,7 @@ const summary = {
     checked: json.length,
     failed: jsonFailures,
   },
+  playwrightCollection,
   publicLeaks: {
     checked: leaks.checked,
     failed: leaks.findings,
@@ -334,11 +365,15 @@ if (jsonOutput) {
   console.log(`Audit: ${summary.audit.errors} erro(s), ${summary.audit.warnings} alerta(s), ${summary.audit.scannedFiles} arquivo(s).`);
   console.log(`Node --check: ${summary.syntax.checked} arquivo(s), ${summary.syntax.failed.length} falha(s).`);
   console.log(`JSON: ${summary.json.checked} arquivo(s), ${summary.json.failed.length} falha(s).`);
+  console.log(`Playwright --list: ${summary.playwrightCollection.checked ? `${summary.playwrightCollection.specs} spec(s), ${summary.playwrightCollection.ok ? "ok" : "falhou"}` : "nao aplicavel"}.`);
   if (summary.publicLeaks.checked) {
     console.log(`Vazamento publico: ${summary.publicLeaks.failed.length} achado(s).`);
   }
-  if (summary.syntax.skippedTs.length) {
-    console.log(`TS sem node --check: ${summary.syntax.skippedTs.length} arquivo(s).`);
+  if (summary.syntax.skippedTs.length && !summary.playwrightCollection.checked) {
+    console.log(`TS fora da coleta Playwright: ${summary.syntax.skippedTs.length} arquivo(s).`);
+  }
+  if (summary.playwrightCollection.message) {
+    console.log(`ERROR playwright-list - ${summary.playwrightCollection.message}`);
   }
   if (summary.audit.stderr) {
     console.log(`Auditor: ${summary.audit.stderr}`);

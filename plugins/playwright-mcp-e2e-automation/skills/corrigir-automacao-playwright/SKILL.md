@@ -52,6 +52,9 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Em clique com confirmacao e overlay opcional, registrar o dialogo e reutilizar a recuperacao do clique existente; nao duplicar aceite e repeticao.
 - Em spec de implantacao, manter fases sequenciais e rasas. Remover `test.describe` quando o arquivo possui um unico teste e o agrupamento nao acrescenta configuracao ou contexto.
 - Separar a acao de submissao da comprovacao do resultado: o Page Object deve oferecer clique e `validarMensagemSucesso()` como operacoes distintas.
+- Preservar as verificacoes explicitas de ausencia de erro impeditivo depois da abertura e da conclusao. Corrigir marcadores somente com evidencia da aplicacao; nao recorrer a busca generica no `body`.
+- Em execucao parcial, preservar a selecao automatica do `globalSetup` por `config.argv`: o arquivo informado no comando deve limitar os perfis autenticados, sem variavel adicional.
+- Se `npx playwright test --ui` autenticar antes da escolha, fazer o `globalSetup` retornar ao detectar `--ui` e mover somente a preparacao do `storageState` da spec escolhida para uma fixture automatica baseada em `testInfo.file`, usando contexto separado sem trace.
 - Usar assertions normais em acesso, botoes, navegacao e conclusao. Nao manter o fluxo artificialmente vivo depois de uma falha que possa ter alterado a pagina.
 - Nas obrigatoriedades recuperaveis, usar `expect.soft` somente na evidencia do campo-alvo. Manter assertions normais na sentinela e na ausencia de sucesso, restaurando alvo e sentinela em `finally`.
 - Remover `RelatorioValidacoes`, `fluxoAcessivel`, `cadastroConcluido` e inventarios duplicados quando apenas replicarem o runner. Depois do loop, usar uma unica barreira `if (testInfo.errors.length > 0) return` antes da persistencia positiva.

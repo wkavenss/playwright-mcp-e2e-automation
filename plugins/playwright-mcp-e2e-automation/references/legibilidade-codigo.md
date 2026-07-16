@@ -19,7 +19,8 @@ Na spec:
 - autenticar e chamar as operacoes na ordem do usuario;
 - percorrer os obrigatorios em um unico loop;
 - consultar `testInfo.errors` uma vez antes da persistencia positiva;
-- manter visiveis o clique final, a mensagem de sucesso e a consulta do registro.
+- manter visiveis o clique final, a mensagem de sucesso e a consulta do registro;
+- verificar ausencia de erro impeditivo depois da abertura e da conclusao.
 - nao declarar `RelatorioValidacoes`, `verificacoesPlanejadas`, `fluxoAcessivel` ou outra replica do runner.
 
 No Page Object:
@@ -75,9 +76,9 @@ Uma spec destrutiva continua com a historia visivel: criar o alvo da execucao, c
 - Centralizar timeouts de acao na configuracao. Nao espalhar limites menores em `click` ou `selectOption`; manter timeout local apenas para uma condicao funcional especifica e explicada, como `expect.poll` de lista dinamica.
 - Centralizar tambem o limite total em `timeout: 180_000` no `playwright.config`. Em spec excepcionalmente grande, preferir `test.slow()`; nao repetir `test.setTimeout` sem necessidade exata comprovada e comentada.
 - Em consentimento opcional com recuperacao tardia, limitar a procura inicial a `2_000` ms para nao atrasar clientes que nao exibem o banner.
-- Um metodo semantico pode submeter e comprovar o resultado imediato. Nao esconder varias operacoes de negocio em uma unica chamada.
+- Separar acao e comprovacao em metodos semanticos distintos. A spec deve mostrar `submeter()`, `validarMensagemSucesso()` e `validarPersistencia()`; em consulta, `buscar()` e `validarResultados()`.
 - Remover locator, metodo, exportacao, `.gitkeep` redundante ou utilitario sem consumidor.
-- Nao dividir um Page Object apenas pela quantidade de linhas. Separar outra pagina/componente somente quando houver responsabilidade independente ou reuso real; uma facade criada apenas para manter a spec igual aumenta a navegacao mental.
+- Nao dividir um Page Object apenas pela quantidade de linhas. Separar quando houver responsabilidade independente ou reuso real, como wizard e listagem; nao criar objeto por etapa nem facade apenas para manter a spec igual.
 - Nao extrair helper generico de select somente para reduzir dois blocos semelhantes. A extracao passa a valer quando houver reuso recorrente ou uma regra compartilhada que precise de uma unica fonte de verdade.
 - Nao perseguir percentual de reducao de linhas. Medir simplificacao por responsabilidades removidas, consumidores preservados e quantidade de lugares alterados por regra; compactar comandos ou deslocar codigo para outro arquivo nao reduz complexidade.
 - Usar reporters `line` e `html`; o HTML deve mostrar diretamente specs aprovadas e reprovadas.

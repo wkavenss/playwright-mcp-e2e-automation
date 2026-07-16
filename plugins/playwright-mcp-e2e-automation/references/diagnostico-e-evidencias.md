@@ -43,9 +43,19 @@ Nao copiar stack trace, erro bruto do terminal, timeout completo, payload, HTML,
 
 Se houver captcha, MFA, bloqueio de automacao, indisponibilidade, permissao insuficiente ou regra ambigua, nao inventar alternativa insegura. Estruturar a automacao ate o ponto possivel e registrar a informacao necessaria para prosseguir.
 
-Em producao ou ambiente real, nao executar criacao, alteracao, submissao, aprovacao, exclusao ou acao irreversivel sem autorizacao explicita e dados seguros. Em spec destrutiva aprovada, o alvo deve ter sido criado integralmente pela propria spec na execucao atual e localizado de forma unica pelo `runId`.
+Quando criacao, alteracao, submissao, aprovacao, exclusao ou outra transicao irreversivel estiver expressa em `OPERACAO` ou `CAMINHO`, o proprio caso autoriza esse passo funcional. A spec deve operar sobre alvo seguro definido pelo fluxo; em remocao, o alvo deve ter sido criado integralmente pela propria spec na execucao atual e localizado de forma unica pelo `runId`. Nao introduzir acao irreversivel vizinha que nao faca parte do caso informado.
 
 Se a falha aconteceu depois de uma acao que pode ter criado dado persistente, nao repetir a submissao cegamente. Primeiro verificar o `runId` e continuar o mesmo registro. Durante a criacao/correcao, o Codex pode remover diretamente esse registro pelo navegador quando a operacao for segura e autorizada; essa acao nao pode gerar metodo, ledger, lock, cache, setup, teardown ou spec de limpeza. Em falha da propria operacao destrutiva, preservar o alvo para diagnostico e nao repetir.
+
+## Erros Impeditivos
+
+Depois da abertura da funcionalidade e depois da conclusao, verificar explicitamente:
+
+- resposta 5xx da navegacao ou requisicao que conclui a operacao, quando observavel;
+- pagina de excecao e container estavel de erro do sistema previamente confirmado no projeto;
+- permanencia no estado funcional esperado, para distinguir erro de aplicacao de seletor ou sincronizacao.
+
+Centralizar os marcadores conhecidos em um Page Object de acesso ou componente compartilhado e produzir mensagem objetiva com o marcador encontrado. Nao procurar termos genericos em todo o `body`, pois mensagens de ajuda e historico podem gerar falso positivo. Quando os marcadores reais nao puderem ser confirmados, declarar essa limitacao no caso e manter as provas funcionais, sem inventar um detector amplo.
 
 ## Resumo Completo
 

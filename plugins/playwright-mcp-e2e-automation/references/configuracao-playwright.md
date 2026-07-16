@@ -85,6 +85,27 @@ await loginPage.realizarLogin(credenciais.username, credenciais.password);
 await page.context().storageState({ path: caminhoAuthTemporario('docente', specId) });
 ```
 
+Manter `tests/auth/specProfiles.js` como uma lista simples de objetos `{ id, perfil, arquivo }`, com um ID unico por spec e sem credenciais. O `globalSetup(config)` deve usar `config.argv`, fornecido pelo proprio Playwright, para reconhecer os filtros de arquivo do comando. Sem filtro de arquivo, preparar todas as specs; com um ou mais filtros, preparar somente as correspondentes. Fazer essa selecao antes de ler credenciais, abrir paginas e gerar os respectivos `storageState`. Filtro informado sem correspondencia deve falhar com mensagem objetiva. Nao exigir uma variavel de ambiente adicional para escolher entre uma spec e a suite.
+
+Usar os comandos normais do Playwright:
+
+```bash
+npx playwright test --headed "tests/e2e/minha-spec.spec.js"
+npm run test:headed
+```
+
+O primeiro prepara e executa somente a spec informada. O segundo, sem filtro de arquivo, prepara e executa a suite completa.
+
+O UI Mode possui outro ciclo: o Playwright executa o `globalSetup` ao abrir a interface, antes de o usuario escolher um teste. Portanto, ao encontrar `--ui` em `config.argv`, o `globalSetup` deve retornar antes de iniciar browser ou ler credenciais. Na fixture compartilhada, adicionar uma fixture automatica de autenticacao que so roda quando uma spec for executada pela interface. Ela deve localizar `{ id, perfil, arquivo }` por `testInfo.file`, abrir um contexto separado sem trace, autenticar, gravar o `storageState` daquela spec e fechar o contexto antes de o Playwright criar a pagina do teste. Nao autenticar todos os perfis nem reutilizar estado manual.
+
+Assim, este comando abre apenas a lista:
+
+```bash
+npx playwright test --ui
+```
+
+O browser da aplicacao e o login devem iniciar somente depois que o usuario clicar para executar uma spec.
+
 O utilitario deve mapear o perfil para variaveis de ambiente no formato `E2E_<PERFIL>_USERNAME` e `E2E_<PERFIL>_PASSWORD`, convertendo hifens e espacos para `_`. Exemplos: `docente` -> `E2E_DOCENTE_USERNAME`; `coord-graduacao` -> `E2E_COORD_GRADUACAO_USERNAME`. Nao usar `process.env.E2E_USERNAME` ou `process.env.E2E_PASSWORD` em specs novas. Salvar um `storageState` temporario por perfil/spec em `test-results/auth/`, configurar `test.use({ storageState })` e iniciar a spec confirmando que a sessao esta autenticada. Nao reutilizar estado manual ou versionado.
 
 Configurar Playwright com `workers: process.env.E2E_WORKERS ? Number(process.env.E2E_WORKERS) : 1`. O padrao serial evita conflito de sessao em sistemas legados quando varios perfis do `.env` apontam temporariamente para a mesma conta. Aumentar `E2E_WORKERS` somente quando as contas e massas forem independentes.
@@ -130,6 +151,7 @@ Em implantacao, usar o reporter HTML nativo em uma unica execucao dos arquivos s
 - Usar massa externa informada pelo usuario quando o fluxo exigir.
 - Formatar corretamente datas, valores, documentos e identificadores para produzir entrada valida. Em smoke de implantacao, nao gerar entrada invalida para testar tipo/formato.
 - Gerar datas, periodos, anos, semestres, prazos e vencimentos em runtime; nao hardcodar valores que envelhecem.
+- Nao usar, como padrao generico, anos de outro seculo ou datas artificialmente distantes. Usar valor fornecido ou intervalo relativo cuja faixa funcional tenha sido confirmada para o sistema.
 - Para intervalos, calcular a data final a partir da data inicial, usando offset claro e rastreavel.
 - Manter datas como `Date`/ISO ou estrategia equivalente ate a borda de preenchimento; formatar para a tela somente no Page Object/helper.
 - Usar data fixa apenas quando a regra de negocio ou o usuario exigir; nesse caso, parametrizar em `.env` ou fixture local ignorada.
@@ -138,7 +160,8 @@ Em implantacao, usar o reporter HTML nativo em uma unica execucao dos arquivos s
 - Mover massa maior ou reutilizavel para `tests/data`.
 - Mover geradores e helpers reaproveitaveis para `tests/utils`.
 - Classificar massa como `gerada`, `dominio` ou `cadastro-anterior` antes de codificar.
-- Campos com estrela/asterisco azul na label sao obrigatorios e devem ser preenchidos quando fizerem parte do fluxo.
+- Todos os campos identificados visualmente como obrigatorios devem ser validados vazios no mesmo smoke e preenchidos no fluxo positivo.
+- Nao gerar assertions de `maxlength`, classe CSS de obrigatoriedade, atributo HTML ou formato invalido por padrao. Inclui-las somente quando forem requisito funcional expresso ou indispensaveis para produzir uma entrada valida.
 - Inferir dados obrigatorios secundarios somente quando neutros e sem impacto na regra testada; pedir ao usuario dados que alterem comportamento, perfil, status, tipo, modalidade, permissao ou resultado esperado.
 
 ## Sessao E Dados Persistidos
@@ -156,7 +179,10 @@ Em implantacao, usar o reporter HTML nativo em uma unica execucao dos arquivos s
 - Se a acao destrutiva falhar depois da criacao do alvo, preservar o registro identificado; nao repetir a acao nem executar limpeza automatica em `finally`.
 - Usar `expect.soft` somente nas evidencias recuperaveis de obrigatoriedade e identificar cada campo na mensagem da assertion. Assertions de acesso, navegacao, botoes, sentinela e conclusao permanecem bloqueantes.
 - Antes da persistencia positiva, consultar `testInfo.errors` uma unica vez. Nao criar acumuladores, estados de fluxo ou relatorio customizado para duplicar o runner.
+- Manter acao e comprovacao em chamadas separadas na spec, como `submeter()`, `validarMensagemSucesso()` e `validarPersistencia()`. Em consulta, expor `buscar()` e `validarResultados()` separadamente.
+- Depois de abrir a funcionalidade e depois do resultado final, chamar uma verificacao compartilhada de ausencia de erro impeditivo. Ela deve combinar status 5xx da navegacao com marcadores estaveis confirmados para a aplicacao e nunca pesquisar genericamente o `body` inteiro. Se o sistema nao oferecer marcador confiavel, registrar a limitacao no caso em vez de inventar regex ampla.
 - Executar o auditor com contexto explicito: `quality-gate.mjs <raiz> --contract implantacao --case-kind <formulario|consulta|relatorio|remocao|transicao>`. Usar `--contract massa` para geracao e `--contract revisao` para auditoria generica.
+- O quality gate deve executar `playwright test --list` sobre specs JavaScript e TypeScript selecionadas, alem das verificacoes estaticas. Em implantacao, espera fixa, `force: true`, indice numerico injustificado, seletor estrutural de tabela e `.first()` sem filtro sao bloqueantes.
 - Configurar reporters `line` e `html`, com `outputDir: 'test-results/playwright'` para artefatos e HTML em `test-results/html`. Manter trace e screenshot apenas em falhas.
 - Antes de executar uma acao que cria ou altera dado persistente, mapear os campos obrigatorios conhecidos, gerar `runId` unico e definir uma validacao final.
 - Reduzir repeticoes de execucao quando houver criacao. Se uma tentativa parcial gerar dado, o Codex deve reaproveitar o registro ou removê-lo diretamente pelo navegador somente quando a tela oferecer acao segura e autorizada.

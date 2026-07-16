@@ -36,12 +36,14 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Specs de implantacao devem apresentar fases sequenciais e poucos niveis de decisao. Arvores de `if`, estados `fluxoAcessivel`/`cadastroConcluido` e relatorio particular tendem a duplicar o runner e esconder a historia funcional.
 - Acesso, navegacao, botoes e conclusao devem falhar imediatamente. Evidencias recuperaveis de obrigatoriedade podem usar `expect.soft`; a sentinela e a ausencia de sucesso permanecem assertions normais.
 - Depois do loop de obrigatorios, deve existir uma unica barreira baseada em `testInfo.errors` antes da persistencia. Sem essa barreira, uma falha suave pode reprovar o teste e ainda criar um registro.
-- Um metodo semantico pode submeter e validar o resultado imediato da mesma operacao. Reprovar somente quando uma chamada esconder varias fases de negocio independentes, como criar, consultar e remover.
+- Acao e comprovacao devem permanecer separadas na spec: `submeter()`, `validarMensagemSucesso()` e `validarPersistencia()`; em consulta, `buscar()` e `validarResultados()`. Reprovar metodo de acao que esconda a assertion final.
 - Colecao de obrigatorios nao deve ser inicializada como plano e depois sobrescrita com dados reais na mesma variavel. Usar nomes distintos, como `camposPlanejados` e `camposObrigatorios`.
 - Locator e metodo declarados sem consumidor comprovado aumentam a superficie de manutencao e devem ser removidos.
 - Locators semanticos e escopados devem prevalecer sobre CSS estrutural e XPath.
 - ID JSF gerado, indice escondido em `evaluate`, ID JSF estavel escrito como seletor escapado e `waitForTimeout` sem anotacao padronizada sao riscos de manutencao. ID estavel direto `[id="form:campo"]` no Page Object e aceito.
 - Assertions devem comprovar o efeito funcional, nao somente a presenca de um elemento.
+- Em implantacao, todos os campos visualmente obrigatorios devem ser exercitados vazios no mesmo smoke. Reprovar assertions de `maxlength`, classe CSS ou outro contrato HTML quando nao houver requisito funcional expresso.
+- Depois da abertura e da conclusao, deve haver verificacao explicita de ausencia de erro impeditivo por status 5xx e marcadores estaveis confirmados para o projeto. Nao aceitar regex generica sobre o `body`; quando nao existir marcador confiavel, exigir limitacao documentada no caso.
 - Dependencias entre campos devem apenas preparar o fluxo smoke; nao devem virar teste negativo proprio sem requisito explicito fora de implantacao.
 - Filtro, busca ou assert nao pode perder parte do criterio informado pelo usuario sem confirmacao explicita. A mera existencia da tabela nao comprova a consulta: identificar a coluna pelo cabecalho, correlacionar todas as linhas retornadas com o filtro e confirmar ausencia de carregamento.
 - Valores de dominio devem ser rastreados ate o produtor funcional no codigo ou na tela. Reprovar filtro inferido pelo nome da operacao, valor que o produtor nao gera ou opcao inexistente na interface; quando o tipo nao puder ser filtrado, aceitar identidade exata mais prova do dominio em todas as linhas.
@@ -49,6 +51,8 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Timeout local em `click`, `fill`, `check` ou `selectOption` deve ter motivo funcional; quando apenas reduz o `actionTimeout` central, prejudica portabilidade e duplica configuracao. `expect.poll` com limite explicito nao e espera fixa.
 - O limite total deve ficar em `timeout: 180_000` no `playwright.config`. Para spec excepcionalmente grande, preferir `test.slow()`; `test.setTimeout` e aceitavel somente quando um valor exato for comprovado e comentado.
 - Credenciais devem vir de `.env`, que precisa estar ignorado; `.env.example` nao deve conter segredos. Em implantacao, reprovar login ou preenchimento de credenciais dentro do teste reportado: usar `globalSetup` sequencial sem trace e `storageState` temporario por perfil/spec, seguido de assertion de sessao autenticada.
+- Execucao parcial deve preparar somente os perfis das specs filtradas no comando por meio de `config.argv`; sem filtro de arquivo, a suite completa deve ser preparada sem exigir variavel adicional.
+- `npx playwright test --ui` deve abrir a lista sem autenticar. Exigir retorno antecipado do `globalSetup` para `--ui` e fixture automatica que gere, em contexto separado sem trace, somente o `storageState` da spec escolhida por `testInfo.file`.
 - Nomes reais de pessoas, usuarios, servidores/funcionarios, documentos, matriculas, emails, telefones e identificadores pessoais nao devem aparecer hardcoded em specs, Page Objects, fixtures, asserts, comentarios ou logs.
 - Datas, periodos, anos, semestres, prazos e vencimentos fixos devem ser tratados como risco de reprodutibilidade, salvo regra explicitamente fixa e parametrizada.
 - Erro cru, stack trace, timeout, texto de `body` inteiro, `console.log`, codigo comentado, `TODO/FIXME` e sobras de codegen devem ser tratados como sujeira de automacao.
@@ -64,6 +68,8 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Testes devem evitar dependencia de ordem e dados compartilhados imprevisiveis. Remocao ou transicao irreversivel so e segura quando a mesma spec cria o alvo na execucao atual, comprova persistencia e unicidade pelo `runId`, escopa a acao e valida ausencia ou novo estado.
 - Reprovar acao destrutiva sobre primeira linha, `.first()`/`.nth()` sem filtro exato, prefixo generico, massa preexistente ou alvo preparado por outra spec. Falha depois da criacao deve preservar o registro para diagnostico, sem limpeza automatica.
 - Reprovar nomes pessoais hardcoded como consulta de autocomplete, `%%%` usado apesar de existir valor especifico, correspondencia parcial, homonimo escolhido por posicao, `.nth()` e ausencia de confirmacao do valor final.
+- Em implantacao, reprovar espera fixa, `force: true`, `.first()` sem filtro, seletor estrutural de tabela e indice numerico injustificado. Aceitar indice calculado a partir do cabecalho da coluna.
+- Reprovar preenchimento consecutivo do mesmo locator com o mesmo valor sem justificativa objetiva de evento JSF.
 - Reprovar `localizarTentativa`, `retomarTentativa`, `removerTentativa`, ledger, lock, cache de tentativa, script npm, setup/teardown ou spec tecnica de limpeza no projeto entregue.
 - Identificar casos compativeis que recriam a mesma entidade em specs separadas; recomendar um ciclo com uma massa principal quando cadastrar, consultar, alterar e remover puderem ocorrer na mesma sessao.
 - Cada `CAMINHO`, individual ou em bloco `CASO DE USO <n>`, limita uma unica operacao. Explorar funcionalidade vizinha e defeito de escopo; etapas tecnicas do mesmo fluxo nao viram specs.

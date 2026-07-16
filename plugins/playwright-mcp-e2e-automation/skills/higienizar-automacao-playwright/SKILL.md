@@ -51,10 +51,12 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Preservar `test.step` somente quando nomear operacoes de negocio distintas sobre a mesma massa. Remover etapas tecnicas ou aninhadas, annotations, `RelatorioValidacoes`, plano manual, Markdown e `try/finally` da spec quando somente duplicarem o runner.
 - Em specs originadas de um lote, remover numero/status do caso, mapas de credenciais, listas de casos e qualquer orquestracao do prompt. Cada arquivo deve continuar parecendo uma automacao individual.
 - Identificar cada obrigatorio pela mensagem da assertion no Page Object, mantendo um unico loop na spec.
-- Permitir que um metodo semantico submeta e valide o resultado imediato. Dividir apenas metodos que escondam varias fases de negocio independentes.
+- Separar acao e comprovacao: manter na spec `submeter()`, `validarMensagemSucesso()` e `validarPersistencia()`; em consulta, `buscar()` e `validarResultados()`.
 - Quando os descritores planejados ainda nao possuem massa, usar `camposPlanejados`; reservar `camposObrigatorios` para os descritores completos. Nao sobrescrever a mesma colecao com dois significados.
 - Remover locators e metodos sem consumidor comprovado.
 - Reduzir `.nth()`, `.first()` sem filtragem explicita de candidato valido, XPath sem justificativa, ID gerado e seletor estrutural fragil.
+- Em implantacao, remover assertions de `maxlength`, classe CSS e outros contratos HTML nao solicitados, preservando a validacao vazia de todos os obrigatorios visuais.
+- Remover preenchimentos consecutivos do mesmo locator com o mesmo valor. Preservar repeticao somente quando um evento JSF comprovadamente exigir e deixar justificativa curta junto da excecao.
 - Em autocomplete, trocar nome presumido por pesquisa direta do valor especifico ou `%%%` quando ele estiver ausente. Normalizar resultados, exigir correspondencia exata para valor solicitado, bloquear homonimos ambiguos, filtrar antes do primeiro candidato e confirmar o valor do input.
 - Remover do projeto metodos de localizar/retomar/remover tentativa, ledger, locks, caches, scripts npm, fixtures e specs de limpeza que existam apenas para o processo de geracao do Codex. Preservar metodos de Remover quando representarem caso de uso real.
 - Consolidar specs que cadastram repetidamente a mesma entidade em um ciclo funcional quando consulta, alteracao e remocao puderem reutilizar o mesmo `runId`, sem `beforeAll` ou estado entre specs.
@@ -64,6 +66,9 @@ Conduzir a solicitacao somente com esta skill. Nao carregar nem chamar outra ski
 - Reduzir para ate `2_000` ms a procura inicial por consentimento opcional quando houver recuperacao tardia; clientes sem banner nao devem pagar uma espera longa em cada login.
 - Trocar `isVisible()` imediato usado para decidir se o fluxo terminou por espera curta em campo estavel, especialmente depois de submissao ou navegacao JSF.
 - Preservar todos os criterios informados pelo usuario; nao simplificar filtro/assert sem confirmacao.
+- Depois da abertura e da conclusao, expor uma chamada de ausencia de erro impeditivo baseada em status 5xx e marcadores estaveis confirmados. Nao substituir por busca generica no `body`; documentar a limitacao quando a aplicacao nao oferecer marcador confiavel.
+- Em execucao parcial, corrigir o `globalSetup` para ler os filtros de arquivo em `config.argv` e preparar somente os perfis correspondentes; sem filtro de arquivo, preparar a suite completa sem exigir variavel adicional.
+- No UI Mode, impedir login no carregamento da lista: `globalSetup` deve retornar antes do browser e uma fixture automatica deve preparar sem trace apenas o `storageState` da spec executada pelo usuario.
 - Preservar uma unica sessao de navegador por fluxo; permitir reentrada controlada apos Voltar/Cancelar, mas nao abrir novo browser ou repetir login.
 - Em remocao ou transicao irreversivel, manter visiveis na spec a criacao do alvo atual, a persistencia e unicidade pelo `runId`, a acao escopada e a validacao final. Remover selecao por primeira linha, prefixo generico, registro preexistente ou massa de outra spec.
 - Nao adicionar limpeza automatica para uma falha destrutiva ocorrida depois da criacao. Preservar o alvo identificado para diagnostico e impedir repeticao cega.

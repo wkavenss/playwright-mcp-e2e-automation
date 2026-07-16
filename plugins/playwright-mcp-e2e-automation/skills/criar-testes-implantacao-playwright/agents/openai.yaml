@@ -3,4 +3,4 @@ interface:
   short_description: "Cria smoke por caminho ou casos numerados"
   icon_small: "./assets/playwright.png"
   icon_large: "./assets/playwright.png"
-  default_prompt: "Use $criar-testes-implantacao-playwright com MODO: Implantacao e informe um CAMINHO individual ou blocos CASO DE USO 1, 2, 3. Agrupe operacoes compativeis no mesmo ciclo e use uma unica massa principal por entidade."
+  default_prompt: "Use $criar-testes-implantacao-playwright com MODO: Implantacao e informe URL, operacao, caminho, perfil, credenciais, resultado esperado, AGENTS.md e raiz do codigo-fonte. Analise as fontes somente no caminho solicitado."
